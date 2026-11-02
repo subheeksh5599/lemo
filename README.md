@@ -6,7 +6,7 @@
 
 [![live](https://img.shields.io/badge/live-lemo--ebon.vercel.app-1c6cff?labelColor=0f1420)](https://lemo-ebon.vercel.app)
 [![status](https://img.shields.io/badge/status-four%20contracts%20live-f59e0b?labelColor=0f1420)](#live-status)
-[![contracts](https://img.shields.io/badge/forge-89%20passing-16a34a?labelColor=0f1420)](#tests)
+[![contracts](https://img.shields.io/badge/forge-90%20passing-16a34a?labelColor=0f1420)](#tests)
 [![pallet](https://img.shields.io/badge/pallet-10%20passing-16a34a?labelColor=0f1420)](#tests)
 [![service](https://img.shields.io/badge/proof%20service-1%2C077%20passing-16a34a?labelColor=0f1420)](#tests)
 
@@ -36,13 +36,14 @@ The proof is not a server call and not a bridge message. It is a storage proof a
 | Blake2b adapter | **Live on Portaldot V3** | `0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22` |
 | Trie verifier | **Live on Portaldot V3** | `0xe5ca668667d3e2c8a0272ee4e446d6aa88a86bac` |
 | Root feed | **Live, root attested** | `0xc1c95be2f38f865438f684d269f340f5c505d5c0`; root `0x19ff…8b80` at #294515 |
-| ERC-20 gate | **Live on Portaldot V3** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f` |
+| ERC-20 gate | **Live, paused after the burn fix** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f`; live bytecode predates the holder-only burn fix |
+| `UnbondGuard` | **Not deployed** | Rule 2 logic tested; deployment is separate from the four support contracts |
 | Parallel two-contract deployment | **Live** | `0xc887…88bB` registry, `0x61c3…8ff7` token |
 | Native title registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 10 tests |
 | Gate mint/transfer | **Wired, not proven end to end** | placeholder commitment; no native title proof |
-| Contracts | **89 Foundry tests passing** | `forge test` |
+| Contracts | **90 Foundry tests passing** | `forge test` |
 | Proof service | **1,077 tests passing** | `server/` |
-| Security audit | **Self-audit; criticals and H-05 fixed** | [docs/AUDIT.md](docs/AUDIT.md); H-06/H-07 open |
+| Security audit | **Self-audit; critical hazards mitigated** | [docs/AUDIT.md](docs/AUDIT.md); C-01 amount binding, H-06/H-07 open |
 
 The honest line: the site, the proof surface and four support contracts are live. The gate's title is a deployment placeholder, so this is not a live asset system yet.
 
@@ -325,6 +326,8 @@ The parallel two-contract deployment in [contracts/DEPLOYMENTS.md](contracts/DEP
 ## Limitations
 
 - The native registry is a pallet, not a runtime. The public V3 node does not expose the contracts API, so the native half cannot run here.
+- `UnbondGuard` is not deployed. Rule 2 is tested but has no live address.
+- The live gate is **paused** and its bytecode predates the holder-only burn fix. The source is fixed and tested; the deployed gate must be redeployed before any live use.
 - The live gate's commitment is a placeholder. It is a real contract with a real verifier, but there is no real title to prove.
 - The root feed is one attester. `ThresholdRootFeed` exists and is tested but is not deployed.
 - The pallet's SCALE record is 260 bytes, while the EVM decoder expects 320 with a 160-bit owner. H-06 is open and fail-closed.
@@ -333,8 +336,8 @@ The parallel two-contract deployment in [contracts/DEPLOYMENTS.md](contracts/DEP
 
 ## Security
 
-- [docs/AUDIT.md](docs/AUDIT.md): 28 findings, criticals and H-05 remediated, H-06/H-07 open.
-- Critical fixes: supply cap, recipient binding, burn caller restriction, action-scoped nullifier, unbond release recheck, one open request per title, zero-recipient refusal, ERC-165.
+- [docs/AUDIT.md](docs/AUDIT.md): 28 findings, critical hazards mitigated, H-06/H-07 open. C-01 is bounded by a global cap; the amount-to-record binding is still missing.
+- Mitigations: supply cap, recipient binding, holder-only burn, action-scoped nullifier, unbond release recheck, one open request per title, zero-recipient refusal, ERC-165.
 - The proof service never accepts a caller-supplied state root.
 - The public RPC proxy uses a method allowlist and does not expose wallet-signing methods.
 
@@ -402,7 +405,7 @@ ATTESTER_PRIVATE_KEY=... FEED_ADDRESS=0xc1c9…d5c0 \
 ## Tests
 
 ```text
-forge test                         89 passed, 0 failed
+forge test                         90 passed, 0 failed
 cargo test (pallet)                10 passed, 0 failed
 server npm test                 1,077 passed, 0 failed
 ```

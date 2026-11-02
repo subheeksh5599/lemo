@@ -107,7 +107,7 @@ Click **Transactions** in the left sidebar.
 
 Expect: the flow page with the three deployed addresses and the native funding panel.
 
-Say: “This is the write surface. The gate is at `0xfbef…741f`, the verifier at `0xe5ca…6bAc`, the feed at `0xc1c9…d5c0`. Mint is wired, but the gate is bound to a deployment placeholder commitment. Without a real native title record and its proof, the transaction must revert. We show that rather than fake a successful mint.”
+Say: “This is the write surface. The gate is at `0xfbef…741f`, the verifier at `0xe5ca…6bAc`, the feed at `0xc1c9…d5c0`. The gate is paused after a burn-authority fix, and its deployed bytecode predates that fix. Even unpaused, it is bound to a deployment placeholder commitment. Without a real native title record and its proof, the transaction must revert. We show that rather than fake a successful mint.”
 
 Stop. Do not click Mint on stage.
 

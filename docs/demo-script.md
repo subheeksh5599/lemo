@@ -15,7 +15,7 @@ The console reads the chain live. Every head will be higher than the deck. Say t
 
 Stay at the top of the page. Move the cursor near the headline but do not click.
 
-Expect: the headline **“One title. Two runtimes.”**, the blue announcement bar **“Four support contracts live on Portaldot V3”**, the interactive globe, and the live stats strip below the first screen.
+Expect: the headline **“One title. Two runtimes.”**, the navigation with **Open console** on the right, the interactive globe, and the live stats strip below the first screen.
 
 Say: “One native record, one EVM representation, one title. The native room holds the legal record. The EVM room holds the token. A finalized state proof is what lets the token move, and the same title revision has to survive on both sides.”
 

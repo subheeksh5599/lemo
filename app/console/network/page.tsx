@@ -6,11 +6,12 @@ import { AlertTriangle, Check, Loader2, X } from 'lucide-react'
 import { useConsole } from '@/components/console/console-provider'
 import { CopyButton } from '@/components/console/copy-button'
 import { Panel, Row } from '@/components/console/primitives'
-import { useEvmProbe, useNativeWitness } from '@/hooks/use-proof'
+import { useEvmProbe, useNativeModuleProbe, useNativeWitness } from '@/hooks/use-proof'
 import {
   EXPECTED_CHAIN_ID,
   EXPECTED_GENESIS,
   EVM_RPC,
+  MAX_IN_FLIGHT,
   NATIVE_RPC,
   measureLatency,
   type LatencyReading,
@@ -18,6 +19,10 @@ import {
 import { formatInt, hashShort, ms } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+/**
+ * Constant, not a reading: the calls this build is written to make. The table
+ * below is an inventory of the code, so it is labelled as such on screen.
+ */
 const METHODS: { method: string; runtime: 'native' | 'revive'; purpose: string }[] = [
   { method: 'system_chain', runtime: 'native', purpose: 'chain name' },
   { method: 'chain_getBlockHash', runtime: 'native', purpose: 'genesis, best and per block hashes' },
@@ -26,10 +31,11 @@ const METHODS: { method: string; runtime: 'native' | 'revive'; purpose: string }
   { method: 'chain_getBlock', runtime: 'native', purpose: 'timestamp inherent, extrinsic count' },
   { method: 'state_getReadProof', runtime: 'native', purpose: 'trie nodes for one key' },
   { method: 'state_getStorage', runtime: 'native', purpose: 'the value the proof is compared with' },
+  { method: 'state_call', runtime: 'native', purpose: 'whether a runtime api is exported' },
   { method: 'eth_chainId', runtime: 'revive', purpose: 'chain identity' },
   { method: 'eth_blockNumber', runtime: 'revive', purpose: 'head' },
   { method: 'eth_getBlockByNumber', runtime: 'revive', purpose: 'finalized block, producer, root' },
-  { method: 'eth_getProof', runtime: 'revive', purpose: 'account witness, refused on this endpoint' },
+  { method: 'eth_getProof', runtime: 'revive', purpose: 'account witness, answer reported as it comes' },
 ]
 
 function CheckRow({ pass, label }: { pass: boolean | null; label: string }) {
@@ -100,6 +106,7 @@ export default function ConsoleNetwork() {
   const { native, evm, error } = useConsole()
   const witness = useNativeWitness()
   const probe = useEvmProbe()
+  const module = useNativeModuleProbe()
   const [latency, setLatency] = useState<LatencyReading[] | null>(null)
 
   useEffect(() => {
@@ -119,9 +126,13 @@ export default function ConsoleNetwork() {
   const genesisMatches =
     native === null ? null : native.genesis.toLowerCase() === EXPECTED_GENESIS.toLowerCase()
   const chainIdMatches = evm === null ? null : evm.chainId === EXPECTED_CHAIN_ID
-  const finalityOrdered = native === null ? null : native.finalized.number <= native.best
-  const proofServed = witness.data === null ? null : witness.data.verification.rootMatches
-  const evmRefused = probe.data === null ? null : !probe.data.supported
+  const finalizedAtOrBelowBest =
+    native === null ? null : native.finalized.number <= native.best
+  const witnessRead =
+    witness.error !== null ? false : witness.data === null ? null : witness.data.verification.rootMatches
+  // Neutral: the call is what is checked, not an assumed answer.
+  const proofCallAnswered = probe.data === null ? null : probe.error === null
+  const moduleProbeAnswered = module.data === null ? null : module.data.present !== null
 
   return (
     <div className="space-y-4">
@@ -129,24 +140,41 @@ export default function ConsoleNetwork() {
         <div className="min-w-0">
           <h1 className="text-[19px] font-medium tracking-[-0.02em] text-ink">Network</h1>
           <p className="mt-1 font-mono text-[11px] text-muted">
-            two endpoints, one serialized queue, every call listed
+            two endpoints, at most {formatInt(MAX_IN_FLIGHT)} calls in flight, every call listed
           </p>
         </div>
         <p className="font-mono text-[10px] text-muted">
-          concurrency held at 1
+          at most {formatInt(MAX_IN_FLIGHT)} calls in flight
         </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <EndpointPanel
           title="Native records"
-          hint="assets, identity, vesting"
+          hint="native runtime reads, pinned to the finalized hash"
           endpoint={NATIVE_RPC}
           runtime="native"
           latency={nativeLatency}
         >
           <Row label="Chain" value={native?.chain ?? '-'} />
-          <Row label="Contracts module" value="not launched" tone="warn" />
+          <Row
+            label="Contracts api"
+            value={
+              module.error !== null
+                ? 'not read'
+                : module.data === null
+                  ? 'asking the runtime'
+                  : module.data.present === true
+                    ? `exported (${module.data.method})`
+                    : module.data.present === false
+                      ? 'no such method'
+                      : 'inconclusive'
+            }
+            tone={
+              module.data?.present === false ? 'warn' : module.data?.present === true ? 'ok' : 'muted'
+            }
+            title={module.data?.message ?? module.data?.method}
+          />
           <Row
             label="Genesis"
             value={hashShort(native?.genesis, 10, 8)}
@@ -180,7 +208,7 @@ export default function ConsoleNetwork() {
 
         <EndpointPanel
           title="Revive runtime"
-          hint="EVM, live"
+          hint="eth_chainId, eth_blockNumber"
           endpoint={EVM_RPC}
           runtime="revive"
           latency={evmLatency}
@@ -234,7 +262,10 @@ export default function ConsoleNetwork() {
             </span>
           </li>
           <li className="flex items-start justify-between gap-3 border-b border-line/60 pb-2 sm:border-b-0 sm:pb-0">
-            <CheckRow pass={finalityOrdered} label="Finalized head does not run past the best head" />
+            <CheckRow
+              pass={finalizedAtOrBelowBest}
+              label="Finalized head does not run past the best head"
+            />
             <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-muted">
               {native === null
                 ? 'waiting'
@@ -242,15 +273,33 @@ export default function ConsoleNetwork() {
             </span>
           </li>
           <li className="flex items-start justify-between gap-3">
-            <CheckRow pass={proofServed} label="A native read proof comes back and roots" />
+            <CheckRow pass={witnessRead} label="A native read proof comes back and roots" />
             <span className="shrink-0 font-mono text-[10.5px] text-muted">
               {witness.data === null ? 'reading' : `${witness.data.proofNodes} nodes`}
             </span>
           </li>
           <li className="flex items-start justify-between gap-3">
-            <CheckRow pass={evmRefused} label="Revive refuses an account proof, as reported" />
+            <CheckRow
+              pass={proofCallAnswered}
+              label="The account proof call comes back, served or refused"
+            />
             <span className="shrink-0 font-mono text-[10.5px] text-muted">
-              {probe.data === null ? 'asking' : probe.data.supported ? 'answered' : 'refused'}
+              {probe.data === null ? 'asking' : probe.data.supported ? 'served' : 'refused'}
+            </span>
+          </li>
+          <li className="flex items-start justify-between gap-3">
+            <CheckRow
+              pass={moduleProbeAnswered}
+              label="The runtime answers whether it exports the contracts api"
+            />
+            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+              {module.data === null
+                ? 'asking'
+                : module.data.present === true
+                  ? 'exported'
+                  : module.data.present === false
+                    ? 'absent'
+                    : 'inconclusive'}
             </span>
           </li>
         </ul>
@@ -264,7 +313,7 @@ export default function ConsoleNetwork() {
 
       <Panel
         title="Methods this console calls"
-        hint="no batched or unrestricted fan out"
+        hint="constant: the calls this build is written to make, not a reading"
         bodyClassName="px-3.5 py-1.5"
       >
         <table className="w-full border-collapse">
@@ -296,9 +345,10 @@ export default function ConsoleNetwork() {
           </tbody>
         </table>
         <p className="border-t border-line py-2 text-[11px] leading-4 text-muted">
-          Every call goes through one queue with retries on network errors and 429/503,
-          because these public endpoints drop connections above about two concurrent requests.
-          Cross-VM calls between the two environments are not confirmed on this network.
+          Every call goes through one queue holding at most {formatInt(MAX_IN_FLIGHT)} calls,
+          with retries on network errors and 429/503, because these public endpoints drop
+          connections above about two concurrent requests. This console makes no cross-VM
+          calls, so it reports none.
         </p>
         <p className="border-t border-line py-2 text-[11px] leading-4 text-muted">
           Roots come from chain_getHeader at the finalized hash. One node reports that

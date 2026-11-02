@@ -31,8 +31,6 @@ export function CadenceChart({
 }) {
   const values = data.map((point) => point.slot)
   const middle = median(values.map((value) => value * 1000))
-  const shortest = values.length === 0 ? null : Math.min(...values)
-  const longest = values.length === 0 ? null : Math.max(...values)
 
   if (data.length < 2) {
     return (
@@ -44,10 +42,15 @@ export function CadenceChart({
     )
   }
 
+  // The guard above leaves at least two points, so every bound on this axis is
+  // measured from the blocks that were read. No fallback value is drawn.
+  const shortest = Math.min(...values)
+  const longest = Math.max(...values)
+
   // A slot series is almost flat, so the axis is fitted to the data. A zero based
   // axis would draw one solid block and hide every difference.
-  const low = shortest ?? 6
-  const high = longest ?? 6
+  const low = shortest
+  const high = longest
   const spread = high - low
   const pad = spread < 0.05 ? 0.3 : Math.max(0.12, spread * 0.35)
   const floor = Math.max(0, low - pad)
@@ -61,12 +64,12 @@ export function CadenceChart({
           <AreaChart data={data} margin={{ top: 12, right: 8, bottom: 0, left: -16 }}>
             <defs>
               <linearGradient id="cadence-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.34} />
-                <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="var(--color-ink-2)" stopOpacity={0.16} />
+                <stop offset="100%" stopColor="var(--color-ink-2)" stopOpacity={0.01} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid vertical={false} stroke="var(--color-line-strong)" strokeDasharray="2 4" />
+            <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="2 6" />
 
             <XAxis
               dataKey="number"
@@ -90,7 +93,7 @@ export function CadenceChart({
             {middle === null ? null : (
               <ReferenceLine
                 y={middle / 1000}
-                stroke="var(--color-accent-line)"
+                stroke="var(--color-accent)"
                 strokeWidth={1}
                 strokeDasharray="4 4"
               />
@@ -123,10 +126,10 @@ export function CadenceChart({
               dataKey="slot"
               type="linear"
               baseValue="dataMin"
-              stroke="var(--color-accent)"
+              stroke="var(--color-ink-2)"
               strokeWidth={1.6}
               fill="url(#cadence-fill)"
-              dot={{ r: 2.2, fill: 'var(--color-accent-bright)', strokeWidth: 0 }}
+              dot={{ r: 2, fill: 'var(--color-ink-2)', strokeWidth: 0 }}
               activeDot={{ r: 3, strokeWidth: 0, fill: 'var(--color-accent-bright)' }}
               isAnimationActive={false}
             />
@@ -141,13 +144,13 @@ export function CadenceChart({
         </span>
         <span className="flex gap-4">
           <span>
-            min <span className="text-ink">{slotLabel(shortest === null ? null : shortest * 1000)}</span>
+            min <span className="text-ink">{slotLabel(shortest * 1000)}</span>
           </span>
           <span>
             med <span className="text-ink">{slotLabel(middle)}</span>
           </span>
           <span>
-            max <span className="text-ink">{slotLabel(longest === null ? null : longest * 1000)}</span>
+            max <span className="text-ink">{slotLabel(longest * 1000)}</span>
           </span>
         </span>
       </div>

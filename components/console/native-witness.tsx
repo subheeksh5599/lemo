@@ -53,13 +53,13 @@ function verdict(witness: NativeWitness) {
 
 function CheckLine({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-2">
+    <li className="flex items-start gap-2.5">
       {ok ? (
-        <Check className="mt-[3px] size-3 shrink-0 text-ok" strokeWidth={2.2} aria-hidden="true" />
+        <Check className="mt-0.5 size-4 shrink-0 text-ok" strokeWidth={1.6} aria-hidden="true" />
       ) : (
-        <X className="mt-[3px] size-3 shrink-0 text-warn" strokeWidth={2.2} aria-hidden="true" />
+        <X className="mt-0.5 size-4 shrink-0 text-warn" strokeWidth={1.6} aria-hidden="true" />
       )}
-      <span className={cn('text-[11.5px] leading-4', ok ? 'text-ink-2' : 'text-warn')}>
+      <span className={cn('text-[12.5px] leading-5', ok ? 'text-ink-2' : 'text-warn')}>
         {children}
       </span>
     </li>
@@ -67,32 +67,56 @@ function CheckLine({ ok, children }: { ok: boolean; children: React.ReactNode })
 }
 
 function WitnessBody({ witness, full }: { witness: NativeWitness; full: boolean }) {
+  const state = verdict(witness)
+  const StatusIcon = state.icon
+  const value =
+    witness.decoded === null ? 'absent' : formatInt(Number(witness.decoded.value))
+
   return (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="meta">proven value</p>
-          <p className="mt-1.5 font-mono text-[26px] leading-none tracking-[-0.03em] tabular-nums text-ink">
-            {witness.decoded === null ? 'absent' : formatInt(Number(witness.decoded.value))}
-          </p>
-          <p className="mt-1.5 font-mono text-[10.5px] text-muted">
-            {witness.decoded === null
-              ? 'no value at this key'
-              : `${witness.decoded.reading} | ${witness.decoded.note}`}
-          </p>
+      <div
+        className={cn(
+          'rounded-[10px] border px-4 py-3.5',
+          state.tone === 'ok'
+            ? 'border-ok/30 bg-ok/[0.06]'
+            : state.tone === 'bad'
+              ? 'border-bad/35 bg-bad/[0.05]'
+              : 'border-warn/35 bg-warn/[0.05]',
+        )}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="meta text-ink-2">Proven value</p>
+            <p className="mt-2 font-mono text-[34px] leading-none tracking-[-0.04em] tabular-nums text-ink">
+              {value}
+            </p>
+            <p className="mt-2 font-mono text-[11.5px] text-muted">
+              {witness.decoded === null
+                ? 'no value at this key'
+                : `${witness.decoded.reading}, ${witness.decoded.note}`}
+            </p>
+          </div>
+          <State tone={state.tone} className="shrink-0">
+            <StatusIcon className="size-4" strokeWidth={1.6} aria-hidden="true" />
+            {state.word}
+          </State>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="meta">block</p>
-          <p className="mt-1.5 font-mono text-[13px] tabular-nums text-ink-2">
-            #{formatInt(witness.blockNumber)}
-          </p>
-          <p className="mt-1 font-mono text-[10.5px] tabular-nums text-muted">
-            {witness.proofNodes} nodes, {witness.nodes.length} steps
-          </p>
+
+        <div className="mt-3 grid grid-cols-3 gap-3 border-t border-line pt-3">
+          {[
+            ['Block', `#${formatInt(witness.blockNumber)}`],
+            ['Nodes', formatInt(witness.proofNodes)],
+            ['Steps', formatInt(witness.nodes.length)],
+          ].map(([label, figure]) => (
+            <div key={label}>
+              <p className="meta text-muted">{label}</p>
+              <p className="mt-1 font-mono text-[12.5px] tabular-nums text-ink-2">{figure}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
+      <ul className="mt-4 space-y-2">
         <CheckLine ok={witness.verification.rootMatches}>
           the root node rehashes to the state root, blake2b-256
         </CheckLine>
@@ -104,7 +128,7 @@ function WitnessBody({ witness, full }: { witness: NativeWitness; full: boolean 
         </CheckLine>
       </ul>
 
-      <div className="mt-3 border-t border-line pt-1">
+      <div className="mt-4 border-t border-line pt-1">
         <Row
           label="State root"
           value={hashShort(witness.stateRoot, 10, 8)}
@@ -132,10 +156,10 @@ function WitnessBody({ witness, full }: { witness: NativeWitness; full: boolean 
       </div>
 
       {full ? (
-        <div className="mt-3 border-t border-line pt-3">
+        <div className="mt-4 border-t border-line pt-3">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="meta">trie walk</p>
-            <p className="font-mono text-[10px] text-muted">node, prefix, depth, hash</p>
+            <p className="meta">Proof walk</p>
+            <p className="font-mono text-[10.5px] text-muted">node, prefix, depth, hash</p>
           </div>
           <ProofWalk nodes={witness.nodes} />
         </div>
@@ -154,51 +178,38 @@ export function NativeWitnessPanel({
   const { data, error, reading, read } = useNativeWitness()
   const full = variant === 'full'
 
-  const state = data === null ? null : verdict(data)
-  const StatusIcon = state?.icon
-
   return (
     <Panel
-      title={full ? 'Native witness' : 'Native witness'}
+      title="Native proof"
       hint={full ? 'System.Number at the finalized head' : 'System.Number'}
       className={className}
       aside={
-        <>
-          {state === null ? null : (
-            <State tone={state.tone}>
-              {StatusIcon === undefined ? null : (
-                <StatusIcon className="size-3" strokeWidth={2.2} aria-hidden="true" />
-              )}
-              {state.word}
-            </State>
-          )}
-          <Tooltip label="Read again">
-            <button
-              type="button"
-              onClick={() => void read()}
-              disabled={reading}
-              aria-label="Read the witness again"
-              className="inline-flex size-11 items-center justify-center rounded-[5px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50"
-            >
-              <RefreshCw
-                className={cn('size-3.5', reading && 'animate-spin')}
-                strokeWidth={1.6}
-                aria-hidden="true"
-                style={reading ? { animationDuration: '1.1s' } : undefined}
-              />
-            </button>
-          </Tooltip>
-        </>
+        <Tooltip label="Read again">
+          <button
+            type="button"
+            onClick={() => void read()}
+            disabled={reading}
+            aria-label="Read the proof again"
+            className="inline-flex size-11 items-center justify-center rounded-[8px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50"
+          >
+            <RefreshCw
+              className={cn('size-4', reading && 'animate-spin')}
+              strokeWidth={1.6}
+              aria-hidden="true"
+              style={reading ? { animationDuration: '1.1s' } : undefined}
+            />
+          </button>
+        </Tooltip>
       }
     >
       {error !== null ? (
-        <p className="flex items-start gap-2 text-[12px] leading-5 text-bad">
-          <X className="mt-0.5 size-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
+        <p className="flex items-start gap-2.5 text-[12.5px] leading-5 text-bad">
+          <X className="mt-0.5 size-4 shrink-0" strokeWidth={1.6} aria-hidden="true" />
           {error}
         </p>
       ) : data === null ? (
-        <div className="flex items-center gap-2 text-[12px] text-muted">
-          <ShieldCheck className="size-3.5 text-muted" strokeWidth={1.6} aria-hidden="true" />
+        <div className="flex items-center gap-2.5 text-[12.5px] text-muted">
+          <ShieldCheck className="size-4 text-muted" strokeWidth={1.6} aria-hidden="true" />
           Reading a read proof and the storage value at the finalized head.
         </div>
       ) : (
@@ -208,10 +219,10 @@ export function NativeWitnessPanel({
       {!full && data !== null ? (
         <Link
           href="/console/proofs"
-          className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2.5 text-[11.5px] text-ink-2 transition-colors duration-150 hover:text-ink"
+          className="mt-4 flex items-center justify-between gap-2 border-t border-line pt-3 text-[12.5px] text-ink-2 transition-colors duration-150 hover:text-ink"
         >
-          Open the trie walk
-          <ArrowRight className="size-3.5 text-muted" strokeWidth={1.6} aria-hidden="true" />
+          Open the proof walk
+          <ArrowRight className="size-4 text-muted" strokeWidth={1.6} aria-hidden="true" />
         </Link>
       ) : null}
     </Panel>

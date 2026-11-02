@@ -25,8 +25,9 @@ function KeyPanel() {
       </div>
       <p className="mt-2 text-[11px] leading-4 text-muted">
         The key is the two prefixes concatenated, 32 bytes, read at the finalized block hash
-        rather than at latest. The native contracts module is not launched; these are the
-        records the native runtime already keeps.
+        rather than at latest. This page derives the key and assumes nothing about the value
+        behind it; whether the runtime also carries a contracts module is asked of the runtime
+        itself on the Network page.
       </p>
     </Panel>
   )
@@ -46,7 +47,7 @@ export default function ConsoleProofs() {
         <div className="min-w-0">
           <h1 className="text-[19px] font-medium tracking-[-0.02em] text-ink">Proofs</h1>
           <p className="mt-1 font-mono text-[11px] text-muted">
-            one native witness, one refusal, both read at the finalized head
+            one native witness, one EVM probe, both read at the finalized head
           </p>
         </div>
         <p className="font-mono text-[10px] text-muted">
@@ -63,7 +64,7 @@ export default function ConsoleProofs() {
         </div>
       </div>
 
-      <Panel title="What the check means" hint="four steps, no trust in the order">
+      <Panel title="What the check means" hint="constant: four steps, no trust in the order">
         <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
           {CHECKS.map(([index, name, detail]) => (
             <div key={index} className="min-w-0 border-l border-line pl-3">
@@ -77,10 +78,10 @@ export default function ConsoleProofs() {
             </div>
           ))}
         </div>
-        <p className="mt-3 border-t border-line pt-2.5 text-[11px] leading-4 text-muted">
-          The state root is the finalized checkpoint this node reports. Reading that root from
-          one node is the trust assumption behind the check, not something the walk removes.
-          Cross-VM calls between the native and Revive environments are not confirmed here.
+        <p className="mt-3 border-t border-line pt-2 text-[11px] leading-4 text-muted">
+          The state root is the finalized checkpoint the node reports. Reading that root
+          from one node is the trust assumption behind the check, not something this
+          console removes. This console makes no cross-VM calls.
         </p>
       </Panel>
     </div>

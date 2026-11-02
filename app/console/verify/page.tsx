@@ -89,11 +89,7 @@ function Result({ result }: { result: StorageProof }) {
           <div className="bg-surface px-3.5 py-3">
             <p className="meta">proven value</p>
             <p className="mt-1.5 font-mono text-[20px] leading-none tabular-nums text-ink">
-              {result.decoded === null
-                ? 'absent'
-                : result.decoded.reading === 'bytes'
-                  ? result.decoded.value
-                  : result.decoded.value}
+              {result.decoded === null ? 'absent' : result.decoded.value}
             </p>
             <p className="mt-1.5 truncate text-[11px] text-muted">
               {result.decoded === null

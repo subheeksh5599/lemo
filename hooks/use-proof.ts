@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   type EvmWitnessProbe,
+  type NativeModuleProbe,
   type NativeWitness,
   type StorageProof,
   probeEvmWitness,
+  probeNativeModule,
   readNativeWitness,
   readStorageProof,
 } from '@/lib/chain'
@@ -81,6 +83,47 @@ export function useEvmProbe(): Reading<EvmWitnessProbe> {
     } catch (cause) {
       if (!mounted.current || current !== ticket.current) return
       setError(cause instanceof Error ? cause.message : 'the endpoint did not answer')
+    } finally {
+      if (mounted.current && current === ticket.current) setReading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    mounted.current = true
+    void read()
+    return () => {
+      mounted.current = false
+    }
+  }, [read])
+
+  return { data, error, reading, readAt, read }
+}
+
+/**
+ * The native contracts module question, answered by the runtime's own export
+ * table. Read once, on demand: the pallet set does not change between blocks
+ * unless the node is upgraded.
+ */
+export function useNativeModuleProbe(): Reading<NativeModuleProbe> {
+  const [data, setData] = useState<NativeModuleProbe | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [reading, setReading] = useState(true)
+  const [readAt, setReadAt] = useState<number | null>(null)
+  const mounted = useRef(true)
+  const ticket = useRef(0)
+
+  const read = useCallback(async () => {
+    const current = ++ticket.current
+    setReading(true)
+    try {
+      const probe = await probeNativeModule()
+      if (!mounted.current || current !== ticket.current) return
+      setData(probe)
+      setError(null)
+      setReadAt(Date.now())
+    } catch (cause) {
+      if (!mounted.current || current !== ticket.current) return
+      setError(cause instanceof Error ? cause.message : 'the node did not answer')
     } finally {
       if (mounted.current && current === ticket.current) setReading(false)
     }

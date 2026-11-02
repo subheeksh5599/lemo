@@ -1,14 +1,19 @@
 /**
- * Live reads from the two Portaldot V3 runtimes.
+ * Live readings from Portaldot V3 runtimes.
  *
- * Every value on the console comes from a node. Nothing here is fixture data
- * and nothing is derived from the repository's design documents. Both endpoint
- * defaults point at the public testnet and can be overridden from the
- * environment, so the same build can read a local fork.
+ * Every displayed value on the console comes from a node call made by this
+ * file. Nothing here is fixture data and nothing is derived from the
+ * repository's design documents.
+ *
+ * What *is* hardcoded: the endpoint defaults and the expected network
+ * identity, both below, both overridable from the environment. They are
+ * configuration constants used for comparison, never rendered as a reading.
+ * The console compares the live genesis and chain id against them and reports
+ * the result as a check.
  *
  * The public endpoints drop connections above roughly two concurrent calls, so
- * every read goes through one serialized queue with retries on network errors
- * and 429/503.
+ * every read goes through one queue with at most MAX_IN_FLIGHT simultaneous
+ * calls and retries on network errors and 429/503.
  */
 
 import {
@@ -22,22 +27,33 @@ import {
 
 export { toHex }
 
+/* ---- configuration constants, not readings ------------------------------ */
+
+/** Endpoint defaults. Override with NEXT_PUBLIC_NATIVE_RPC to read a fork. */
 export const NATIVE_RPC =
   process.env.NEXT_PUBLIC_NATIVE_RPC ?? 'https://test-node-v3.portaldot.dev'
 
+/** Endpoint defaults. Override with NEXT_PUBLIC_EVM_RPC to read a fork. */
 export const EVM_RPC =
   process.env.NEXT_PUBLIC_EVM_RPC ?? 'https://test-evm-rpc-v3.portaldot.dev'
 
+/**
+ * Constant: the genesis hash this build expects to be talking to. A live
+ * genesis mismatch is reported as a failed check, never as an error.
+ */
 export const EXPECTED_GENESIS =
   process.env.NEXT_PUBLIC_GENESIS_HASH ??
   '0xd4f9acbcf7f52388d8b095abe3c198d19fc510e0343e643e87cfbccb155283bd'
 
+/** Constant: the Revive chain id this build expects. Compared, never shown as a reading. */
 export const EXPECTED_CHAIN_ID = Number(
   process.env.NEXT_PUBLIC_CHAIN_ID ?? 420420777,
 )
 
 const TIMEOUT_MS = 15_000
-const MAX_IN_FLIGHT = 2
+
+/** Constant: how many calls this build holds open at once. */
+export const MAX_IN_FLIGHT = 2
 
 type RpcEnvelope<T> = {
   result?: T
@@ -499,16 +515,22 @@ export type EvmWitnessProbe =
       supported: false
       reason: string
       method: string
-      address: string
+      /** the address asked, or null when the endpoint never named a producer */
+      address: string | null
       blockNumber: number | null
       stateRoot: string | null
       latencyMs: number
     }
 
 /**
- * Ask the Revive endpoint for an account witness at the finalized block. This
- * test endpoint answers Method not found, and the console reports that refusal
- * rather than assuming, or drawing a witness of its own.
+ * Ask the Revive endpoint for an account witness at the finalized block, for
+ * the account that produced that block. This test endpoint answers Method not
+ * found, and the console reports that refusal rather than assuming, or drawing
+ * a witness of its own.
+ *
+ * The address is the block's own miner field. When the endpoint returns no
+ * finalized block there is no account to ask about, so the probe says so
+ * instead of substituting a zero address.
  */
 export async function probeEvmWitness(): Promise<EvmWitnessProbe> {
   const started = Date.now()
@@ -519,8 +541,20 @@ export async function probeEvmWitness(): Promise<EvmWitnessProbe> {
     stateRoot: string
   } | null>(EVM_RPC, 'eth_getBlockByNumber', ['finalized', false])
 
-  const address = block?.miner ?? '0x0000000000000000000000000000000000000000'
-  const blockNumber = block === null ? null : Number(BigInt(block.number))
+  if (block === null) {
+    return {
+      supported: false,
+      reason: 'the endpoint returned no finalized block, so there is no account to ask about',
+      method: 'eth_getBlockByNumber',
+      address: null,
+      blockNumber: null,
+      stateRoot: null,
+      latencyMs: Date.now() - started,
+    }
+  }
+
+  const address = block.miner
+  const blockNumber = Number(BigInt(block.number))
 
   try {
     const proof = await rpc<{
@@ -557,6 +591,73 @@ export async function probeEvmWitness(): Promise<EvmWitnessProbe> {
       address,
       blockNumber,
       stateRoot: block?.stateRoot ?? null,
+      latencyMs: Date.now() - started,
+    }
+  }
+}
+
+export type NativeModuleProbe = {
+  /** the runtime API that would exist if the pallet were loaded */
+  method: string
+  /** a runtime API this node is known to expose, used as a control */
+  control: string
+  controlAnswered: boolean
+  /** true = api answered, false = api absent, null = inconclusive */
+  present: boolean | null
+  message: string | null
+  latencyMs: number
+}
+
+function isMissingMethod(message: string) {
+  return /(exported method .* is not found|method not found|not exported|not implemented|unknown method)/i.test(
+    message,
+  )
+}
+
+/**
+ * Asks the runtime itself whether it exports a runtime API. This is how the
+ * console answers "is the native contracts module launched" without asserting
+ * it: a runtime with no contracts pallet does not export ContractsApi, and
+ * state_call says exactly that. The control call proves state_call works on
+ * this node at all, so an absence is an absence and not a dead endpoint.
+ */
+export async function probeNativeModule(
+  method = 'ContractsApi_contract_info',
+  control = 'Metadata_metadata_versions',
+): Promise<NativeModuleProbe> {
+  const started = Date.now()
+
+  let controlAnswered = false
+
+  try {
+    const answer = await rpc<string>(NATIVE_RPC, 'state_call', [control, '0x'])
+    controlAnswered = typeof answer === 'string' && answer.length > 2
+  } catch {
+    // Not fatal: an inconclusive target call reports present as null below.
+  }
+
+  try {
+    await rpc<string>(NATIVE_RPC, 'state_call', [method, '0x'])
+
+    return {
+      method,
+      control,
+      controlAnswered,
+      present: true,
+      message: null,
+      latencyMs: Date.now() - started,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'the node did not answer'
+    const split = message.indexOf(': ')
+    const detail = split === -1 ? message : message.slice(split + 2)
+
+    return {
+      method,
+      control,
+      controlAnswered,
+      present: isMissingMethod(detail) ? false : null,
+      message: detail,
       latencyMs: Date.now() - started,
     }
   }

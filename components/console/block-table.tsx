@@ -18,74 +18,69 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
   }
 
   return (
-    <div className="-mx-3.5">
+    <div className="-mx-4">
       <table className="w-full border-collapse">
         <caption className="sr-only">Recent finalized blocks on the native runtime</caption>
         <thead>
           <tr className="border-b border-line">
-            <th scope="col" className="meta px-3.5 py-2 text-left font-medium text-ink-2/80">
+            <th scope="col" className="meta px-4 py-2 text-left font-medium text-muted">
               Block
             </th>
-            <th scope="col" className="meta hidden px-3 py-2 text-left font-medium text-ink-2/80 sm:table-cell">
+            <th scope="col" className="meta hidden px-3 py-2 text-left font-medium text-muted sm:table-cell">
               Hash
             </th>
-            <th scope="col" className="meta px-3 py-2 text-right font-medium text-ink-2/80">
+            <th scope="col" className="meta py-2 text-right font-medium text-muted">
               Finalized
             </th>
-            <th scope="col" className="meta px-3 py-2 text-right font-medium text-ink-2/80">
+            <th scope="col" className="meta py-2 pr-4 text-right font-medium text-muted">
               Slot
             </th>
-            <th scope="col" className="meta hidden px-3.5 py-2 text-right font-medium text-ink-2/80 md:table-cell">
-              Extrinsics
+            <th scope="col" className="meta hidden py-2 pr-4 text-right font-medium text-muted md:table-cell">
+              Events
             </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((block, index) => (
+          {rows.map((row) => (
             <tr
-              key={block.number}
-              className="group border-b border-line/70 transition-colors duration-100 last:border-b-0 hover:bg-raised/45"
+              key={row.number}
+              className="border-b border-line/60 last:border-b-0 hover:bg-raised"
             >
-              <td className="whitespace-nowrap px-3.5 py-1.5">
-                <span className="font-mono text-[12px] tabular-nums text-ink">
-                  #{formatInt(block.number)}
+              <td className="py-2 pl-4 pr-2">
+                <span className="font-mono text-[12.5px] tabular-nums text-ink">
+                  #{formatInt(row.number)}
                 </span>
-                {index === 0 ? (
-                  <span className="ml-2 font-mono text-[9.5px] text-accent">
-                    head
-                  </span>
-                ) : null}
               </td>
-              <td className="hidden max-w-0 px-3 py-1.5 sm:table-cell">
-                <span className="flex items-center gap-1.5">
+              <td className="hidden max-w-0 px-3 py-2 sm:table-cell">
+                <span className="flex items-center gap-2">
                   <span
-                    className="truncate font-mono text-[11px] text-ink-2"
-                    title={block.hash}
+                    className="truncate font-mono text-[11.5px] text-ink-2"
+                    title={row.hash}
                   >
-                    {hashShort(block.hash, 10, 6)}
+                    {hashShort(row.hash, 10, 6)}
                   </span>
                   <CopyButton
-                    value={block.hash}
-                    label={`block ${block.number} hash`}
-                    className="opacity-60 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                    value={row.hash}
+                    label={`block ${row.number} hash`}
+                    className="opacity-70 hover:opacity-100"
                   />
                 </span>
               </td>
-              <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono text-[11.5px] tabular-nums text-ink-2">
-                {new Date(block.timestamp).toISOString().slice(11, 19)}
+              <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-[12px] tabular-nums text-ink-2">
+                {new Date(row.timestamp).toISOString().slice(11, 19)}
               </td>
-              <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono text-[11.5px] tabular-nums text-muted">
-                {slot(block.intervalMs)}
+              <td className="whitespace-nowrap py-2 pr-4 text-right font-mono text-[12px] tabular-nums text-muted">
+                {slot(row.intervalMs)}
               </td>
-              <td className="hidden whitespace-nowrap px-3.5 py-1.5 text-right font-mono text-[11.5px] tabular-nums text-muted md:table-cell">
-                {formatInt(block.extrinsics)}
+              <td className="hidden whitespace-nowrap py-2 pr-4 text-right font-mono text-[12px] tabular-nums text-muted md:table-cell">
+                {formatInt(row.extrinsics)}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-2 px-3.5 font-mono text-[10.5px] text-muted">
-        times in utc, slot measured between neighbours
+      <p className="mt-2 px-4 font-mono text-[10.5px] text-muted">
+        Times in UTC. Slot is the time between neighbours.
       </p>
     </div>
   )

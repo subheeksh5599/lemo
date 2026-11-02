@@ -12,20 +12,20 @@
   --text-h1: clamp(2.75rem, 5.6vw, 5.25rem);
 
   /* Surfaces: one dark theme, cool navy, no pure black. */
-  --color-void: #04070d;
-  --color-canvas: #060a11;
-  --color-surface: #090f18;
-  --color-raised: #0d1522;
-  --color-overlay: #111a2a;
+  --color-void: #03070d;
+  --color-canvas: #070b12;
+  --color-surface: #0b111b;
+  --color-raised: #111927;
+  --color-overlay: #151f30;
 
-  --color-line: #17212f;
-  --color-line-strong: #232f42;
-  --color-line-bright: #35455e;
+  --color-line: #1a2433;
+  --color-line-strong: #273446;
+  --color-line-bright: #3a4a61;
 
-  --color-ink: #e9eef7;
-  --color-ink-2: #b9c4d5;
-  --color-muted: #8492a6;
-  --color-faint: #66748b;
+  --color-ink: #eef2f8;
+  --color-ink-2: #bac5d5;
+  --color-muted: #8b97a8;
+  --color-faint: #64718a;
 
   /* One accent for the whole product. */
   --color-accent: #2f6bff;

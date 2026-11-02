@@ -25,17 +25,21 @@ export function ProofWalk({ nodes }: { nodes: ProofNodeReading[] }) {
   }
 
   return (
-    <ol className="mt-1.5">
+    <ol className="relative mt-2 pl-7">
+      <span
+        aria-hidden="true"
+        className="absolute bottom-3 left-[7px] top-3 w-px bg-line"
+      />
       {nodes.map((node, index) => (
-        <li key={`${node.hash}-${index}`} className="border-b border-line/60 py-2 last:border-b-0">
+        <li key={`${node.hash}-${index}`} className="relative border-b border-line/60 py-2.5 last:border-b-0">
+          <span className="absolute -left-7 top-2.5 flex size-4 items-center justify-center rounded-full border border-line bg-canvas font-mono text-[9px] tabular-nums text-muted">
+            {index + 1}
+          </span>
           <div className="flex items-baseline gap-2.5">
-            <span className="w-4 shrink-0 font-mono text-[10px] tabular-nums text-muted">
-              {index + 1}
-            </span>
-            <span className="shrink-0 font-mono text-[10px] text-ink-2">
+            <span className="shrink-0 font-mono text-[10.5px] text-ink-2">
               {KIND_LABEL[node.kind] ?? node.kind}
             </span>
-            <span className="shrink-0 font-mono text-[10px] text-muted">
+            <span className="shrink-0 font-mono text-[10.5px] text-muted">
               {node.via}
             </span>
             <span className="ml-auto shrink-0 font-mono text-[10.5px] tabular-nums text-muted">
@@ -45,12 +49,12 @@ export function ProofWalk({ nodes }: { nodes: ProofNodeReading[] }) {
               depth {node.depth}
             </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-1 pl-[26px]">
+          <div className="mt-1 flex items-center gap-1.5">
             <span className="truncate font-mono text-[10.5px] text-ink-2" title={node.hash}>
               {hashShort(node.hash, 12, 8)}
             </span>
             <CopyButton value={node.hash} label="node hash" />
-            <span className="ml-auto shrink-0 truncate pl-3 font-mono text-[10px] text-muted">
+            <span className="ml-auto shrink-0 truncate pl-3 font-mono text-[10.5px] text-muted">
               {node.nibbles === '' ? 'no prefix' : node.nibbles}
             </span>
           </div>

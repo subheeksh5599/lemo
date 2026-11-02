@@ -23,18 +23,18 @@ export function Panel({
   return (
     <section
       className={cn(
-        'min-w-0 overflow-hidden rounded-[10px] border border-line bg-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.035)]',
+        'min-w-0 overflow-hidden rounded-[12px] border border-line bg-surface',
         className,
       )}
     >
-      <header className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line px-3.5 py-2">
+      <header className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line px-4 py-2">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-          <h2 className="text-[12.5px] font-medium tracking-[-0.01em] text-ink">{title}</h2>
-          {hint === undefined ? null : <span className="meta text-ink-2/70">{hint}</span>}
+          <h2 className="text-[13.5px] font-medium tracking-[-0.01em] text-ink">{title}</h2>
+          {hint === undefined ? null : <span className="meta text-muted">{hint}</span>}
         </div>
         {aside === undefined ? null : <div className="flex shrink-0 items-center gap-2">{aside}</div>}
       </header>
-      <div className={cn(flush ? '' : 'p-3.5', bodyClassName)}>{children}</div>
+      <div className={cn(flush ? '' : 'p-4', bodyClassName)}>{children}</div>
     </section>
   )
 }
@@ -68,11 +68,11 @@ export function Row({
 
   return (
     <div className="flex min-w-0 items-baseline justify-between gap-4 border-b border-line py-2 last:border-b-0">
-      <span className="shrink-0 text-[12px] text-muted">{label}</span>
+      <span className="shrink-0 text-[12.5px] text-muted">{label}</span>
       <span
         title={title}
         className={cn(
-          'min-w-0 truncate text-right text-[12px] tabular-nums',
+          'min-w-0 truncate text-right text-[12.5px] tabular-nums',
           mono && 'font-mono',
           color,
         )}
@@ -112,18 +112,18 @@ export function Figure({
 
   return (
     <div className="min-w-0">
-      <p className="meta truncate text-ink-2/80">{label}</p>
+      <p className="meta truncate text-muted">{label}</p>
       <p
         className={cn(
-          'mt-1.5 font-mono tabular-nums tracking-[-0.03em]',
-          size === 'lg' ? 'text-[28px] leading-none' : 'text-[22px] leading-none',
+          'mt-2 font-mono tabular-nums tracking-[-0.03em]',
+          size === 'lg' ? 'text-[32px] leading-none' : 'text-[24px] leading-none',
           color,
         )}
       >
         {value}
       </p>
       {note === undefined ? null : (
-        <p className="mt-1.5 truncate text-[11.5px] leading-4 text-muted">{note}</p>
+        <p className="mt-2 truncate text-[12px] leading-4 text-muted">{note}</p>
       )}
     </div>
   )
@@ -156,7 +156,7 @@ export function State({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 font-mono text-[10.5px] tabular-nums',
+        'inline-flex items-center gap-1.5 font-mono text-[11px] tabular-nums',
         color,
         className,
       )}
@@ -195,12 +195,12 @@ export function Notice({
     tone === 'bad' ? 'bg-bad' : tone === 'warn' ? 'bg-warn' : 'bg-faint'
 
   return (
-    <div className={cn('flex items-start gap-2.5 rounded-[7px] border px-3 py-2.5', border)}>
-      <span className={cn('mt-1.5 size-1.5 shrink-0 rounded-full', dot)} aria-hidden="true" />
+    <div className={cn('flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3', border)}>
+      <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', dot)} aria-hidden="true" />
       <div className="min-w-0">
-        <p className="text-[12.5px] leading-5 text-ink">{title}</p>
+        <p className="text-[13px] leading-5 text-ink">{title}</p>
         {children === undefined ? null : (
-          <div className="mt-1 text-[12px] leading-5 text-muted">{children}</div>
+          <div className="mt-1 text-[12.5px] leading-5 text-muted">{children}</div>
         )}
       </div>
     </div>

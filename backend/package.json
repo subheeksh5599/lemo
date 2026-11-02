@@ -1,0 +1,25 @@
+{
+  "name": "@lemo/proof-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Finalized-state proof servicing for LEMO titles on Portaldot V3",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "test": "node --test test/",
+    "test:live": "LEMO_LIVE=1 node --test test/",
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit && node --test test/",
+    "capture-fixture": "node scripts/capture-fixture.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.2"
+  }
+}

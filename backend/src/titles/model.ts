@@ -5,11 +5,17 @@
 import { bytes } from "../bytes.ts";
 import { HASHERS, type ArgSpec, type DecodeType, type FieldSpec, type Hasher } from "../storage/layout.ts";
 
+export type EvmBinding = {
+  readonly contract: string;
+  readonly standard: "erc20" | "erc721";
+};
+
 export type TitleBinding = {
   readonly titleId: string;
   readonly label: string;
   readonly genesisHash: string;
   readonly fields: readonly FieldSpec[];
+  readonly evm: EvmBinding | null;
 };
 
 export const REVISION_LABEL = "revision";
@@ -93,7 +99,24 @@ export function parseTitleBinding(input: unknown, genesisHash: string): TitleBin
     label: typeof record["label"] === "string" && record["label"] !== "" ? record["label"] : titleId,
     genesisHash,
     fields,
+    evm: parseEvm(record["evm"]),
   };
+}
+
+function parseEvm(input: unknown): EvmBinding | null {
+  if (input === undefined || input === null) return null;
+  if (typeof input !== "object") throw new BindingError("evm must be an object with contract and standard");
+
+  const record = input as Record<string, unknown>;
+  const contract = requireString(record, "contract").toLowerCase();
+  if (!contract.startsWith("0x") || bytes.fromHex(contract).length !== 20) {
+    throw new BindingError("evm.contract must be a 20-byte address");
+  }
+
+  const standard = requireString(record, "standard");
+  if (standard !== "erc20" && standard !== "erc721") throw new BindingError("evm.standard must be erc20 or erc721");
+
+  return { contract, standard };
 }
 
 export function revisionField(binding: TitleBinding): FieldSpec {

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowRight, Check, RefreshCw, X } from 'lucide-react'
 
 import { Figure, Notice, Panel, Row, Skeleton, State } from '@/components/console/primitives'
+import { explorerTxUrl } from '@/lib/flow/config'
 import { formatInt, hashShort, ms, relativeTime } from '@/lib/format'
 import {
   LEGACY_TITLE,
@@ -204,12 +205,22 @@ export default function LegacyPage() {
                         <p className="mt-0.5 text-[11.5px] leading-4 text-muted">{item.note}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <code
-                          className="block max-w-[34ch] break-all font-mono text-[10.5px] leading-4 text-muted"
-                          title={item.hash}
-                        >
-                          {item.hash}
-                        </code>
+                        {explorerTxUrl(item.hash) === null ? (
+                          <code
+                            className="block max-w-[34ch] break-all font-mono text-[10.5px] leading-4 text-muted"
+                            title={item.hash}
+                          >
+                            {item.hash}
+                          </code>
+                        ) : (
+                          <a
+                            href={explorerTxUrl(item.hash) ?? undefined}
+                            className="block max-w-[34ch] break-all font-mono text-[10.5px] leading-4 text-accent-bright underline underline-offset-2"
+                            title={item.hash}
+                          >
+                            {item.hash}
+                          </a>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-[11.5px] tabular-nums text-muted">
                         {item.block === null ? '-' : `#${formatInt(item.block)}`}

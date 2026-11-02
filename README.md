@@ -46,6 +46,7 @@ The honest demo is read-only: live heads, a real Substrate proof, `eth_getProof`
 | ERC-20 gate | **Live, paused after the burn fix** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f`; deployed bytecode predates the holder-only burn fix |
 | `UnbondGuard` | **Not deployed** | Rule 2 logic tested; no live address |
 | Earlier EVM-only deployment | **Live, settled receipts** | [`/console/legacy`](https://lemo-ebon.vercel.app/console/legacy); registry `0xc887…88bB`, token `0x61c3…8ff7` |
+| Transaction receipt view | **Live** | `/tx/<hash>`; reads the receipt from the Portaldot V3 EVM RPC |
 | Native title registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 10 tests |
 | Four-contract mint / transfer | **Wired, cannot settle** | placeholder commitment; no native title record |
 | Proof service | **1,077 tests passing** | `server/` |
@@ -76,9 +77,11 @@ Every step below runs on the public site. The read pages need no wallet and no i
 3. **Open [/console/proofs](https://lemo-ebon.vercel.app/console/proofs).** The native witness and the EVM probe run side by side. The EVM side reports `eth_getProof` refusing; the native side returns a witness. The refusal is shown verbatim.
 4. **Open [/console/verify](https://lemo-ebon.vercel.app/console/verify).** Prove one storage key against the finalized state root. The page walks the returned trie nodes in the browser; a tampered node or root is rejected.
 5. **Open [/console/network](https://lemo-ebon.vercel.app/console/network).** Read the endpoint, genesis, chain id and latency checks. A failed check is reported as failed, never hidden.
-6. **Open [/console/legacy](https://lemo-ebon.vercel.app/console/legacy).** This is the earlier EVM-only deployment. Verify supply `1,000`, cap `1,000`, eligibility `true`, issuer balance `985`, and five settled transaction receipts. This is the only place a **settled** mint and transfer can be shown today.
-7. **Open [/console/flow](https://lemo-ebon.vercel.app/console/flow).** Read the three deployed addresses and the banner "Gate deployed and paused". Mint and transfer are wired but cannot settle: the gate has no real title proof.
+6. **Open [/console/legacy](https://lemo-ebon.vercel.app/console/legacy).** This is the earlier EVM-only deployment. Verify supply `1,000`, cap `1,000`, eligibility `true`, issuer balance `985`, and five settled transaction receipts. Click any hash to open `/tx/<hash>`; the receipt is read live from the Portaldot V3 EVM RPC. This is the only place a **settled** mint and transfer can be shown today.
+7. **Open [/console/flow](https://lemo-ebon.vercel.app/console/flow).** Read the three deployed addresses and the banner "Gate deployed and paused". Mint and transfer are wired but cannot settle: the gate has no real title proof. The page now shows the configured explorer, not the old "explorer not set" notice.
 8. **Do not expect a native create, identity, unbond or Rule 2 refusal.** Those need `pallets/lemo-title` in the runtime. The page says so.
+
+Portaldot's official explorers are Substrate scanners; they do not index EVM receipts. That is why the receipt view is part of this site and reads `eth_getTransactionReceipt` directly. It is a receipt viewer, not a replacement for a chain-wide indexer.
 
 What a judge can verify without trusting the site: the addresses and code on Portaldot V3, the four deployment transactions in [docs/EVIDENCE.md](docs/EVIDENCE.md), the five legacy receipts on `/console/legacy`, and the local test suites in [Tests](#tests).
 
@@ -423,7 +426,7 @@ The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723d
 ## Project layout
 
 ```text
-app/                 landing, console routes, /api/rpc proxy, /console/legacy
+app/                 landing, console routes, /api/rpc proxy, /console/legacy, /tx/<hash>
 components/          marketing, console, wallet, flow panels
 lib/                 chain reads, proofs, wallet, flow codecs, legacy reads
 contracts/           four-contract gate and Foundry tests

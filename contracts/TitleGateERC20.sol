@@ -61,7 +61,7 @@ contract TitleGateERC20 is TitleGateBase {
   {
     if (to == address(0)) revert ZeroAddress();
     if (to == msg.sender) revert SameOwnerAndRecipient();
-    _gate(OP_TRANSFER, keccak256(abi.encode(to, amount)), proof);
+    _gate(OP_TRANSFER, keccak256(abi.encode(msg.sender, to, amount)), proof);
     _transfer(msg.sender, to, amount);
     return true;
   }
@@ -102,7 +102,7 @@ contract TitleGateERC20 is TitleGateBase {
   /// @notice Destroy representation. Needs a burn proof, so a burn cannot be
   /// used to satisfy the native side without the native side agreeing.
   function burn(address from, uint256 amount, ITitleVerifier.TitleProof calldata proof) external {
-    if (msg.sender != from && msg.sender != owner) revert NotAuthorised(msg.sender, from);
+    if (msg.sender != from) revert NotAuthorised(msg.sender, from);
     _gate(OP_BURN, keccak256(abi.encode(from, amount)), proof);
     _burn(from, amount);
   }

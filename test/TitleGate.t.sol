@@ -252,7 +252,7 @@ contract TitleGateTest is Test {
 
     bytes32 nullifier = keccak256(
       abi.encode(
-        TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(BOB, uint256(5))), address(token)
+        TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(ALICE, BOB, uint256(5))), address(token)
       )
     );
     vm.expectRevert(abi.encodeWithSelector(TitleGateBase.ProofReplayed.selector, nullifier));
@@ -450,6 +450,15 @@ contract TitleGateTest is Test {
     vm.prank(BOB);
     token.burn(ALICE, 1, proof);
     assertEq(token.balanceOf(ALICE), 100, "outsider burn moved nothing");
+  }
+
+  function test_GateOwnerCannotBurnAHolder() public {
+    (ITitleVerifier.TitleProof memory proof,) = _mintWithToken();
+    vm.expectRevert(
+      abi.encodeWithSelector(TitleGateERC20.NotAuthorised.selector, address(this), ALICE)
+    );
+    token.burn(ALICE, 1, proof);
+    assertEq(token.balanceOf(ALICE), 100, "owner burn moved nothing");
   }
 
   function test_ERC721AdvertisesTheStandardInterfaces() public {

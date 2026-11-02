@@ -162,7 +162,7 @@ contract FailureInjectionTest is Test {
 
     bytes32 nullifier = keccak256(
       abi.encode(
-        TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(BOB, uint256(10))), address(token)
+        TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(ALICE, BOB, uint256(10))), address(token)
       )
     );
     vm.expectRevert(abi.encodeWithSelector(TitleGateBase.ProofReplayed.selector, nullifier));
@@ -254,7 +254,7 @@ contract FailureInjectionTest is Test {
         TitleGateBase.ProofReplayed.selector,
         keccak256(
           abi.encode(
-            TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(BOB, uint256(10))), address(token)
+            TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(ALICE, BOB, uint256(10))), address(token)
           )
         )
       )

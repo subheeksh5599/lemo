@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Gauge,
+  History,
   KeyRound,
   Network,
   ShieldCheck,
@@ -39,6 +40,12 @@ export const NAV_READ: readonly NavItem[] = [
     label: 'Network',
     detail: 'Endpoints, checks and latency',
     icon: Network,
+  },
+  {
+    href: '/console/legacy',
+    label: 'Earlier deployment',
+    detail: 'EVM-only title and token; settled receipts',
+    icon: History,
   },
 ]
 

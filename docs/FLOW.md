@@ -28,7 +28,7 @@ separate state.
   `ReviveApi_account_id`, then reads both `ReviveApi_balance` and `eth_getBalance`.
   The two balances have different decimals; the panel says so rather than
   normalising one into the other.
-- **Action** — mint and transfer. It simulates with `eth_call` from the signer
+- **Action** — mint and transfer. It simulates with `eth_call` from the signer; the live gate is paused, so the production page surfaces `GateIsPaused` rather than a fake success
   before opening the wallet. A revert is decoded into the contract's custom error.
 - **Verify** — read-only `verifyTitle` and `commitmentOf`; no wallet needed.
 

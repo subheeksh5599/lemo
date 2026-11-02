@@ -260,7 +260,7 @@ The native pallet implements the same rule as `request_unbond` with a `Represent
 | Show the EVM endpoint refusing `eth_getProof` | Yes, verbatim |
 | Inspect the four deployed addresses and code | Yes |
 | Connect an EVM or Substrate wallet | Yes, runtime discovery, no invented provider |
-| Simulate a mint or transfer | Yes, `eth_call` from the signer |
+| Simulate a mint or transfer | **No** — the live gate is paused |
 | Settle a mint or transfer | **No** — placeholder commitment, no native title proof |
 | Create a native title, clear identity, unbond backing | **No** — pallet not in the runtime |
 

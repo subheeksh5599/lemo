@@ -811,14 +811,21 @@ function Footer() {
             </Link>
             <p className="mt-4 max-w-[240px] text-[12px] leading-5 text-[#6b6b83]">
               A protocol design for one asset title across Portaldot native and
-              Revive. Tested, not deployed.
+              Revive. Live on Vercel; the first two contracts are on testnet.
             </p>
+            <a
+              href="https://lemo-ebon.vercel.app"
+              className="mt-3 inline-flex items-center gap-1 font-mono text-[11px] text-[#0428cb] hover:underline"
+            >
+              lemo-ebon.vercel.app
+              <span aria-hidden="true">↗</span>
+            </a>
           </div>
 
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
             {[
               ['PRODUCT', [['How it works', '#how'], ['Console', '/console'], ['Network', '/console/network']]],
-              ['RESOURCES', [['Proof walk', '/console/proofs'], ['Key verifier', '/console/verify'], ['Evidence', '/console']]],
+              ['RESOURCES', [['Proof walk', '/console/proofs'], ['Key verifier', '/console/verify'], ['Live deployment', 'https://lemo-ebon.vercel.app']]],
               ['COMPANY', [['Status', '#security'], ['FAQ', '#faq'], ['Protocol notes', '/console']]],
             ].map(([title, links]) => (
               <div key={title as string}>

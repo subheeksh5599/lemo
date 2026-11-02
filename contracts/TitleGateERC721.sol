@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { TitleGateBase } from "./TitleGateBase.sol";
+import { TitleRecord } from "./LemoTitle.sol";
 import { ITitleVerifier } from "./ITitleVerifier.sol";
 import { IRootFeed } from "./IRootFeed.sol";
 
@@ -57,8 +58,10 @@ contract TitleGateERC721 is TitleGateBase {
 
   /// @notice Mint the representation. Needs a mint proof.
   function mint(address to, ITitleVerifier.TitleProof calldata proof) external {
+    if (to == address(0)) revert UnsafeRecipient(to);
     if (_ownerOf[TOKEN_ID] != address(0)) revert TokenExists(TOKEN_ID);
-    _gate(OP_MINT, proof);
+    TitleRecord memory record = _gate(OP_MINT, keccak256(abi.encode(to)), proof);
+    if (to != record.owner) revert RecipientNotProven(record.owner, to);
     totalSupply = 1;
     _ownerOf[TOKEN_ID] = to;
     balanceOf[to] += 1;
@@ -72,7 +75,7 @@ contract TitleGateERC721 is TitleGateBase {
     if (msg.sender != holder && !isApprovedForAll[holder][msg.sender]) {
       revert NotAuthorised(msg.sender, TOKEN_ID);
     }
-    _gate(OP_BURN, proof);
+    _gate(OP_BURN, keccak256(abi.encode(holder)), proof);
     totalSupply = 0;
     _ownerOf[TOKEN_ID] = address(0);
     balanceOf[holder] -= 1;
@@ -91,7 +94,7 @@ contract TitleGateERC721 is TitleGateBase {
     _transfer(from, to, tokenId);
     // The gate runs after the authorisation checks and before any state
     // change: _transfer above only validates, it writes nothing.
-    _gate(OP_TRANSFER, proof);
+    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
     _ownerOf[tokenId] = to;
     balanceOf[from] -= 1;
     balanceOf[to] += 1;
@@ -106,7 +109,7 @@ contract TitleGateERC721 is TitleGateBase {
     ITitleVerifier.TitleProof calldata proof
   ) external {
     _transfer(from, to, tokenId);
-    _gate(OP_TRANSFER, proof);
+    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
     _ownerOf[tokenId] = to;
     balanceOf[from] -= 1;
     balanceOf[to] += 1;
@@ -123,7 +126,7 @@ contract TitleGateERC721 is TitleGateBase {
     ITitleVerifier.TitleProof calldata proof
   ) external {
     _transfer(from, to, tokenId);
-    _gate(OP_TRANSFER, proof);
+    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
     _ownerOf[tokenId] = to;
     balanceOf[from] -= 1;
     balanceOf[to] += 1;
@@ -147,6 +150,10 @@ contract TitleGateERC721 is TitleGateBase {
     }
     getApproved[tokenId] = spender;
     emit Approval(holder, spender, tokenId);
+  }
+
+  function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+    return interfaceId == 0x01ffc9a7 || interfaceId == 0x80ac58cd;
   }
 
   function setApprovalForAll(address operator, bool approved) external {

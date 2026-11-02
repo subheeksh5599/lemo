@@ -54,7 +54,7 @@ contract FailureInjectionTest is Test {
     address predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
     TitleRecord memory base = _record(1, BACKING, IDENTITY, predicted);
     token = new TitleGateERC20(
-      verifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1"
+      verifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1", 1_000_000e18
     );
     assertEq(address(token), predicted, "predicted address");
 
@@ -160,8 +160,11 @@ contract FailureInjectionTest is Test {
     token.transfer(BOB, 10, proof);
     assertEq(token.balanceOf(BOB), 10);
 
-    bytes32 nullifier =
-      keccak256(abi.encode(TITLE_ID, uint64(2), OP_TRANSFER, root, address(token)));
+    bytes32 nullifier = keccak256(
+      abi.encode(
+        TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(BOB, uint256(10))), address(token)
+      )
+    );
     vm.expectRevert(abi.encodeWithSelector(TitleGateBase.ProofReplayed.selector, nullifier));
     vm.prank(ALICE);
     token.transfer(BOB, 10, proof);
@@ -249,7 +252,11 @@ contract FailureInjectionTest is Test {
     vm.expectRevert(
       abi.encodeWithSelector(
         TitleGateBase.ProofReplayed.selector,
-        keccak256(abi.encode(TITLE_ID, uint64(2), OP_TRANSFER, root2, address(token)))
+        keccak256(
+          abi.encode(
+            TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(BOB, uint256(10))), address(token)
+          )
+        )
       )
     );
     vm.prank(ALICE);

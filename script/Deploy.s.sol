@@ -70,6 +70,7 @@ contract Deploy is Script {
     // deploy falls back to the single attested feed; with it, the feed needs
     // ATTESTER_1..3 to agree before any root is accepted.
     uint256 threshold = vm.envOr("THRESHOLD", uint256(0));
+    if (threshold != 0 && threshold < 2) revert("THRESHOLD must be 0 or at least 2");
     IRootFeed rootFeed;
     if (threshold == 0) {
       rootFeed = new RootFeed(vm.envAddress("ATTESTER"));
@@ -98,7 +99,8 @@ contract Deploy is Script {
       commitment,
       deployer,
       _envOr("TOKEN_NAME", "LEMO Title 1"),
-      _envOr("TOKEN_SYMBOL", "LT1")
+      _envOr("TOKEN_SYMBOL", "LT1"),
+      vm.envOr("MAX_SUPPLY", uint256(1_000_000e18))
     );
     require(address(gate) == predicted, "token address prediction was wrong");
 

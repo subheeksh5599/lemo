@@ -43,6 +43,7 @@ contract UnbondGuard {
   mapping(bytes32 => State) public requestState;
   mapping(bytes32 => bool) public nullifierUsed;
   mapping(bytes32 => uint256) public requestBlock;
+  mapping(bytes32 => bytes32) public openRequest;
 
   event UnbondRequested(
     bytes32 indexed id, bytes32 stateRoot, uint64 revision, uint256 blockNumber
@@ -59,6 +60,7 @@ contract UnbondGuard {
   error ChainMismatch(uint256 claimed);
   error ProofReplayed(bytes32 nullifier);
   error RequestNotPending(bytes32 id);
+  error RequestAlreadyOpen(bytes32 titleId, bytes32 id);
   error RecordNotBacked();
   error ZeroAddress();
 
@@ -104,6 +106,8 @@ contract UnbondGuard {
     nullifierUsed[nullifier] = true;
 
     id = keccak256(abi.encode(titleId, proof.revision, OP_UNBOND, proof.stateRoot));
+    if (openRequest[titleId] != bytes32(0)) revert RequestAlreadyOpen(titleId, openRequest[titleId]);
+    openRequest[titleId] = id;
     requestState[id] = State.PENDING;
     requestBlock[id] = block.number;
 
@@ -114,7 +118,9 @@ contract UnbondGuard {
   function completeUnbond(bytes32 id) external {
     if (msg.sender != attester) revert NotAttester();
     if (requestState[id] != State.PENDING) revert RequestNotPending(id);
+    if (representation.representationOutstanding()) revert RepresentationOutstanding();
     requestState[id] = State.RELEASED;
+    if (openRequest[titleId] == id) delete openRequest[titleId];
     emit UnbondReleased(id);
   }
 }

@@ -63,7 +63,7 @@ contract TitleGateTest is Test {
     address predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
     TitleRecord memory base = _record(1, BACKING, IDENTITY, predicted);
     token = new TitleGateERC20(
-      mockVerifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1"
+      mockVerifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1", 1_000_000e18
     );
     assertEq(address(token), predicted, "predicted address mismatch");
     mockVerifier.set(ITitleVerifier.Status.PROVEN, base);
@@ -71,7 +71,7 @@ contract TitleGateTest is Test {
     address predictedReal = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
     TitleRecord memory realBase = _record(1, BACKING, IDENTITY, predictedReal);
     realToken = new TitleGateERC20(
-      realVerifier, feed, TITLE_ID, TitleLib.hash(realBase), address(this), "LEMO Title 1", "LT1"
+      realVerifier, feed, TITLE_ID, TitleLib.hash(realBase), address(this), "LEMO Title 1", "LT1", 1_000_000e18
     );
     assertEq(address(realToken), predictedReal, "predicted address mismatch (real)");
 
@@ -250,8 +250,11 @@ contract TitleGateTest is Test {
     token.transfer(BOB, 5, proof);
     assertEq(token.balanceOf(BOB), 5);
 
-    bytes32 nullifier =
-      keccak256(abi.encode(TITLE_ID, uint64(2), OP_TRANSFER, root, address(token)));
+    bytes32 nullifier = keccak256(
+      abi.encode(
+        TITLE_ID, uint64(2), OP_TRANSFER, keccak256(abi.encode(BOB, uint256(5))), address(token)
+      )
+    );
     vm.expectRevert(abi.encodeWithSelector(TitleGateBase.ProofReplayed.selector, nullifier));
     vm.prank(ALICE);
     token.transfer(BOB, 5, proof);
@@ -265,7 +268,7 @@ contract TitleGateTest is Test {
     RootFeed empty = new RootFeed(ATTESTER);
     TitleRecord memory record = _record(1, BACKING, IDENTITY, address(this));
     TitleGateERC20 other = new TitleGateERC20(
-      mockVerifier, empty, TITLE_ID, TitleLib.hash(record), address(this), "T", "T"
+      mockVerifier, empty, TITLE_ID, TitleLib.hash(record), address(this), "T", "T", 1_000_000e18
     );
     mockVerifier.set(ITitleVerifier.Status.PROVEN, record);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
@@ -405,6 +408,48 @@ contract TitleGateTest is Test {
     token.transferFrom(ALICE, BOB, 50, proof);
     assertEq(token.balanceOf(BOB), 50);
     assertEq(token.allowance(ALICE, BOB), 0);
+  }
+
+  // ------------------------------------------------ supply and recipient fixes
+
+  function test_MintCannotExceedTheCommittedSupplyCap() public {
+    TitleRecord memory rev1 = _record(1, BACKING, IDENTITY, address(token));
+    _adopt(rev1, ITitleVerifier.Status.PROVEN);
+    (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
+      builder.proofFor(rev1, OP_MINT, address(token));
+    vm.prank(ATTESTER);
+    feed.attest(root, 1);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        TitleGateERC20.SupplyCapExceeded.selector, 1_000_000e18, uint256(0), 1_000_001e18
+      )
+    );
+    vm.prank(ALICE);
+    token.mint(ALICE, 1_000_001e18, proof);
+  }
+
+  function test_MintIsBoundToTheProvenOwner() public {
+    TitleRecord memory rev1 = _record(1, BACKING, IDENTITY, address(token));
+    _adopt(rev1, ITitleVerifier.Status.PROVEN);
+    (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
+      builder.proofFor(rev1, OP_MINT, address(token));
+    vm.prank(ATTESTER);
+    feed.attest(root, 1);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(TitleGateBase.RecipientNotProven.selector, ALICE, BOB)
+    );
+    vm.prank(BOB);
+    token.mint(BOB, 1, proof);
+  }
+
+  function test_BurnByAnOutsiderIsRefusedBeforeTheProof() public {
+    (ITitleVerifier.TitleProof memory proof,) = _mintWithToken();
+    vm.expectRevert(abi.encodeWithSelector(TitleGateERC20.NotAuthorised.selector, BOB, ALICE));
+    vm.prank(BOB);
+    token.burn(ALICE, 1, proof);
+    assertEq(token.balanceOf(ALICE), 100, "outsider burn moved nothing");
   }
 
   // -------------------------------------------------------------- helpers

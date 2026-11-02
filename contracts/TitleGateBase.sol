@@ -25,8 +25,9 @@ import { IRepresentation } from "./IRepresentation.sol";
 ///   commitment   the decoded record must hash to the commitment this token was
 ///                created with, which is what makes the fields non-substitutable
 ///
-/// A nullifier per (titleId, revision, operation, state root, token) is consumed
-/// on success, so the same proof cannot authorise a second state change.
+/// A nullifier per (titleId, revision, operation, action, token) is consumed
+/// on success, so replaying the same action with the same proof cannot work —
+/// including after the feed publishes a new state root.
 ///
 /// Everything fails closed: an unrecognised status, an empty feed, a cleared
 /// identity, an unbound backing and a replayed proof all revert, and no storage
@@ -86,6 +87,7 @@ abstract contract TitleGateBase is IRepresentation {
   error ProofReplayed(bytes32 nullifier);
   error SameOwnerAndRecipient();
   error ZeroCommitment();
+  error RecipientNotProven(address proven, address claimed);
 
   constructor(
     ITitleVerifier verifier_,
@@ -129,7 +131,7 @@ abstract contract TitleGateBase is IRepresentation {
   /// @dev Run every binding check, consume the nullifier, and hand back the
   /// decoded native record. Reverts on anything less than a fully bound,
   /// current, unreplayed proof.
-  function _gate(uint8 operation, ITitleVerifier.TitleProof calldata proof)
+  function _gate(uint8 operation, bytes32 actionHash, ITitleVerifier.TitleProof calldata proof)
     internal
     returns (TitleRecord memory record)
   {
@@ -155,7 +157,7 @@ abstract contract TitleGateBase is IRepresentation {
     if (record_.backing == bytes32(0)) revert BackingNotBound();
 
     bytes32 nullifier =
-      keccak256(abi.encode(titleId, proof.revision, operation, proof.stateRoot, address(this)));
+      keccak256(abi.encode(titleId, proof.revision, operation, actionHash, address(this)));
     if (nullifierUsed[nullifier]) revert ProofReplayed(nullifier);
 
     nullifierUsed[nullifier] = true;

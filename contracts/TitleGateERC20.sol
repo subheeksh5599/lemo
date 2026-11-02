@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { TitleGateBase } from "./TitleGateBase.sol";
+import { TitleRecord } from "./LemoTitle.sol";
 import { ITitleVerifier } from "./ITitleVerifier.sol";
 import { IRootFeed } from "./IRootFeed.sol";
 
@@ -21,6 +22,7 @@ contract TitleGateERC20 is TitleGateBase {
   string public symbol;
   uint8 public constant decimals = 18;
 
+  uint256 public immutable maxSupply;
   uint256 public totalSupply;
 
   mapping(address => uint256) public balanceOf;
@@ -32,6 +34,8 @@ contract TitleGateERC20 is TitleGateBase {
   error InsufficientBalance(address owner, uint256 balance, uint256 needed);
   error InsufficientAllowance(address spender, uint256 allowed, uint256 needed);
   error ZeroAmount();
+  error SupplyCapExceeded(uint256 cap, uint256 current, uint256 requested);
+  error NotAuthorised(address caller, address from);
 
   constructor(
     ITitleVerifier verifier_,
@@ -40,10 +44,12 @@ contract TitleGateERC20 is TitleGateBase {
     bytes32 titleCommitment_,
     address owner_,
     string memory name_,
-    string memory symbol_
+    string memory symbol_,
+    uint256 maxSupply_
   ) TitleGateBase(verifier_, feed_, titleId_, titleCommitment_, owner_) {
     name = name_;
     symbol = symbol_;
+    maxSupply = maxSupply_;
   }
 
   // ------------------------------------------------------------------ gated
@@ -53,8 +59,9 @@ contract TitleGateERC20 is TitleGateBase {
     external
     returns (bool)
   {
+    if (to == address(0)) revert ZeroAddress();
     if (to == msg.sender) revert SameOwnerAndRecipient();
-    _gate(OP_TRANSFER, proof);
+    _gate(OP_TRANSFER, keccak256(abi.encode(to, amount)), proof);
     _transfer(msg.sender, to, amount);
     return true;
   }
@@ -67,7 +74,7 @@ contract TitleGateERC20 is TitleGateBase {
     uint256 amount,
     ITitleVerifier.TitleProof calldata proof
   ) external returns (bool) {
-    _gate(OP_TRANSFER, proof);
+    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, amount)), proof);
 
     uint256 allowed = allowance[from][msg.sender];
     if (allowed != type(uint256).max) {
@@ -85,14 +92,18 @@ contract TitleGateERC20 is TitleGateBase {
   /// @notice Create representation. Needs a mint proof of a title that is
   /// bound and backed. This is the "mint without backing" path that must fail.
   function mint(address to, uint256 amount, ITitleVerifier.TitleProof calldata proof) external {
-    _gate(OP_MINT, proof);
+    if (to == address(0)) revert ZeroAddress();
+    TitleRecord memory record = _gate(OP_MINT, keccak256(abi.encode(to, amount)), proof);
+    if (to != record.owner) revert RecipientNotProven(record.owner, to);
+    if (totalSupply + amount > maxSupply) revert SupplyCapExceeded(maxSupply, totalSupply, amount);
     _mint(to, amount);
   }
 
   /// @notice Destroy representation. Needs a burn proof, so a burn cannot be
   /// used to satisfy the native side without the native side agreeing.
   function burn(address from, uint256 amount, ITitleVerifier.TitleProof calldata proof) external {
-    _gate(OP_BURN, proof);
+    if (msg.sender != from && msg.sender != owner) revert NotAuthorised(msg.sender, from);
+    _gate(OP_BURN, keccak256(abi.encode(from, amount)), proof);
     _burn(from, amount);
   }
 

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 
 import { Header } from '@/components/marketing/header'
-import { ParticleGlobe } from '@/components/marketing/particle-globe'
+import { InteractiveGlobe } from '@/components/marketing/interactive-globe'
 
 function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return (
@@ -55,7 +55,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden bg-[#00052e] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_closest-side_at_center,#06105a_0%,#00052e_86%)]" />
-      <ParticleGlobe />
+      <InteractiveGlobe />
 
       <div className="relative z-10 mx-auto flex min-h-svh max-w-[900px] flex-col items-center justify-center px-6 pb-24 pt-24 text-center">
         <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2 font-mono text-[10.5px] font-medium tracking-[0.12em] text-white/85">

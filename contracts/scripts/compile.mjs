@@ -21,6 +21,7 @@ const input = {
   language: "Solidity",
   sources,
   settings: {
+    evmVersion: "shanghai",
     optimizer: { enabled: true, runs: 200 },
     outputSelection: { "*": { "*": ["abi", "evm.bytecode.object", "evm.deployedBytecode.object"] } },
   },

@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-interface ITitleRegistry {
-    function isEligible(bytes32 titleId) external view returns (bool);
+interface IEligibility {
+    function eligible(bytes32 titleId) external view returns (bool);
 }
 
-/// @title LemoERC20
-/// @notice The market face of one LEMO title. Supply can never exceed the backing recorded at
-///         deployment, and no transfer moves while the title is ineligible in the registry —
-///         the two rules of the protocol expressed on the EVM side.
-contract LemoERC20 {
+/// @title LemoERC20Lite
+/// @notice ERC-20 representation of one LEMO title, sized for Portaldot's per-byte deposit.
+///         Supply is capped by the backing recorded here, and no transfer moves while the native
+///         title is ineligible in the registry — the market face of Rule 1 and Rule 2.
+contract LemoERC20Lite {
     string public name;
     string public symbol;
     uint8 public constant decimals = 18;
 
     bytes32 public immutable titleId;
-    uint256 public immutable backingCap;
-    ITitleRegistry public immutable registry;
-    address public immutable minter;
+    uint256 public immutable cap;
+    IEligibility public immutable registry;
+    address public immutable issuer;
 
     uint256 public totalSupply;
     mapping(address => uint256) public balanceOf;
@@ -26,27 +26,26 @@ contract LemoERC20 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event Approval(address indexed owner, address indexed spender, uint256 amount);
 
-    error NotMinter();
-    error CapExceeded(uint256 cap, uint256 requested);
-    error TitleIneligible();
-    error InsufficientBalance(address from, uint256 balance, uint256 amount);
-    error InsufficientAllowance(address spender, uint256 allowed, uint256 amount);
-    error ZeroAddress();
+    error NotIssuer();
+    error CapReached();
+    error Ineligible();
+    error NoBalance();
+    error NoAllowance();
+    error NoRecipient();
 
-    constructor(string memory name_, string memory symbol_, bytes32 titleId_, uint256 backingCap_, ITitleRegistry registry_) {
-        if (address(registry_) == address(0)) revert ZeroAddress();
-        name = name_;
+    constructor(string memory symbol_, bytes32 titleId_, uint256 cap_, IEligibility registry_) {
         symbol = symbol_;
+        name = symbol_;
         titleId = titleId_;
-        backingCap = backingCap_;
+        cap = cap_;
         registry = registry_;
-        minter = msg.sender;
+        issuer = msg.sender;
     }
 
     function mint(address to, uint256 amount) external {
-        if (msg.sender != minter) revert NotMinter();
-        if (totalSupply + amount > backingCap) revert CapExceeded(backingCap, totalSupply + amount);
-        if (to == address(0)) revert ZeroAddress();
+        if (msg.sender != issuer) revert NotIssuer();
+        if (to == address(0)) revert NoRecipient();
+        if (totalSupply + amount > cap) revert CapReached();
 
         totalSupply += amount;
         balanceOf[to] += amount;
@@ -55,7 +54,7 @@ contract LemoERC20 {
 
     function burn(uint256 amount) external {
         uint256 balance = balanceOf[msg.sender];
-        if (balance < amount) revert InsufficientBalance(msg.sender, balance, amount);
+        if (balance < amount) revert NoBalance();
 
         unchecked {
             balanceOf[msg.sender] = balance - amount;
@@ -71,28 +70,28 @@ contract LemoERC20 {
     }
 
     function transfer(address to, uint256 amount) external returns (bool) {
-        _move(msg.sender, to, amount);
+        move(msg.sender, to, amount);
         return true;
     }
 
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         uint256 allowed = allowance[from][msg.sender];
         if (allowed != type(uint256).max) {
-            if (allowed < amount) revert InsufficientAllowance(msg.sender, allowed, amount);
+            if (allowed < amount) revert NoAllowance();
             unchecked {
                 allowance[from][msg.sender] = allowed - amount;
             }
         }
-        _move(from, to, amount);
+        move(from, to, amount);
         return true;
     }
 
-    function _move(address from, address to, uint256 amount) private {
-        if (to == address(0)) revert ZeroAddress();
-        if (!registry.isEligible(titleId)) revert TitleIneligible();
+    function move(address from, address to, uint256 amount) private {
+        if (to == address(0)) revert NoRecipient();
+        if (!registry.eligible(titleId)) revert Ineligible();
 
         uint256 balance = balanceOf[from];
-        if (balance < amount) revert InsufficientBalance(from, balance, amount);
+        if (balance < amount) revert NoBalance();
 
         unchecked {
             balanceOf[from] = balance - amount;

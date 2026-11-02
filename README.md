@@ -2,97 +2,109 @@
 
 # LEMO
 
-**One title. Two faces. A proof between them.**
+### One asset. Two rooms. One title both rooms must obey.
 
-[![Status](https://img.shields.io/badge/status-two%20contracts%20live-f59e0b)](#what-is-real-and-what-is-not)
-![Revive](https://img.shields.io/badge/Portaldot%20V3-Revive%20live-2f6bff)
-![WASM](https://img.shields.io/badge/WASM%20contracts-listed%20for%20V3.0-8492a6)
-![Proofs](https://img.shields.io/badge/state%20proofs-blake2b%20trie-2fd6a3)
-![Tests](https://img.shields.io/badge/tests-1%2C077%20server%20%2B%2086%20Foundry-2fd6a3)
+[![Live](https://img.shields.io/badge/live-lemo--ebon.vercel.app-1c6cff?labelColor=0f1420)](https://lemo-ebon.vercel.app)
+[![Status](https://img.shields.io/badge/status-partially%20deployed-f59e0b?labelColor=0f1420)](#live-status)
+[![Tests](https://img.shields.io/badge/forge-89%20passing-16a34a?labelColor=0f1420)](#contracts-and-tests)
+[![Service](https://img.shields.io/badge/proof%20service-1%2C077%20tests-16a34a?labelColor=0f1420)](#the-proof-service)
+[![Chain](https://img.shields.io/badge/Portaldot%20V3-Revive%20420420777-2f6bff?labelColor=0f1420)](#live-status)
 
-[Protocol](#the-protocol) · [Rules](#the-two-rules) · [Contracts](#contracts) · [Console](#the-console) · [Evidence](docs/EVIDENCE.md) · [Deck](deck/lemo-deck.pdf) · [Demo script](docs/demo-script.md)
+[Live](https://lemo-ebon.vercel.app) · [Console](https://lemo-ebon.vercel.app/console) · [Flow](https://lemo-ebon.vercel.app/console/flow) · [Protocol](#the-story) · [Evidence](docs/EVIDENCE.md) · [Audit](docs/AUDIT.md) · [Deck](deck/lemo-deck.pdf)
 
 </div>
 
-## Current state
+There are two rooms on Portaldot. In one room, an asset has a native owner, a backing balance, an identity, vesting and permissions. In the other room, a token moves through Solidity. The rooms settle under the same finality, but they do not share storage.
 
-Portaldot V3 ships **Revive**, its EVM environment, today. The native runtime already holds assets, identity, vesting and proxy or multisig ownership records. The **WASM contract module is listed for V3.0 and is not live or documented**; ink! to Solidity cross calls are awaiting confirmation.
+A token can move in the second room while the first room has already forgotten why it was allowed to exist.
 
-LEMO is the design that gives an asset one revisioned title across the native record and a Revive representation, with a finalized state proof required in both directions. The EVM side is implemented here. The native registry is implemented as a FRAME pallet in `pallets/lemo-title`; the remaining step is a runtime upgrade.
+LEMO is the title both rooms have to agree on. The native record is the legal room. The Revive token is the market room. Neither room gets to act alone: the token asks for a finalized proof of the native title before it moves, and the native side refuses to release backing while a representation is still alive.
 
-| What exists in this repository | State |
-|---|---|
-| Live console reading both Portaldot V3 endpoints over JSON-RPC | Working |
-| Browser storage-proof verifier for the native state trie | Working, checked against a live proof |
-| Fastify proof service with typed RPC clients and offline fixtures | Working, 1,077 tests |
-| Solidity Substrate trie verifier | Working, checked against the same live proof |
-| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 89 Foundry tests |
-| Title commitment, RootFeed, threshold root feed and unbond guard | Working, 89 Foundry tests; 9 pallet tests |
-| Native title registry (`pallets/lemo-title`) | Working in tests; runtime inclusion not deployed |
-| Deployment and tPOT funding | See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
-| Hasher and root feed on Portaldot V3 | Deployed: `0x15ae…7e22`, `0xc1c9…d5c0`; see [docs/EVIDENCE.md](docs/EVIDENCE.md) |
-| Gate and verifier on the testnet | Not deployed; ~675 + ~600 tPOT |
-| Transaction console at `/console/flow` | Working; waits for `NEXT_PUBLIC_LEMO_GATE` and `_VERIFIER` |
-| Security audit | Self-audit in [docs/AUDIT.md](docs/AUDIT.md); critical findings fixed |
+The proof is not a server call and not a bridge message. It is a storage proof against a finalized state root, verified by the contract that is about to change state.
 
-The honest version: this is a tested protocol implementation and a live read-only console, not a live asset system. Read [docs/EVIDENCE.md](docs/EVIDENCE.md) for the artifact behind every claim.
+## Live status
 
-## The problem
+| Surface | State | Evidence |
+|---|---|---|
+| Marketing site and console | **Live** | [lemo-ebon.vercel.app](https://lemo-ebon.vercel.app) |
+| Transaction console | **Live route, waiting for a gate** | [/console/flow](https://lemo-ebon.vercel.app/console/flow); names `NEXT_PUBLIC_LEMO_GATE` and `_VERIFIER` until they exist |
+| Blake2b adapter | **Live on Portaldot V3** | [`0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22`](https://node-console.portaldot.dev/) |
+| Root feed | **Live, empty** | [`0xc1c95be2f38f865438f684d269f340f5c505d5c0`](https://node-console.portaldot.dev/); `currentRoot = 0`, `live = false` |
+| Parallel two-contract deployment | **Live** | Registry [`0xc887…88bB`](contracts/DEPLOYMENTS.md), ERC-20 [`0x61c3…8ff7`](contracts/DEPLOYMENTS.md) |
+| Gate and trie verifier | **Not deployed** | ~600 and ~675 tPOT; the wallet has 320.51 left |
+| Native registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 9 tests |
+| Contracts | **89 Foundry tests passing** | `forge test` |
+| Proof service | **1,077 tests passing** | `server/` |
+| Security audit | **Self-audit, criticals fixed** | [docs/AUDIT.md](docs/AUDIT.md); H-05/H-06/H-07 remain open |
 
-Portaldot V3 has two ways to hold an asset and no shared contract storage between them.
+The honest line: this is a live site, a live proof surface and two live support contracts. It is not yet a live asset system.
 
-- Native ownership rules do not automatically follow an ERC-20 or ERC-721 representation.
-- Solidity applications see a token, not the identity or vesting conditions behind it.
-- Backing can leave while a representation still circulates.
-- The usual fix is a synchronization service that becomes the authority.
+## Table of contents
 
-Wrapping an asset moves it. It does not enforce the relationship between the original backing and its representation.
+- [The story](#the-story)
+- [The title](#the-title)
+- [The two rules](#the-two-rules)
+- [Architecture](#architecture)
+- [The proof pipeline](#the-proof-pipeline)
+- [Contracts and tests](#contracts-and-tests)
+- [The console](#the-console)
+- [The proof service](#the-proof-service)
+- [Run it](#run-it)
+- [What is real and what is not](#what-is-real-and-what-is-not)
+- [Evidence and audit](#evidence-and-audit)
 
-## The protocol
+## The story
 
-LEMO creates one title identifier with two independently maintained faces.
+A title is not a token. A title is the set of conditions under which a token is allowed to exist.
 
-### The native record
+The native room holds those conditions. It knows the owner, the backing, whether identity is still set, whether vesting still applies, and which revision of the record is current. The EVM room holds the representation: balances, holders, approvals and transfers. Applications in the EVM room should not have to trust a backend to learn whether the native room still agrees.
 
-The native runtime holds backing, owner, identity status, vesting conditions, account permissions and a revision. This is the authoritative record for whether the asset still qualifies for its title.
+So the token carries a proof of the native room with every state-changing action. The proof is checked against the root the root feed currently accepts. The verifier walks the trie, decodes the title record, checks the revision and the commitment, and only then does the token write a new balance.
 
-Today these records live in runtime storage. The WASM contract module that would let a contract enforce title logic on this side is listed for V3.0, not launched.
+The reverse direction is a refusal rather than a transfer: the native unbond path is blocked while `representationOutstanding()` is true. That rule is implemented in `UnbondGuard` and tested; enforcing it inside the native runtime is the remaining runtime step.
 
-### The Revive representation
+## The title
 
-The EVM face exposes a familiar ERC-20 or ERC-721. It carries the same title identifier, its current supply or ownership, and the last native revision it accepted.
-
-Existing Solidity applications can interact with the token through familiar interfaces. The token does not replace the native title. It represents an asset governed by that title.
+A title is ten committed fields, hashed with a domain separator and a schema version:
 
 ```text
-NATIVE RECORD                         REVIVE REPRESENTATION
-backing                               ERC-20 / ERC-721
-owner                                 supply / holders
-identity                              transfers
-vesting                               Solidity applications
-permissions
-revision
-        \                              /
-         finalized state proofs
-          \                          /
-           one title identifier
+title_id          bytes32
+chain_id          uint256
+native_asset      bytes32
+backing           bytes32
+owner             address
+identity_hash     bytes32
+vesting_hash      bytes32
+permissions_hash  bytes32
+evm_contract      address
+revision          uint64
 ```
+
+The commitment is `keccak256(abi.encode(domain, version, ...fields))`. Changing a field increments the revision. A proof from an older revision cannot authorise a transfer.
+
+The title is a commitment, not a validity proof. The verifier still has to prove the record under the finalized root, and the gate still has to check that the record is bound and identified.
 
 ## The two rules
 
 ### Rule 1: the EVM gate checks the native title
 
-Before an ERC-20 or ERC-721 transfer, the EVM face verifies a finalized native title proof. The proof must establish that the title exists, backing is bound, identity and vesting conditions hold, the revision is current, and the proof is fresh.
+Before a gated mint, transfer or burn, `TitleGateBase._gate` binds:
 
-If identity is cleared, backing is unbound or the proof is stale, the transfer reverts.
+- the proof's chain id to the chain the token was deployed on;
+- the title id, token address and operation;
+- the proof's revision to the accepted revision;
+- the proof's root to the feed's current root;
+- the decoded record to the token's commitment.
 
-This gate is implemented in Solidity and tested against a live native proof.
+The proof's nullifier is scoped to the title, revision, operation and **action parameters**, so the same action cannot be replayed, including after the feed publishes a new root. A different action at the same revision still gets its own nullifier; a true per-revision spend counter remains the long-term fix noted in the audit.
 
-### Rule 2: the native gate checks the representation
+Identity cleared, backing unbound, a stale root, a wrong revision or a bad proof all revert before a balance moves.
 
-Before native unbonding, the native side must verify that the EVM representation is fully retired: ERC-20 supply is zero, or every ERC-721 representation has been burned. The proof must belong to the correct title, contract and revision, and must not be replayable.
+### Rule 2: the native side checks the representation
 
-This rule is implemented as native guard logic in `contracts/UnbondGuard.sol` and tested locally. Enforcing it on Portaldot needs the WASM contract module. It cannot be claimed as live.
+`UnbondGuard.requestUnbond` refuses while `representationOutstanding()` is true, spends the proof's nullifier, and records one open request per title. `completeUnbond` re-checks `representationOutstanding()` at release time, not only at request time, so a burn → request → re-mint sequence cannot release backing twice.
+
+The native pallet implements the same rule as `request_unbond` with a `RepresentationLive` check. The pallet is source and tests, not a runtime deployment.
 
 ## Architecture
 
@@ -132,59 +144,11 @@ flowchart TB
     P3 --> E2
     E2 --> E1
     E1 --> E3
-    E1 -. "announcements" .-> STORE["Statement Store"]
 ```
 
-The proof exchange is not a contract-to-contract call. Each environment receives proof data and verifies it against an authenticated finalized state. The arrows carry bytes, not calls.
+The arrows carry bytes, not calls. Each environment verifies a proof against a finalized state it already trusts. A relayer can carry a proof; it cannot make a bad proof verify.
 
-## The title
-
-Every LEMO asset has one title identifier. The title commits to the relationship between its faces.
-
-```text
-LEMO_TITLE {
-  title_id            0x7f3a...c19e
-  chain_id            420420777
-  native_asset        POT
-  backing_amount      100.00
-  native_owner        5Grw...utQY
-  identity_hash       0x...
-  vesting_hash        0x...
-  permissions_hash    0x...
-  evm_contract        0xA19c...B3C5
-  revision            07
-}
-```
-
-The hash is domain separated and versioned. Changing an important title property increments the revision. Proofs from previous revisions cannot authorize a transfer.
-
-`LEMO_TITLE` is a commitment, not proof of validity. Each runtime must verify the underlying state.
-
-## Lifecycle
-
-### 1. Create
-
-The owner creates a native title and locks backing. Ownership, identity conditions and vesting rules are recorded in the native runtime.
-
-### 2. Represent
-
-The EVM representation is created against the same title identifier, but only after the native backing is verified.
-
-### 3. Transfer
-
-An owner transfers the representation. The token calls the verifier before changing state. A finalized native proof at the current revision is required, and the proof is consumed so it cannot be replayed.
-
-### 4. Update
-
-If identity, backing or ownership changes, the title revision increments. Proofs from the previous revision stop working. The EVM face must obtain a proof of the new state before the next transfer.
-
-### 5. Redeem
-
-The representation is burned. After the burn finalizes, an EVM state proof can release the native backing. Burn first, unlock second.
-
-## Proof pipeline
-
-The proof pipeline is ordinary, verifiable cryptography:
+## The proof pipeline
 
 1. Read `chain_getFinalizedHead` and the header at that hash.
 2. Ask `state_getReadProof` for the storage key at that block.
@@ -192,69 +156,70 @@ The proof pipeline is ordinary, verifiable cryptography:
 4. Walk from the state root, consuming partial keys and branch nibbles.
 5. Return the proven value, or `ABSENT`, `INCOMPLETE`, `INVALID`, `ROOT_MISMATCH` or `VALUE_MISMATCH`.
 
-The same algorithm exists in two places and both are checked against a live proof:
+The same algorithm exists in TypeScript (`server/src/trie`, `lib/proofs.ts`) and Solidity (`contracts/SubstrateTrieVerifier.sol`). Both are checked against a live Portaldot V3 witness, not only generated fixtures.
 
-- `lib/proofs.ts` runs in the browser.
-- `contracts/SubstrateTrieVerifier.sol` runs on Revive.
-
-The service fixture is `server/test/fixtures/portaldot-v3.json`: finalized block 292863, `System.Number` key, 4 nodes, state root `0x90d67ea5...60cbe5`, proven value `0xff770400` (292863 little endian). The contract fixture is a separate capture at block 292815 with the same 4-node shape, proven value `0xcf770400`.
+The service fixture is `server/test/fixtures/portaldot-v3.json`: finalized block 292863, `System.Number`, 4 nodes, value `0xff770400`. The contract fixture is a separate capture at block 292815.
 
 ### Trust model
 
-The verifier proves that a value sits under a state root. It does not prove that the root came from the canonical chain. Today the root source is `RootFeed` (one attester) or `ThresholdRootFeed` (a fixed M-of-N quorum; no single key can move the root). A relayer can carry bytes; it cannot make a bad proof verify, but it can feed a wrong root if the quorum is dishonest.
+The verifier proves a value sits under a state root. It does not prove the root came from the canonical chain. The root source is `RootFeed` (one attester) or `ThresholdRootFeed` (fixed M-of-N; no single key moves the root). A dishonest quorum can feed a wrong root. A light client that verifies finality on the EVM side is the next step, not a claim in this build.
 
-This is a real trust assumption. A light client that verifies finality on the EVM side is the next step, not something this build claims. See [contracts/README.md](contracts/README.md). The native registry source, calls and runtime integration are in [docs/NATIVE_REGISTRY.md](docs/NATIVE_REGISTRY.md).
+The public V3 EVM endpoint answers `eth_getProof` with `Method not found`. The console prints that refusal; it does not invent a witness.
 
-The EVM endpoint on the public testnet answers `eth_getProof` with `Method not found`. The console shows that refusal. It does not invent an EVM witness.
+## Contracts and tests
 
-## Contracts
-
-`contracts/` is a Foundry project. Nothing is deployed.
+`contracts/` is a Foundry project. The parallel `contracts/src/` deployment is a separate, smaller two-contract implementation recorded in [contracts/DEPLOYMENTS.md](contracts/DEPLOYMENTS.md); it is not the gate used by `/console/flow`.
 
 | Contract | Purpose |
 |---|---|
 | `SubstrateTrieVerifier.sol` | Verifies a Substrate storage proof against a state root and returns a typed status |
-| `LemoTitle.sol` | Canonical domain-separated title commitment and revision rule |
-| `TitleGateERC20.sol` | ERC-20 transfers gated by a native title proof |
+| `LemoTitle.sol` | Domain-separated title commitment and revision rule |
+| `TitleGateERC20.sol` | ERC-20 transfers, mint and burn gated by a native title proof |
 | `TitleGateERC721.sol` | ERC-721 transfers gated by a native title proof |
 | `RootFeed.sol` | Attested finalized state root with an explicit trust assumption |
-| `ThresholdRootFeed.sol` | M-of-N root attestations; no single key can move the accepted root |
-| `UnbondGuard.sol` | Rule 2 logic: refuse unbond while a representation is outstanding |
-| `ReviveBlake2b256.sol` | Adapter for the Revive `hashBlake256` precompile |
+| `ThresholdRootFeed.sol` | M-of-N root attestations; no single key moves the accepted root |
+| `UnbondGuard.sol` | Rule 2 logic: refuse release while a representation is outstanding |
+| `ReviveBlake2b256.sol` | Adapter for the Revive Blake2b precompile |
 
-The gates bind a proof to chain id, title id, token contract, operation, revision and root, then consume a nullifier so the same proof cannot authorize two operations. The tests cover stale root, old revision, unbound backing, cleared identity, wrong contract, wrong chain, wrong operation, replay, paused state and a real end-to-end proof.
+Security fixes after the self-audit: an immutable `maxSupply` on the ERC-20, mint recipient binding to the proven owner, burn restricted to the holder or owner, action-scoped nullifiers, an unbond release recheck, one open unbond request per title, a zero-recipient mint refusal and ERC-165 support.
 
 ```bash
 forge build
-forge test
+forge test        # 89 passing
+```
+
+The native pallet is in `pallets/lemo-title`:
+
+```bash
+cd pallets/lemo-title
+cargo test        # 9 passing
 ```
 
 ## The console
 
-The console reads both runtimes from the browser over plain JSON-RPC. It is a reading surface, not an authority: nothing it shows can authorize a transfer.
+The console reads both runtimes from the browser over JSON-RPC. It is a reading surface, not an authority.
 
 | Route | What it shows |
 |---|---|
-| `/` | The protocol, the two rules, the lifecycle and the honest status |
 | `/console` | Finalized heads, finality lag, slot cadence, recent blocks, native witness, runtime comparison |
 | `/console/proofs` | The node-by-node native witness and the EVM endpoint's refusal |
-| `/console/verify` | Paste any storage key, fetch its proof, verify it in the browser and read the steps |
-| `/console/network` | Endpoints, genesis and chain-id checks, latency, and the exact RPC calls used |
+| `/console/verify` | Paste a storage key, fetch its proof, verify it in the browser |
+| `/console/network` | Endpoints, genesis and chain-id checks, latency, the exact RPC calls |
+| `/console/flow` | Mint and transfer through a real wallet; simulation before sending, receipt after |
 
-Every number comes from a node. The witness panel re-hashes each node with blake2b-256 and reports whether the set is bound to the state root the chain published.
-
-Endpoint defaults point at the public Portaldot V3 testnet and are overridable:
+The flow page reads three addresses at build time:
 
 ```bash
-NEXT_PUBLIC_NATIVE_RPC=https://test-node-v3.portaldot.dev
-NEXT_PUBLIC_EVM_RPC=https://test-evm-rpc-v3.portaldot.dev
-NEXT_PUBLIC_GENESIS_HASH=0xd4f9acbcf7f52388d8b095abe3c198d19fc510e0343e643e87cfbccb155283bd
-NEXT_PUBLIC_CHAIN_ID=420420777
+NEXT_PUBLIC_LEMO_GATE=
+NEXT_PUBLIC_LEMO_VERIFIER=
+NEXT_PUBLIC_LEMO_FEED=0xc1c95be2f38f865438f684d269f340f5c505d5c0
 ```
 
-Reads are serialized through a small queue because the public endpoints drop connections when several calls land together. A failed read is reported as a failed read, never replaced with a cached number.
+An empty variable is a rendered state, not a placeholder. The page names the missing variable and disables the action. A configured address with no code is a separate state.
 
-## Proof service
+Every number comes from a node. A failed read is a failed read, never a cached substitute.
+
+## The proof service
 
 `server/` is a Fastify service with typed request and response schemas. It verifies every proof before returning it and never accepts a caller-supplied state root.
 
@@ -267,95 +232,60 @@ Reads are serialized through a small queue because the public endpoints drop con
 | `GET /v1/witness/evm?address=0x...` | Report the EVM endpoint's own answer, including its refusal to serve `eth_getProof` |
 | `GET /v1/reads` | The exact RPC methods the service uses |
 
+`backend/` is the parallel proof-servicing implementation for the two-contract deployment; see [backend/README.md](backend/README.md).
+
 ```bash
 cd server
 npm install
 npm run dev        # http://127.0.0.1:8787
-npm test           # 1,077 tests, including a live-captured proof fixture
+npm test           # 1,077 tests
 ```
 
-## Statement Store
+## Run it
 
-`statement_submit` and `statement_subscribeStatement` are present on the V3 testnet and a WebSocket subscription to `any` is accepted. Publication of a signed title announcement is not wired into this build, and no gossip message is ever treated as proof.
+```bash
+npm install
+npm run dev        # http://localhost:3000
+npm run build      # production build
+```
 
-The rule stays: **gossip distributes information. Cryptographic proofs enforce ownership.**
+The site and console deploy from the repository root. The Vercel project is `lemo`; the production alias is [lemo-ebon.vercel.app](https://lemo-ebon.vercel.app).
+
+Deployment and native tPOT funding are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The live addresses and costs are in [docs/EVIDENCE.md](docs/EVIDENCE.md).
 
 ## What is real and what is not
 
 | Component | State |
 |---|---|
-| Dual-face title model | Design |
-| WASM contract runtime on Portaldot V3 | Not launched by the network |
-| Proof servicing service (finalized proof packages, canonical digests, single-use replay record) | Implemented — `backend/` |
-| Native backing and ownership registry | Implementation required |
-| ERC-20 / ERC-721 representation | Contracts tested, not deployed |
-| Native-to-EVM state proof verification | Tested in TypeScript and Solidity |
-| EVM-to-native state proof verification | Blocked by the WASM module |
-| Finality and freshness verification | Service only |
-| Revision and replay protection | Contracts tested, not deployed |
-| Root source | Trusted checkpoint |
-| Statement Store | Transport available |
-| End-to-end deployment | Not demonstrated |
-| Security audit | Not performed |
+| Marketing site and console | **Live** at [lemo-ebon.vercel.app](https://lemo-ebon.vercel.app) |
+| Blake2b adapter on Portaldot V3 | **Live** at `0x15ae…7e22` |
+| Root feed on Portaldot V3 | **Live but empty** at `0xc1c9…d5c0`; no root attested |
+| Parallel two-contract deployment | **Live** at `0xc887…88bB` and `0x61c3…8ff7` |
+| ERC-20 gate and trie verifier | **Not deployed**; ~1,275 tPOT remaining cost, 320.51 available |
+| Native registry | **Pallet source and tests**; runtime upgrade required |
+| Native-to-EVM proof verification | Tested in TypeScript and Solidity |
+| EVM-to-native proof verification | Blocked by the absent WASM contract API |
+| Revision and replay protection | Tested, not deployed in the gate |
+| Root source | Trusted checkpoint, not a light client |
+| Statement Store | Transport available; signed publication not wired |
+| End-to-end native asset lifecycle | Not demonstrated |
+| Security audit | Self-audit; critical findings fixed, H-05/H-06/H-07 open |
 
-## Acceptance criteria
+## Evidence and audit
 
-- [ ] Create a title with real native backing on Portaldot V3.
-- [ ] Establish its corresponding ERC-20 or ERC-721 representation.
-- [x] Verify native state from the EVM environment using a real finalized state proof. Tested in Foundry against the live fixture, not deployed.
-- [ ] Verify EVM state from the native environment using a real finalized state proof.
-- [x] Reject transfers after native identity is cleared. Tested in Foundry.
-- [x] Reject transfers after native backing is unbound. Tested in Foundry.
-- [x] Reject stale or replayed proofs. Tested in Foundry.
-- [ ] Reject native unbonding while ERC-20 supply remains outstanding on-chain.
-- [ ] Reject native unbonding while an ERC-721 representation remains outstanding on-chain.
-- [ ] Demonstrate successful redemption and native unlock.
-- [x] Verify that interrupted transitions cannot create unbacked tokens. Contract paths fail closed in tests.
-- [ ] Demonstrate discovery through the supported gossip transport without treating gossip as authoritative state.
-- [ ] Verify the complete lifecycle on the actual Portaldot V3 testnet.
+- [docs/EVIDENCE.md](docs/EVIDENCE.md) maps every claim to a file, command or live address.
+- [docs/AUDIT.md](docs/AUDIT.md) is the Pashov-style self-audit and the remediation note.
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) is the native tPOT deployment path.
+- [docs/DEPLOYMENT_COST.md](docs/DEPLOYMENT_COST.md) is the measured cost table.
+- [contracts/DEPLOYMENTS.md](contracts/DEPLOYMENTS.md) is the parallel two-contract deployment record.
+- [docs/FLOW.md](docs/FLOW.md) explains the transaction console.
 
-## Running it locally
+## Demo
 
-```bash
-npm install
-npm run dev      # site at http://localhost:3000, console at /console
-npm run build    # production build
-```
+The demo script is [docs/demo-script.md](docs/demo-script.md). The console can read, verify and simulate; the mint/transfer buttons stay disabled until `NEXT_PUBLIC_LEMO_GATE` and `NEXT_PUBLIC_LEMO_VERIFIER` point at deployed contracts.
 
-The proof service under `server/` is a separate package with its own install and scripts. The contracts under `contracts/` are a Foundry project with its own `forge test`.
-
-The parallel two-contract EVM deployment is recorded in
-[`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md): title registry
-`0xc88763FA361669fC5d95c2BDD924b0E2872488bB` and ERC-20 representation
-`0x61c35d5e811b99f2641b43e9ef97e50d52de8ff7`. It is a separate implementation
-from the gate used by `/console/flow`; do not point the flow page at it.
-
-The proof-servicing half of that deployment is implemented in `backend/`: it reads
-a title's declared storage records at the finalized head, verifies the returned
-read proof against the block's own `stateRoot`, and only then hands out a package.
-See `backend/README.md` for the routes, the layout declaration format, and the
-limits of what the service can claim.
-
-## Deck and demo
-
-- [deck/lemo-deck.pdf](deck/lemo-deck.pdf) is a 12-slide pitch deck. The editable source is [deck/index.html](deck/index.html).
-- [docs/deck-notes.md](docs/deck-notes.md) has speaker notes and the captured live figures.
-- [docs/demo-script.md](docs/demo-script.md) is a click-by-click walkthrough of the site. The team records the video.
-
-## Why Portaldot
-
-LEMO needs a network with a native asset and ownership system, an EVM environment, and a shared validator set. Portaldot V3 has the first two today and lists the third piece, the WASM contract module, for V3.0.
-
-The design does not need a bridge, a custodian or a privileged relayer. It needs a proof path between two environments that already settle under the same finality. A relayer can carry the bytes. The receiving verifier decides.
-
-## References
-
-- [Portaldot developer documentation](https://portaldot-dev.readthedocs.io/en/latest/)
-- [Portaldot native identity](https://portaldot-dev.readthedocs.io/en/latest/module-interface/extrinsics/identity.html)
-- [Portaldot contracts interface](https://portaldot-dev.readthedocs.io/en/latest/module-interface/extrinsics/contracts.html)
-- [Statement Store reference](https://docs.polkadot.com/reference/apps/infrastructure/statement-store/)
-- [Competitive and completeness research](docs/competitive-research.md)
+The site is live. The proof surface is live. The two support contracts are live. The gate is the remaining deployment, not a missing page.
 
 ---
 
-Protocol design, tested contracts, live read-only console. No deployed registry, no token, no audit.
+Protocol design, tested contracts, live console. No deployed gate, no live native registry, no third-party audit.

@@ -75,13 +75,48 @@ npm run typecheck   # strict TypeScript, no emit
 
 | Route | Purpose |
 |---|---|
-| `GET /health` | chain identity, finalized head, node head, RPC latency |
+| `GET /health` | chain identity, finalized head, EVM and statement-store capability, record counts |
+| `GET /metrics` | Prometheus text: request counters, latency quantiles, title counts |
+| `GET /openapi.json` | OpenAPI 3.1 document for every route below |
 | `GET /titles` | registered title bindings |
-| `POST /titles` | declare a title's storage layout |
+| `POST /titles` | declare a title's storage layout and its EVM representation |
 | `GET /titles/:id` | one binding |
 | `GET /titles/:id/proof` | build, self-verify and return a package |
-| `POST /proofs/verify` | re-verify a package, decode every field |
+| `GET /titles/:id/transfer-check` | **Rule 1** — may the representation move on this title state |
+| `GET /titles/:id/unbond-check` | **Rule 2** — may the native backing be unlocked |
+| `GET /titles/:id/revisions` | accepted revision history, newest first |
+| `POST /titles/:id/revisions` | accept the current revision and announce it on `lemo/<title_id>` |
+| `POST /proofs/verify` | re-verify a package, decode every field, evaluate Rule 1 |
 | `POST /proofs/consume` | mark a digest used; `409` on the second attempt |
+
+Both rules answer with a list of named checks. A check that cannot be evaluated is a refusal
+with its reason attached, never a pass: an unreadable EVM supply refuses Rule 2, and a field that
+does not decode as declared fails the package.
+
+## The rules, as the service evaluates them
+
+Rule 1 (a representation may move) requires: the package verifies against its block state root,
+the revision is at or above the accepted one, the package is at least `minConfirmations` deep,
+every required record is present and decodable, the backing is non-zero, and identity status is
+not cleared.
+
+Rule 2 (backing may be unlocked) requires all of the above plus a **read** of the representation's
+supply equal to zero. `unavailable` — no `eth_` namespace, no code at the address, a reverting
+call — refuses, because "could not check" is not "nothing outstanding".
+
+## The EVM face
+
+`contracts/` holds the market side: `LemoTitleRegistry` (title commitments, monotonic revisions,
+per-title eligibility) and `LemoERC20` (supply capped by the backing recorded at deployment, no
+transfer while the title is ineligible). Both compile with `solc`; `npm run deploy` in `contracts/`
+ships them with viem using legacy EIP-155 transactions.
+
+Measured on Portaldot V3 Test: the revive JSON-RPC pool rejects any transaction whose gas limit is
+below `eth_estimateGas` (gas is weight-scaled — a plain transfer estimates around 5.1e11), and a
+contract deployment estimates around 8.4e15, which fees at roughly 200 POT at the chain's base fee.
+Funding an EVM address from the native account uses the mapper's padded account id
+(`h160 ++ 0xEE×12`), verified by reading the balance back over `eth_getBalance`.
+
 
 ## Declaring a title
 

@@ -29,6 +29,7 @@ LEMO is the design that gives an asset one revisioned title across the native re
 | ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 83 Foundry tests |
 | Title commitment, RootFeed, threshold root feed and unbond guard | Working, 83 Foundry tests; 9 pallet tests |
 | Native title registry (`pallets/lemo-title`) | Working in tests; runtime inclusion not deployed |
+| Deployment and tPOT funding | See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | Deployed registry, token or verifier on the testnet | Not deployed |
 | Native-to-EVM and EVM-to-native enforcement on-chain | EVM half tested; native pallet tested; the runtime upgrade is the remaining chain step |
 | Security audit | Not performed |

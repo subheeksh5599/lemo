@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils'
 const INSTALL_LINKS = {
   evm: [
     { name: 'MetaMask', href: 'https://metamask.io/download/' },
-    { name: 'Rabby', href: 'https://rabby.io/' },
     { name: 'Coinbase Wallet', href: 'https://www.coinbase.com/wallet/downloads' },
   ],
   substrate: [

@@ -19,8 +19,10 @@ import { TitleGateERC20 } from "lemo/TitleGateERC20.sol";
 /// Environment:
 ///   DEPLOY_CONFIRM      must be exactly "yes". Anything else aborts.
 ///   RPC_URL             the JSON-RPC endpoint (used by --rpc-url, recorded here)
-///   PRIVATE_KEY         the deployer key. Read through vm.envUint into a local,
-///                       never printed, never logged.
+///   PRIVATE_KEY         the EVM deployer key. Read through vm.envUint into a local,
+///                       never printed, never logged. tPOT is native: fund the
+///                       mapped SS58 account (node scripts/evm-native-address.mjs
+///                       <0x address>), not the 0x address itself.
 ///   ATTESTER            the address allowed to publish state roots
 ///   TITLE_ID            bytes32
 ///   NATIVE_ASSET        bytes32

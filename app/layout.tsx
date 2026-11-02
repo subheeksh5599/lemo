@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 
 import './globals.css'
+import { WalletProvider } from '@/components/wallet/wallet-provider'
 
 export const metadata: Metadata = {
   title: 'LEMO: One title, two runtimes',
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#060a11',
+  themeColor: '#070b12',
   colorScheme: 'dark',
 }
 
@@ -31,7 +32,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <WalletProvider>{children}</WalletProvider>
+      </body>
     </html>
   )
 }

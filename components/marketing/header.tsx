@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, ChevronDown, Globe2 } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
+
+import { WalletMenu } from '@/components/wallet/wallet-menu'
 
 const NAV = [
   { label: 'Protocol', href: '#how' },
@@ -63,18 +65,8 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center justify-self-end gap-5">
-          <span className="hidden items-center gap-1 font-mono text-[11px] text-white/70 lg:flex">
-            <Globe2 className="size-3.5" aria-hidden="true" />
-            EN
-            <ChevronDown className="size-3" aria-hidden="true" />
-          </span>
-          <Link
-            href="/console"
-            className="hidden font-mono text-[11px] font-medium tracking-[0.08em] text-white/80 hover:text-white sm:inline"
-          >
-            SIGN IN
-          </Link>
+        <div className="flex items-center justify-self-end gap-3">
+          <WalletMenu className="hidden sm:inline-flex" />
           <Link
             href="/console"
             className="inline-flex h-10 items-center rounded-lg bg-[#0428cb] px-5 text-[14px] font-medium text-white transition-opacity hover:opacity-90"

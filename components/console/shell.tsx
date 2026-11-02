@@ -9,6 +9,7 @@ import { useConsole } from '@/components/console/console-provider'
 import { LiveStatus, RefreshButton } from '@/components/console/live-status'
 import { NAV } from '@/components/console/navigation'
 import { TopBar } from '@/components/console/top-bar'
+import { WalletMenu } from '@/components/wallet/wallet-menu'
 import { formatInt } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -30,8 +31,8 @@ function SidebarNav() {
   const pathname = usePathname()
 
   return (
-    <nav aria-label="Console" className="flex flex-col gap-0.5 px-2 pt-3">
-      <p className="meta px-2.5 pb-1.5">Read</p>
+    <nav aria-label="Console" className="flex flex-col gap-1 px-3 pt-4">
+      <p className="meta px-2 pb-2">Read</p>
       {NAV.map((item) => {
         const active = pathname === item.href
         const Icon = item.icon
@@ -42,23 +43,14 @@ function SidebarNav() {
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'group relative flex h-9 items-center gap-2.5 rounded-[7px] px-2.5 text-[13px] transition-colors duration-150',
+              'group flex h-10 items-center gap-3 rounded-[8px] px-2.5 text-[13.5px] transition-colors duration-150',
               active
-                ? 'bg-raised text-ink shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
+                ? 'bg-raised text-ink'
                 : 'text-ink-2 hover:bg-surface hover:text-ink',
             )}
           >
-            {active ? (
-              <span
-                aria-hidden="true"
-                className="absolute inset-y-[7px] -left-2 w-[2px] rounded-full bg-accent"
-              />
-            ) : null}
             <Icon
-              className={cn(
-                'size-[15px] shrink-0 transition-colors duration-150',
-                active ? 'text-accent' : 'text-muted group-hover:text-muted',
-              )}
+              className={cn('size-4 shrink-0', active ? 'text-accent' : 'text-muted')}
               strokeWidth={1.6}
               aria-hidden="true"
             />
@@ -86,12 +78,11 @@ function MobileNav() {
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex h-8 shrink-0 items-center rounded-md px-2.5 text-[12.5px] transition-colors duration-150',
-              active ? 'bg-raised text-ink' : 'text-ink-2/80 hover:text-ink',
+              'flex h-9 shrink-0 items-center rounded-[8px] px-3 text-[13px] transition-colors duration-150',
+              active ? 'bg-raised text-ink' : 'text-ink-2 hover:text-ink',
             )}
           >
             {item.label}
-            {active ? <span aria-hidden="true" className="ml-1.5 h-1 w-1 rounded-full bg-accent" /> : null}
           </Link>
         )
       })}
@@ -103,31 +94,31 @@ function SidebarFooter() {
   const { native, status } = useConsole()
 
   return (
-    <div className="mt-auto border-t border-line px-4 py-3.5">
+    <div className="mt-auto border-t border-line px-4 py-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="meta">finalized</span>
-        <span className="font-mono text-[12px] tabular-nums text-ink">
+        <span className="meta">Finalized</span>
+        <span className="font-mono text-[12.5px] tabular-nums text-ink">
           {native === null ? '-' : `#${formatInt(native.finalized.number)}`}
         </span>
       </div>
-      <div className="mt-1.5 flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT[status])} />
-          <span className="truncate text-[11.5px] text-ink-2">{STATUS_WORD[status]}</span>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2">
+          <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', STATUS_DOT[status])} />
+          <span className="truncate text-[12px] text-ink-2">{STATUS_WORD[status]}</span>
         </span>
-        <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-muted">
+        <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted">
           {native === null ? '' : `${formatInt(native.latencyMs)} ms`}
         </span>
       </div>
-      <p className="mt-2 truncate font-mono text-[10.5px] text-muted">
+      <p className="mt-2 truncate font-mono text-[11px] text-muted">
         {native?.chain ?? 'connecting'}
       </p>
       <Link
         href="/"
-        className="mt-3 flex items-center justify-between gap-2 rounded-md border border-line px-2.5 py-1.5 text-[12px] text-ink-2 transition-colors duration-150 hover:border-line-strong hover:text-ink"
+        className="mt-4 flex items-center justify-between gap-2 rounded-[8px] border border-line px-3 py-2 text-[12.5px] text-ink-2 transition-colors duration-150 hover:border-line-strong hover:text-ink"
       >
-        Specification
-        <ArrowUpRight className="size-3.5 text-muted" strokeWidth={1.6} aria-hidden="true" />
+        Protocol page
+        <ArrowUpRight className="size-4 text-muted" strokeWidth={1.6} aria-hidden="true" />
       </Link>
     </div>
   )
@@ -140,14 +131,14 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
         Skip to console content
       </a>
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[236px] flex-col border-r border-line bg-canvas lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col border-r border-line bg-canvas lg:flex">
         <Link
           href="/"
-          className="flex h-14 shrink-0 items-center gap-2.5 border-b border-line px-4 transition-colors duration-150 hover:bg-surface/70"
+          className="flex h-16 shrink-0 items-center gap-2.5 border-b border-line px-4 transition-colors duration-150 hover:bg-surface"
         >
           <LemoMark className="size-[18px] shrink-0 text-accent" />
-          <span className="text-[14.5px] font-medium tracking-[-0.01em] text-ink">LEMO</span>
-          <span className="ml-auto font-mono text-[9px] text-muted">
+          <span className="text-[15px] font-medium tracking-[-0.01em] text-ink">LEMO</span>
+          <span className="ml-auto font-mono text-[10px] text-muted">
             console
           </span>
         </Link>
@@ -156,17 +147,20 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
         <SidebarFooter />
       </aside>
 
-      <div className="lg:pl-[236px]">
+      <div className="lg:pl-[248px]">
         <div className="sticky top-0 z-30 border-b border-line bg-canvas lg:hidden">
           <div className="flex h-12 items-center gap-2 px-4">
             <Link href="/" className="flex items-center gap-2">
               <LemoMark className="size-4 text-accent" />
               <span className="text-[14px] font-medium text-ink">LEMO</span>
             </Link>
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ml-auto flex items-center gap-2">
               <LiveStatus />
               <RefreshButton />
             </div>
+          </div>
+          <div className="px-3 pb-3">
+            <WalletMenu className="w-full justify-center" />
           </div>
           <MobileNav />
         </div>
@@ -175,7 +169,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
 
         <main
           id="console-main"
-          className="mx-auto w-full max-w-[1460px] px-4 pb-20 pt-4 sm:px-6 lg:px-7 lg:pt-5"
+          className="mx-auto w-full max-w-[1520px] px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pt-6"
         >
           {children}
         </main>

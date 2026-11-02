@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   ArrowUpRight,
@@ -16,6 +19,67 @@ import {
 
 import { Header } from '@/components/marketing/header'
 import { InteractiveGlobe } from '@/components/marketing/interactive-globe'
+import { readEvmHead, readNativeHead, type EvmHead, type NativeHead } from '@/lib/chain'
+
+/** Nothing is rendered until a node answers. A missing read stays a dash. */
+const DASH = '—'
+
+function count(value: number | null | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('en-US') : DASH
+}
+
+function short(value: string | null | undefined): string {
+  if (value === null || value === undefined || value.length < 14) return value ?? DASH
+  return `${value.slice(0, 6)}…${value.slice(-4)}`
+}
+
+function clock(timestamp: number | null | undefined): string {
+  if (typeof timestamp !== 'number') return DASH
+  return new Date(timestamp).toLocaleTimeString('en-GB', { hour12: false })
+}
+
+function useLiveHeads() {
+  const [native, setNative] = useState<NativeHead | null>(null)
+  const [evm, setEvm] = useState<EvmHead | null>(null)
+  const [status, setStatus] = useState<'reading' | 'live' | 'unavailable'>('reading')
+
+  useEffect(() => {
+    let active = true
+
+    const read = async () => {
+      let answered = false
+
+      try {
+        const head = await readNativeHead()
+        if (active) setNative(head)
+        answered = true
+      } catch {
+        if (active) setNative(null)
+      }
+
+      try {
+        const head = await readEvmHead()
+        if (active) setEvm(head)
+        answered = true
+      } catch {
+        if (active) setEvm(null)
+      }
+
+      if (active) setStatus(answered ? 'live' : 'unavailable')
+    }
+
+    void read()
+    const timer = window.setInterval(() => void read(), 60_000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [])
+
+  return { native, evm, status }
+}
+
+type Heads = ReturnType<typeof useLiveHeads>
 
 function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return (
@@ -58,11 +122,6 @@ function Hero() {
       <InteractiveGlobe />
 
       <div className="relative z-10 mx-auto flex min-h-svh max-w-[900px] flex-col items-center justify-center px-6 pb-24 pt-24 text-center">
-        <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2 font-mono text-[10.5px] font-medium tracking-[0.12em] text-white/85">
-          <span className="size-1.5 rounded-full bg-[#adffce]" />
-          PROVEN AGAINST PORTALDOT V3
-        </div>
-
         <h1 className="max-w-[760px] text-[clamp(2.8rem,3.45vw,3.6rem)] font-normal leading-[1.22] tracking-[-0.04em]">
           One title.
           <br />
@@ -78,16 +137,12 @@ function Hero() {
         <div className="mt-9">
           <PrimaryLink href="/console">Open the console</PrimaryLink>
         </div>
-
-        <p className="mt-5 font-mono text-[10px] tracking-[0.08em] text-white/55">
-          No wallet. No transaction. Read the live testnet first.
-        </p>
       </div>
     </section>
   )
 }
 
-function ConsoleMockup() {
+function ConsolePreview({ native, evm, status }: Heads) {
   return (
     <div className="relative mx-auto mt-16 w-full max-w-[1080px]">
       <div className="rounded-[32px] bg-[linear-gradient(145deg,#2a0a6a_0%,#4b1fa8_55%,#1b0a4a_100%)] p-3 shadow-[0_40px_120px_rgba(0,0,0,0.55)] md:p-5">
@@ -117,19 +172,19 @@ function ConsoleMockup() {
                 <div>
                   <p className="text-[14px] font-semibold">Title overview</p>
                   <p className="mt-0.5 text-[11px] text-[#8c92a3]">
-                    Both faces at the current revision
+                    Both sides of the same record
                   </p>
                 </div>
                 <span className="rounded-full border border-[#e9e9f3] px-2.5 py-1 font-mono text-[9px] text-[#6b6b83]">
-                  live read
+                  {status === 'live' ? 'live read' : status === 'reading' ? 'reading' : 'no answer'}
                 </span>
               </div>
 
               <div className="mt-4 grid grid-cols-3 divide-x divide-[#e9e9f3] rounded-lg border border-[#e9e9f3]">
                 {[
-                  ['Revisions', '07'],
-                  ['Proof checks', '1,077'],
-                  ['Blocked', '2'],
+                  ['Finalized head', count(native?.finalized.number)],
+                  ['EVM head', count(evm?.head)],
+                  ['Round trip', native === null ? DASH : `${count(native.latencyMs)} ms`],
                 ].map(([label, value]) => (
                   <div key={label} className="px-3 py-3">
                     <p className="font-mono text-[9px] text-[#8c92a3]">{label}</p>
@@ -139,63 +194,72 @@ function ConsoleMockup() {
               </div>
 
               <div className="mt-4 flex items-center justify-between">
-                <p className="text-[11px] font-medium">Current titles</p>
-                <span className="font-mono text-[9px] text-[#8c92a3]">6 records</span>
+                <p className="text-[11px] font-medium">Both faces</p>
+                <span className="font-mono text-[9px] text-[#8c92a3]">read from the node</span>
               </div>
 
               <div className="mt-2 overflow-hidden rounded-lg border border-[#e9e9f3]">
-                <div className="grid grid-cols-[1.2fr_0.8fr_0.5fr_0.8fr] bg-[#fafafd] px-3 py-2 font-mono text-[8.5px] text-[#8c92a3]">
-                  <span>Title</span>
+                <div className="grid grid-cols-[1fr_1fr_0.6fr_1fr] bg-[#fafafd] px-3 py-2 font-mono text-[8.5px] text-[#8c92a3]">
                   <span>Face</span>
-                  <span>Rev</span>
-                  <span>State</span>
+                  <span>Runtime</span>
+                  <span>Head</span>
+                  <span>Root</span>
                 </div>
                 {[
-                  ['Black Shoes', 'Native', '07', 'Bound'],
-                  ['Black Shoes', 'Revive', '07', 'Proven'],
-                  ['Linen Jacket', 'Native', '03', 'Bound'],
-                  ['Linen Jacket', 'Revive', '03', 'Proven'],
-                ].map((row) => (
+                  ['Native record', native?.chain ?? DASH, count(native?.finalized.number), short(native?.finalized.stateRoot)],
+                  ['Revive EVM', evm === null ? DASH : `chain ${evm.chainId}`, count(evm?.head), short(evm?.stateRoot)],
+                ].map(([name, runtime, head, root]) => (
                   <div
-                    key={`${row[0]}-${row[1]}`}
-                    className="grid grid-cols-[1.2fr_0.8fr_0.5fr_0.8fr] items-center border-t border-[#e9e9f3] px-3 py-2 text-[10px]"
+                    key={name}
+                    className="grid grid-cols-[1fr_1fr_0.6fr_1fr] items-center border-t border-[#e9e9f3] px-3 py-2 text-[10px]"
                   >
-                    <span className="truncate">{row[0]}</span>
-                    <span className="text-[#6b6b83]">{row[1]}</span>
-                    <span className="font-mono tabular-nums">{row[2]}</span>
-                    <span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#eafaf3] px-2 py-0.5 text-[8.5px] text-[#0a7a55]">
-                        <Check className="size-2.5" aria-hidden="true" />
-                        {row[3]}
-                      </span>
-                    </span>
+                    <span className="truncate pr-1">{name}</span>
+                    <span className="truncate pr-1 text-[9.5px] text-[#6b6b83]">{runtime}</span>
+                    <span className="font-mono tabular-nums">{head}</span>
+                    <span className="truncate pl-1 font-mono text-[9px] text-[#4f5166]">{root}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="hidden border-l border-[#e9e9f3] bg-[#fafafd] px-4 py-4 md:block">
-              <p className="text-[12px] font-semibold">Latest proof</p>
+              <p className="text-[12px] font-semibold">Finalized read</p>
               <p className="mt-1 text-[10px] leading-4 text-[#6b6b83]">
                 System.Number at the finalized head.
               </p>
               <div className="mt-4 space-y-3">
                 {[
-                  ['Nodes', '4'],
-                  ['Bytes', '1,003'],
-                  ['Root', '0x90d6…cbe5'],
-                  ['Value', '0xff770400'],
+                  ['Chain', native?.chain ?? DASH],
+                  ['Head', count(native?.finalized.number)],
+                  ['State root', short(native?.finalized.stateRoot)],
+                  ['Read at', clock(native?.readAt)],
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-baseline justify-between gap-3 border-b border-[#e9e9f3] pb-2">
                     <span className="text-[9.5px] text-[#8c92a3]">{label}</span>
-                    <span className="font-mono text-[9.5px] tabular-nums">{value}</span>
+                    <span className="truncate font-mono text-[9.5px] tabular-nums">{value}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 rounded-md border border-[#bfe9d8] bg-[#effaf4] px-3 py-2">
-                <p className="flex items-center gap-1.5 text-[9.5px] font-medium text-[#0a7a55]">
-                  <CheckCircle2 className="size-3" aria-hidden="true" />
-                  Proof verified
+              <div
+                className={`mt-4 rounded-md border px-3 py-2 ${
+                  status === 'live' ? 'border-[#bfe9d8] bg-[#effaf4]' : 'border-[#e9e9f3] bg-white'
+                }`}
+              >
+                <p
+                  className={`flex items-center gap-1.5 text-[9.5px] font-medium ${
+                    status === 'live' ? 'text-[#0a7a55]' : 'text-[#6b6b83]'
+                  }`}
+                >
+                  {status === 'live' ? (
+                    <CheckCircle2 className="size-3" aria-hidden="true" />
+                  ) : (
+                    <Clock3 className="size-3" aria-hidden="true" />
+                  )}
+                  {status === 'live'
+                    ? 'Root read from the node'
+                    : status === 'reading'
+                      ? 'Reading the finalized head'
+                      : 'Node did not answer'}
                 </p>
               </div>
             </div>
@@ -214,7 +278,7 @@ function ConsoleMockup() {
   )
 }
 
-function AdminSection() {
+function AdminSection({ native, evm, status }: Heads) {
   return (
     <section className="relative bg-[#00052e] pb-24 text-white">
       <div className="mx-auto max-w-[1400px] px-6 lg:px-8">
@@ -243,28 +307,36 @@ function AdminSection() {
           ))}
         </div>
 
-        <ConsoleMockup />
+        <ConsolePreview native={native} evm={evm} status={status} />
       </div>
     </section>
   )
 }
 
-function Stats() {
+function Stats({ native, evm }: Heads) {
   return (
     <section id="stats" className="relative border-y border-white/15 bg-[#00052e] text-white">
       <div className="absolute inset-0 bg-white/[0.03]" />
       <div className="relative mx-auto max-w-[1400px] px-6 py-10 lg:px-8">
         <div className="grid grid-cols-2 items-start justify-items-center gap-x-8 gap-y-7 md:grid-cols-5">
           {[
-            ['1,077', 'PROOF TESTS'],
-            ['71', 'CONTRACT TESTS'],
-            ['4', 'PROOF NODES'],
-            ['2', 'RUNTIMES'],
-            ['1', 'TITLE'],
-          ].map(([value, label]) => (
+            ['Finalized head', count(native?.finalized.number)],
+            ['EVM head', count(evm?.head)],
+            ['State root', short(native?.finalized.stateRoot)],
+            ['Read at', clock(native?.readAt)],
+            ['Native latency', native === null ? DASH : `${count(native.latencyMs)} ms`],
+          ].map(([label, value]) => (
             <div key={label} className="text-center">
-              <p className="font-mono text-[28px] leading-none tabular-nums text-white/90">{value}</p>
-              <p className="mt-2 font-mono text-[9.5px] tracking-[0.12em] text-white/40">{label}</p>
+              <p
+                className={`font-mono tabular-nums text-white/90 ${
+                  value.length > 6 ? 'text-[14px] leading-[1.3]' : 'text-[28px] leading-none'
+                }`}
+              >
+                {value}
+              </p>
+              <p className="mt-2 font-mono text-[9.5px] tracking-[0.12em] text-white/40">
+                {label}
+              </p>
             </div>
           ))}
         </div>
@@ -282,7 +354,7 @@ function Stats() {
   )
 }
 
-function FlowMockup() {
+function FlowDiagram() {
   return (
     <div className="rounded-[28px] bg-[#0b1230] p-4 shadow-[0_30px_70px_-30px_rgba(5,12,48,0.55)]">
       <div className="rounded-[18px] bg-white px-5 py-5">
@@ -291,7 +363,7 @@ function FlowMockup() {
             <span className="flex size-7 items-center justify-center rounded-md bg-[#0428cb] text-[11px] font-semibold text-white">l</span>
             <p className="text-[12px] font-semibold">Connecting your systems</p>
           </div>
-          <span className="font-mono text-[8.5px] text-[#8c92a3]">4 linked</span>
+          <span className="font-mono text-[8.5px] text-[#8c92a3]">binding</span>
         </div>
 
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
@@ -337,13 +409,13 @@ function FlowMockup() {
   )
 }
 
-function WorkflowMockup() {
+function WorkflowDiagram() {
   return (
     <div className="rounded-[28px] bg-[#1a2b6d] p-4 shadow-[0_30px_70px_-30px_rgba(5,12,48,0.55)]">
       <div className="rounded-[18px] bg-white px-5 py-5">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[8.5px] tracking-[0.1em] text-[#8c92a3]">NEW WORKFLOW</span>
-          <span className="font-mono text-[8.5px] text-[#8c92a3]">10-min setup</span>
+          <span className="font-mono text-[8.5px] tracking-[0.1em] text-[#8c92a3]">NEW RULE</span>
+          <span className="font-mono text-[8.5px] text-[#8c92a3]">gate</span>
         </div>
         <p className="mt-2 text-[14px] font-semibold">What matters, and what to do</p>
 
@@ -374,37 +446,39 @@ function WorkflowMockup() {
   )
 }
 
-function ThreadMockup() {
+function ThreadDiagram() {
   return (
     <div className="rounded-[28px] bg-[#0b4f3f] p-4 shadow-[0_30px_70px_-30px_rgba(5,12,48,0.55)]">
       <div className="rounded-[18px] bg-white px-5 py-5">
         <div className="flex items-center gap-3 border-b border-[#e9e9f3] pb-3">
-          <span className="flex size-8 items-center justify-center rounded-full bg-[#e9e9f3] font-mono text-[9px] text-[#171a2b]">07</span>
+          <span className="flex size-8 items-center justify-center rounded-full bg-[#e9e9f3] text-[#171a2b]">
+            <FileCheck2 className="size-3.5" aria-hidden="true" />
+          </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-semibold">Black Shoes · Revision 07</p>
-            <p className="text-[9.5px] text-[#8c92a3]">Native record · proof event</p>
+            <p className="text-[12px] font-semibold">The title, current revision</p>
+            <p className="text-[9.5px] text-[#8c92a3]">Native record, proof event</p>
           </div>
-          <span className="rounded-full bg-[#eafaf3] px-2 py-0.5 font-mono text-[8px] text-[#0a7a55]">verified</span>
+          <span className="rounded-full bg-[#eafaf3] px-2 py-0.5 font-mono text-[8px] text-[#0a7a55]">watching</span>
         </div>
 
         <div className="mt-4 space-y-4">
           <div className="flex gap-3">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#0428cb] text-[10px] font-semibold text-white">A</span>
             <div className="min-w-0">
-              <p className="text-[10.5px] font-medium">Challenger <span className="font-normal text-[#8c92a3]">to LEMO</span> <span className="float-right font-mono text-[8.5px] text-[#8c92a3]">09:24</span></p>
-              <p className="mt-1 text-[10.5px] leading-4 text-[#4f5166]">Does revision 07 still authorize the current EVM holder?</p>
-              <p className="mt-1 font-mono text-[8.5px] text-[#8c92a3]">Opened 09:25</p>
+              <p className="text-[10.5px] font-medium">Challenger <span className="font-normal text-[#8c92a3]">to LEMO</span></p>
+              <p className="mt-1 text-[10.5px] leading-4 text-[#4f5166]">Does the current revision still authorize the EVM holder?</p>
+              <p className="mt-1 font-mono text-[8.5px] text-[#8c92a3]">Opened by the challenger</p>
             </div>
           </div>
 
           <div className="flex gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e9e9f3] font-mono text-[9px] text-[#171a2b]">07</span>
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e9e9f3] font-mono text-[9px] text-[#171a2b]">L</span>
             <div className="min-w-0">
-              <p className="text-[10.5px] font-medium">LEMO <span className="font-normal text-[#8c92a3]">to Challenger</span> <span className="float-right font-mono text-[8.5px] text-[#8c92a3]">09:25</span></p>
+              <p className="text-[10.5px] font-medium">LEMO <span className="font-normal text-[#8c92a3]">to Challenger</span></p>
               <p className="mt-1 text-[10.5px] leading-4 text-[#4f5166]">Yes. The finalized proof matches the current root. Transfer may settle.</p>
               <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-[#e9e9f3] px-2 py-1.5">
                 <FileCheck2 className="size-3 text-[#6b6b83]" aria-hidden="true" />
-                <span className="font-mono text-[8.5px] text-[#4f5166]">proof-rev07.json</span>
+                <span className="font-mono text-[8.5px] text-[#4f5166]">finalized state proof</span>
               </div>
               <p className="mt-1 font-mono text-[8.5px] text-[#8c92a3]">Opened by LEMO</p>
             </div>
@@ -419,7 +493,7 @@ function ThreadMockup() {
   )
 }
 
-function TransferMockup() {
+function TransferDiagram() {
   return (
     <div className="rounded-[28px] bg-[#0428cb] p-4 shadow-[0_30px_70px_-30px_rgba(5,12,48,0.55)]">
       <div className="rounded-[18px] bg-white px-5 py-5">
@@ -430,10 +504,10 @@ function TransferMockup() {
 
         <div className="mt-4 space-y-2.5">
           {[
-            ['Title', '0x7f3a…9c4e'],
-            ['Revision', '07'],
-            ['Native owner', '0x4c1a…8f20'],
-            ['EVM holder', '0x4c1a…8f20'],
+            ['Title binding', 'One record'],
+            ['Revision', 'Current'],
+            ['Native owner', 'Matched'],
+            ['EVM holder', 'Matched'],
             ['Backing', 'Locked'],
           ].map(([label, value]) => (
             <div key={label} className="flex items-baseline justify-between border-b border-[#e9e9f3] pb-2">
@@ -468,28 +542,28 @@ const STEPS = [
     title: 'Give them one record',
     body:
       'Link the native title to the Revive representation. The title keeps backing, owner, identity, vesting and permissions in one place, and both faces read the same record.',
-    visual: <FlowMockup />,
+    visual: <FlowDiagram />,
   },
   {
     eyebrow: 'ONE-TIME SETUP',
     title: 'Give them one rule',
     body:
       'Teach the verifier what must be true before a transfer settles. Backing locked. Revision current. Owner matched. The rule is written once and enforced on every transfer.',
-    visual: <WorkflowMockup />,
+    visual: <WorkflowDiagram />,
   },
   {
     eyebrow: 'RUNS ON EVERY TRANSFER',
     title: 'They watch every revision',
     body:
       'LEMO watches native state and the EVM verifier around the clock. The moment a revision changes, the old proof expires and the next transfer has to prove the new one.',
-    visual: <ThreadMockup />,
+    visual: <ThreadDiagram />,
   },
   {
     eyebrow: 'RUNS ON EVERY TRANSFER',
     title: 'They do the work',
     body:
       'Right on cue, the gate checks the proof and either settles the transfer or reverts it. The decision is not a dashboard warning. It is the transaction path.',
-    visual: <TransferMockup />,
+    visual: <TransferDiagram />,
   },
 ]
 
@@ -588,14 +662,13 @@ function Quote() {
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              ['2', 'faces', 'Native record and Revive representation'],
-              ['1', 'revision', 'One current state, old proofs expire'],
-              ['0', 'synthetic supply', 'No uncontrolled mirror token'],
-              ['4', 'proof nodes', 'A real System.Number capture'],
-            ].map(([value, label, note]) => (
+              ['Native + Revive', 'Two faces, one record'],
+              ['One revision', 'Old proofs expire'],
+              ['No mirror supply', 'No uncontrolled mirror token'],
+              ['State-root bound', 'A real System.Number capture'],
+            ].map(([label, note]) => (
               <div key={label} className="rounded-[18px] bg-white p-6">
-                <p className="font-mono text-[34px] leading-none tracking-[-0.04em] tabular-nums">{value}</p>
-                <p className="mt-2 text-[12px] font-medium">{label}</p>
+                <p className="text-[14px] font-medium">{label}</p>
                 <p className="mt-2 text-[11px] leading-5 text-[#6b6b83]">{note}</p>
               </div>
             ))}
@@ -649,7 +722,7 @@ const FAQS = [
   ],
   [
     'Which runtimes does it target?',
-    'The Portaldot native runtime and Revive, its EVM runtime. The EVM endpoint reports chain ID 420420777. The design binds both faces to the same title revision.',
+    'The Portaldot native runtime and Revive, its EVM runtime. The EVM endpoint reports its chain ID at runtime. The design binds both faces to the same title revision.',
   ],
   [
     'Can I move a title today?',
@@ -774,13 +847,15 @@ function Footer() {
 }
 
 export function Landing() {
+  const heads = useLiveHeads()
+
   return (
     <div className="bg-white text-[#00052e]">
       <Header />
       <main>
         <Hero />
-        <AdminSection />
-        <Stats />
+        <AdminSection {...heads} />
+        <Stats {...heads} />
         <How />
         <Quote />
         <Security />

@@ -1,0 +1,19 @@
+{
+  "captured_at": "2026-11-02T14:20:48Z",
+  "chain": "PortaldotV3 Test",
+  "genesis": "0xd4f9acbcf7f52388d8b095abe3c198d19fc510e0343e643e87cfbccb155283bd",
+  "finalized_hash": "0xaa1313ee248f5f5288c596f90a52f76febbed64c7b5c5ebd85c0de31b45d0d60",
+  "finalized_number": 292820,
+  "finalized_state_root": "0x77db30c001806f2a3ec82a5ece674d5573da0a859089e2dd698def279fb74e53",
+  "best_number": 292823,
+  "best_state_root": "0x794a0b3df05015ba38434ab8b93f3e3bfeb040d74d625057bda4f5f3a484e3a5",
+  "finality_lag": 3,
+  "evm_chain_id_hex": "0x190f1ca9",
+  "evm_chain_id": 420420777,
+  "evm_block_hex": "0x477d7",
+  "evm_block": 292823,
+  "eth_getProof": {
+    "code": -32601,
+    "message": "Method not found"
+  }
+}

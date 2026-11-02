@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LEMO. One asset, two runtimes, one enforceable title.</title>
+<meta name="description" content="LEMO protocol deck. One asset, two runtimes, one enforceable title. Portaldot V3.">
+<style>
+@font-face{
+  font-family:'Geist';
+  src:url('./assets/geist-latin.woff2') format('woff2');
+  font-weight:100 900; font-style:normal; font-display:block;
+}
+@font-face{
+  font-family:'JetBrains Mono';
+  src:url('./assets/jetbrains-mono-latin.woff2') format('woff2');
+  font-weight:100 800; font-style:normal; font-display:block;
+}
+
+:root{
+  --void:#04070d; --canvas:#060a11; --surface:#090f18; --raised:#0d1522; --overlay:#111a2a;
+  --line:#17212f; --line-strong:#232f42; --line-bright:#35455e;
+  --ink:#e9eef7; --ink-2:#b9c4d5; --muted:#8492a6; --faint:#66748b;
+  --accent:#2f6bff; --accent-bright:#6d95ff;
+  --accent-soft:rgba(47,107,255,.12); --accent-line:rgba(47,107,255,.34);
+  --ok:#2fd6a3; --warn:#f5b544; --bad:#ff6157;
+  --sans:'Geist',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:#04070d; color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overflow:hidden;
+}
+::selection{background:var(--accent);color:#fff}
+a{color:inherit;text-decoration:none}
+
+.viewport{position:fixed;inset:0;overflow:hidden;background:radial-gradient(1100px 620px at 50% -12%, #0a1322 0%, #04070d 62%)}
+.stage{
+  position:absolute; left:50%; top:50%;
+  width:1600px; height:900px;
+  transform:translate(-50%,-50%) scale(var(--s,1));
+  transform-origin:center center;
+  background:var(--canvas);
+  box-shadow:0 48px 140px -48px #000;
+}
+
+/* ---------- slide shell ---------- */
+.slide{
+  position:absolute; inset:0; overflow:hidden;
+  background:var(--canvas);
+  opacity:0; visibility:hidden; transform:translateY(10px);
+  transition:opacity .28s ease, transform .34s cubic-bezier(.16,1,.3,1);
+}
+.slide.is-active{opacity:1;visibility:visible;transform:none}
+.slide::before{
+  content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.017) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.017) 1px, transparent 1px);
+  background-size:80px 80px;
+  -webkit-mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.45) 58%,transparent 92%);
+  mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.45) 58%,transparent 92%);
+}
+.slide--cover::before{opacity:.7}
+
+.s-head{
+  position:absolute; z-index:2; left:56px; right:56px; top:38px; height:44px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--line); padding-bottom:14px;
+}
+.brand{display:flex;align-items:center;gap:11px}
+.brand svg{width:19px;height:19px;color:var(--ink)}
+.brand span{font-size:15px;font-weight:520;letter-spacing:.14em}
+.head-meta{display:flex;align-items:center;gap:16px}
+.head-meta .mono{font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.head-meta .sep{width:1px;height:11px;background:var(--line-strong)}
+
+.s-body{position:absolute; z-index:2; left:56px; right:56px; top:112px; bottom:96px}
+.s-foot{
+  position:absolute; z-index:2; left:56px; right:56px; bottom:34px; height:32px;
+  display:flex; align-items:flex-end; justify-content:space-between;
+  border-top:1px solid var(--line); padding-top:12px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.16em;
+  text-transform:uppercase; color:#6b7b91;
+}
+.s-foot .f{color:var(--ink-2);letter-spacing:.12em}
+
+/* ---------- type ---------- */
+.mono,.f{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.kicker{
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--accent-bright);
+}
+.kicker::before{content:'';width:20px;height:1px;background:var(--accent);flex:none}
+h1{font-weight:470;letter-spacing:-.042em;line-height:.99;margin:0;text-wrap:balance}
+.s-title{font-size:58px;max-width:26ch;margin-top:16px}
+.s-title em{font-style:normal;color:var(--accent-bright)}
+.s-sub{font-size:17px;line-height:1.55;color:var(--ink-2);max-width:78ch;margin-top:18px}
+.small{font-size:14px;line-height:1.5;color:var(--muted)}
+.panel{
+  border:1px solid var(--line); border-radius:12px; background:var(--surface);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);
+}
+.badge{
+  display:inline-flex;align-items:center;gap:7px;height:23px;padding:0 8px;
+  border:1px solid var(--line-strong);border-radius:3px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-2);white-space:nowrap;
+}
+.badge--ok{border-color:rgba(47,214,163,.34);background:rgba(47,214,163,.1);color:#7ff0cc}
+.badge--bad{border-color:rgba(255,97,87,.34);background:rgba(255,97,87,.1);color:#ff9b94}
+.badge--accent{border-color:var(--accent-line);background:var(--accent-soft);color:#a8c2ff}
+.badge--warn{border-color:rgba(245,181,68,.34);background:rgba(245,181,68,.1);color:#ffd07a}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none;box-shadow:0 0 0 0 rgba(47,214,163,.5);animation:pulse 2.6s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,214,163,.45)}70%{box-shadow:0 0 0 7px rgba(47,214,163,0)}100%{box-shadow:0 0 0 0 rgba(47,214,163,0)}}
+
+/* ---------- cover ---------- */
+.cover-body{display:grid;grid-template-columns:minmax(0,1fr) 486px;gap:64px;align-items:center;bottom:104px}
+.cover-title{font-size:84px;font-weight:470;letter-spacing:-.05em;line-height:.98;margin-top:20px;max-width:16ch}
+.cover-title .hl{color:var(--accent-bright)}
+.cover-sub{font-size:18px;line-height:1.55;color:var(--ink-2);max-width:52ch;margin-top:26px}
+.cover-note{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.cover-note > div{padding-right:18px}
+.cover-note b{display:block;margin-top:6px;font-size:12px;letter-spacing:.02em;color:var(--ink-2);text-transform:none;font-weight:400}
+
+.live-card{border:1px solid var(--line-strong);border-radius:14px;background:linear-gradient(180deg,rgba(47,107,255,.08),rgba(9,15,24,0) 46%),var(--surface);padding:22px 22px 0}
+.live-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.live-pill{display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 9px;border:1px solid rgba(47,214,163,.3);border-radius:3px;background:rgba(47,214,163,.08);color:#7ff0cc;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em}
+.chain-name{font-size:11px;color:var(--ink-2);letter-spacing:.02em}
+.live-rows{padding:4px 0}
+.lr{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--line)}
+.lr:last-child{border-bottom:0}
+.lr span{font-size:12.5px;color:var(--muted)}
+.lr b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:22px;font-weight:400;letter-spacing:-.02em;color:var(--ink)}
+.lr em{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-left:6px}
+.live-foot{padding:12px 0 14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--faint);line-height:1.5}
+
+/* ---------- generic blocks ---------- */
+.callout{border-left:2px solid var(--accent);padding:12px 0 12px 18px;font-size:16px;line-height:1.5;color:var(--ink-2)}
+.callout b{color:var(--ink);font-weight:520}
+
+.stats{display:grid;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.stat{padding:11px 18px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:24px;font-weight:400;letter-spacing:-.02em;margin-top:6px;color:var(--ink)}
+.stat .m{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-top:4px;letter-spacing:.03em}
+
+/* ---------- diagram ---------- */
+.diagram{width:100%;height:auto;display:block;overflow:visible}
+.svg-mono{font-family:var(--mono);font-size:11.5px;letter-spacing:.05em}
+.svg-mono-s{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em}
+.svg-sans{font-family:var(--sans)}
+
+/* ---------- failure grid ---------- */
+.fail-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 64px;margin-top:34px;border-top:1px solid var(--line)}
+.fail{padding:22px 0 20px;border-bottom:1px solid var(--line)}
+.fail .idx{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--accent-bright)}
+.fail h3{font-size:21px;font-weight:500;letter-spacing:-.02em;margin:9px 0 8px;line-height:1.2}
+.fail p{font-size:14.5px;line-height:1.5;color:var(--muted);max-width:46ch}
+
+/* ---------- faces ---------- */
+.faces{display:grid;grid-template-columns:1fr 292px 1fr;gap:34px;margin-top:30px;align-items:stretch}
+.face .panel-head{border-bottom:1px solid var(--line)}
+.face-rows{padding:4px 16px 10px}
+.frow{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.frow:last-child{border-bottom:0}
+.frow span{color:var(--muted)}
+.frow b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:400;color:var(--ink);font-size:12.5px}
+.spine{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;position:relative}
+.spine .line{width:1px;flex:1;background:linear-gradient(to bottom,transparent,var(--accent-line),transparent)}
+.spine .title-chip{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:8px;padding:12px 14px;text-align:center;margin:10px 0;width:100%}
+.spine .title-chip .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:#a8c2ff;text-transform:uppercase}
+.spine .title-chip .v{font-family:var(--mono);font-size:12px;color:var(--ink);margin-top:6px}
+.spine .arr{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin:10px 0}
+
+/* ---------- checks / verdicts ---------- */
+.check-list{margin-top:6px;border-top:1px solid var(--line)}
+.check-row{display:grid;grid-template-columns:36px 1fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.check-row .n{font-family:var(--mono);font-size:10px;color:var(--accent-bright);letter-spacing:.1em}
+.check-row p{font-size:14.5px;line-height:1.45;color:var(--ink-2)}
+.verdict{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:var(--surface)}
+.verdict + .verdict{margin-top:14px}
+.verdict--ok{border-color:rgba(47,214,163,.28);background:linear-gradient(180deg,rgba(47,214,163,.06),rgba(9,15,24,.2))}
+.verdict--bad{border-color:rgba(255,97,87,.26);background:linear-gradient(180deg,rgba(255,97,87,.05),rgba(9,15,24,.2))}
+.verdict .vh{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.verdict .vt{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase}
+.verdict--ok .vt{color:#7ff0cc}
+.verdict--bad .vt{color:#ff9b94}
+.verdict .res{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.verdict p{font-size:13.5px;line-height:1.45;color:var(--ink-2)}
+
+/* ---------- sequence ---------- */
+.seq{display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr 34px 1fr;align-items:center;margin-top:26px}
+.seq-step{border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:12px 14px;min-height:92px}
+.seq-step .n{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--accent-bright)}
+.seq-step b{display:block;font-size:14px;font-weight:500;margin-top:6px;line-height:1.25}
+.seq-step .m{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:6px}
+.seq-arrow{font-family:var(--mono);color:var(--line-bright);text-align:center;font-size:14px}
+
+/* ---------- lifecycle ---------- */
+.life{display:grid;grid-template-columns:repeat(5,1fr);margin-top:30px;border-top:1px solid var(--line)}
+.life-col{padding:24px 18px 22px 0;border-right:1px solid var(--line);position:relative}
+.life-col:last-child{border-right:0}
+.life-col + .life-col{padding-left:18px}
+.life-col .n{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--accent-bright)}
+.life-col h3{font-size:27px;font-weight:480;letter-spacing:-.03em;margin:10px 0 10px}
+.life-col p{font-size:14px;line-height:1.55;color:var(--muted);min-height:88px}
+.life-col .kv{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;padding:7px 0;border-top:1px solid var(--line);color:var(--faint)}
+.life-col .kv b{color:var(--ink-2);font-weight:400;text-align:right}
+.rev-strip{display:flex;align-items:center;gap:14px;margin-top:34px;padding:18px 20px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.rev-strip .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.rev-strip .bar{flex:1;height:1px;background:var(--line-strong);position:relative}
+.rev-chip{font-family:var(--mono);font-size:12px;padding:5px 10px;border:1px solid var(--line-strong);border-radius:3px;color:var(--ink-2)}
+.rev-chip.dead{border-color:rgba(255,97,87,.3);color:#ff9b94;text-decoration:line-through;text-decoration-thickness:1px}
+.rev-chip.live{border-color:rgba(47,214,163,.34);color:#7ff0cc}
+
+/* ---------- table ---------- */
+.tbl{width:100%;border-collapse:collapse;margin-top:10px}
+.tbl th{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted);text-align:left;padding:8px 0;border-bottom:1px solid var(--line-strong);font-weight:400;
+}
+.tbl td{padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.4;vertical-align:top}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td.p{color:var(--ink);font-weight:500;width:23%}
+.tbl td.c{color:var(--ink-2)}
+.tbl td.e{color:var(--muted);width:32%}
+.tbl td.i{font-family:var(--mono);font-size:10px;color:var(--accent-bright);width:34px;letter-spacing:.08em}
+.tbl--roomy td{padding:15px 0}
+
+/* ---------- status ---------- */
+.status .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.status .row:last-child{border-bottom:0}
+.status .row span{color:var(--ink-2)}
+.status .tag{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;padding:3px 6px;border:1px solid var(--line-strong);border-radius:3px;color:var(--muted);white-space:nowrap}
+.status .tag.design{border-color:var(--accent-line);color:#a8c2ff}
+.status .tag.req{border-color:rgba(245,181,68,.3);color:#ffd07a}
+.status .tag.none{border-color:rgba(255,97,87,.26);color:#ff9b94}
+
+.mini{padding:12px 16px;border:1px solid var(--line);border-radius:9px;background:var(--surface)}
+.mini + .mini{margin-top:0}
+.mini .mh{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-bright)}
+.mini p{font-size:12.5px;line-height:1.45;color:var(--ink-2);margin-top:7px}
+.mini .mf{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-top:7px}
+
+.quote{font-size:27px;line-height:1.28;letter-spacing:-.03em;color:var(--ink);max-width:44ch;font-weight:450}
+.quote-attr{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-top:16px}
+
+.milestones{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--line);margin-top:28px}
+.ms{padding:18px 20px 18px 0;border-right:1px solid var(--line)}
+.ms:last-child{border-right:0}
+.ms + .ms{padding-left:20px}
+.ms .n{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--accent-bright)}
+.ms h3{font-size:16px;font-weight:520;margin:8px 0 8px;letter-spacing:-.01em}
+.ms p{font-size:12.5px;line-height:1.45;color:var(--muted)}
+
+.ask{border:1px solid var(--accent-line);background:linear-gradient(180deg,rgba(47,107,255,.1),rgba(9,15,24,.3));border-radius:10px;padding:16px 20px;margin-top:26px}
+.ask .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#a8c2ff}
+.ask p{font-size:14.5px;line-height:1.5;color:var(--ink-2);margin-top:7px;max-width:112ch}
+
+/* ---------- controls ---------- */
+.controls{
+  position:fixed;left:50%;bottom:14px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;z-index:40;
+  padding:6px;border:1px solid #1a2434;border-radius:8px;background:rgba(6,10,17,.88);
+  backdrop-filter:blur(8px);
+}
+.controls button{
+  height:26px;min-width:30px;padding:0 9px;border:1px solid transparent;border-radius:5px;
+  background:transparent;color:#8492a6;font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;cursor:pointer;
+}
+.controls button:hover{background:#0d1522;color:#e9eef7;border-color:#232f42}
+.controls .pos{font-family:var(--mono);font-size:10px;color:#66748b;padding:0 6px;letter-spacing:.1em}
+.hint{position:fixed;right:18px;bottom:18px;z-index:40;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:#3d4a5c;text-transform:uppercase}
+@media (max-width:900px){.hint{display:none}.controls{display:none}}
+
+@media (prefers-reduced-motion:reduce){
+  .slide{transition:none}
+  .dot{animation:none}
+}
+
+/* ---------- print: exactly one slide per page ---------- */
+@page{ size:1600px 900px; margin:0; }
+@media print{
+  html,body{height:auto;overflow:visible;background:#060a11}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .viewport{position:static;inset:auto;overflow:visible;background:none}
+  .stage{position:static;transform:none;box-shadow:none;width:1600px;height:auto}
+  .slide{
+    position:relative;inset:auto;display:block;
+    width:1600px;height:900px;
+    opacity:1 !important;visibility:visible !important;transform:none !important;
+    break-inside:avoid;break-after:page;page-break-after:always;
+  }
+  .slide:last-child{break-after:auto;page-break-after:auto}
+  .controls,.hint{display:none !important}
+}
+</style>
+</head>
+<body>
+
+<div class="viewport" id="viewport">
+  <div class="stage" id="stage">
+
+    <!-- ================= 01 COVER ================= -->
+    <section class="slide slide--cover is-active" id="cover" aria-label="Cover">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Portaldot V3 testnet</span>
+          <span class="sep"></span>
+          <span class="mono">Protocol deck</span>
+        </div>
+      </header>
+
+      <div class="s-body cover-body">
+        <div>
+          <div class="kicker">Protocol design / Portaldot V3</div>
+          <h1 class="cover-title">One asset.<br>Two runtimes.<br><span class="hl">One enforceable title.</span></h1>
+          <p class="cover-sub">LEMO gives one asset one revisioned title: a legal record on the native side and a market representation on EVM. The design requires each face to verify the other before it moves.</p>
+          <p class="mono" style="font-size:9.5px;line-height:1.6;letter-spacing:.1em;color:var(--warn);margin-top:14px;text-transform:uppercase">Revive is live today. The WASM contracts module is listed for V3.0, not deployed.</p>
+          <div class="cover-note">
+            <div>Legal face<b>WASM module listed</b></div>
+            <div>Market face<b>Revive, live</b></div>
+            <div>Enforcement<b>Bidirectional proof</b></div>
+          </div>
+        </div>
+
+        <aside class="live-card" aria-label="Live chain figures">
+          <div class="live-head">
+            <span class="live-pill"><i class="dot"></i>Live chain</span>
+            <span class="chain-name">PortaldotV3 Test</span>
+          </div>
+          <div class="live-rows">
+            <div class="lr"><span>Best head</span><b>292,823</b></div>
+            <div class="lr"><span>Finalized head</span><b>292,820</b></div>
+            <div class="lr"><span>Finality lag</span><b>3<em>blocks</em></b></div>
+            <div class="lr"><span>Revive chain id</span><b>420420777</b></div>
+          </div>
+          <div class="live-foot">Read from the public JSON-RPC endpoints<br>2026-11-02 14:20 UTC / heads advance with every slot</div>
+        </aside>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / One asset. Two runtimes.</span><span class="f">01 / 12</span></footer>
+    </section>
+
+    <!-- ================= 02 THE GAP ================= -->
+    <section class="slide" id="gap" aria-label="The gap">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">The gap</span>
+          <span class="sep"></span>
+          <span class="mono">Architecture</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">The gap</div>
+        <h1 class="s-title">Revive is live. The WASM contract module is only listed.</h1>
+        <p class="s-sub">Portaldot V3 runs EVM contracts through Revive today. The WASM contracts module is listed for V3.0 but is not live or documented. Native assets, identity, vesting and proxy or multisig records already exist in the runtime.</p>
+
+        <svg class="diagram" viewBox="0 0 1424 306" role="img" aria-label="Shared validators and finality above two execution models whose storage is not shared" style="margin-top:22px">
+          <rect x="0" y="0" width="1424" height="44" rx="4" fill="rgba(47,107,255,.07)" stroke="rgba(47,107,255,.34)"/>
+          <text x="20" y="27" class="svg-mono" fill="#a8c2ff">SHARED VALIDATORS / SHARED BLOCKS / SHARED FINALITY</text>
+          <text x="1404" y="27" text-anchor="end" class="svg-mono" fill="#8492a6">ONE STATE ROOT PER BLOCK</text>
+
+          <path d="M330 44 V88" stroke="#232f42" fill="none"/>
+          <path d="M1094 44 V88" stroke="#232f42" fill="none"/>
+
+          <rect x="0" y="88" width="650" height="162" rx="10" fill="#090f18" stroke="#17212f"/>
+          <text x="22" y="116" class="svg-mono" fill="#6d95ff">WASM CONTRACTS</text>
+          <rect x="536" y="100" width="94" height="21" rx="3" fill="rgba(245,181,68,.1)" stroke="rgba(245,181,68,.34)"/>
+          <text x="583" y="115" text-anchor="middle" class="svg-mono-s" fill="#ffd07a">LISTED</text>
+          <text x="22" y="145" class="svg-sans" font-size="19" fill="#e9eef7">The legal record</text>
+          <text x="22" y="174" class="svg-mono" fill="#b9c4d5">title records / backing / identity</text>
+          <text x="22" y="197" class="svg-mono" fill="#b9c4d5">vesting / permissions / revision</text>
+          <text x="22" y="228" class="svg-mono-s" fill="#66748b">MODULE LISTED FOR V3.0, NOT LIVE</text>
+
+          <rect x="774" y="88" width="650" height="162" rx="10" fill="#090f18" stroke="#17212f"/>
+          <text x="796" y="116" class="svg-mono" fill="#6d95ff">EVM CONTRACTS VIA REVIVE</text>
+          <rect x="1308" y="100" width="94" height="21" rx="3" fill="rgba(47,214,163,.1)" stroke="rgba(47,214,163,.32)"/>
+          <text x="1355" y="115" text-anchor="middle" class="svg-mono-s" fill="#7ff0cc">LIVE</text>
+          <text x="796" y="145" class="svg-sans" font-size="19" fill="#e9eef7">The market representation</text>
+          <text x="796" y="174" class="svg-mono" fill="#b9c4d5">ERC-20 / ERC-721 balances</text>
+          <text x="796" y="197" class="svg-mono" fill="#b9c4d5">Solidity applications and events</text>
+          <text x="796" y="228" class="svg-mono-s" fill="#66748b">EVM STORAGE IN A SEPARATE STATE</text>
+
+          <path d="M712 96 V142" stroke="#35455e" stroke-dasharray="4 5"/>
+          <path d="M712 202 V244" stroke="#35455e" stroke-dasharray="4 5"/>
+          <rect x="654" y="146" width="116" height="52" fill="#060a11"/>
+          <text x="712" y="166" text-anchor="middle" class="svg-mono-s" fill="#b9c4d5">NO SHARED</text>
+          <text x="712" y="182" text-anchor="middle" class="svg-mono-s" fill="#b9c4d5">STORAGE</text>
+
+          <line x1="0" y1="278" x2="1424" y2="278" stroke="#17212f"/>
+          <text x="0" y="298" class="svg-mono-s" fill="#8492a6">1 NETWORK / 2 EXECUTION MODELS / 0 AUTOMATIC CROSS-READS</text>
+          <text x="1424" y="298" text-anchor="end" class="svg-mono-s" fill="#66748b">GENESIS 0xd4f9acbc…b155283bd</text>
+        </svg>
+
+        <div class="callout" style="margin-top:20px">When the module lands, the two will share validators and finality but not contract storage. <b>A proof has to cross, because a call cannot.</b></div>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / The gap</span><span class="f">02 / 12</span></footer>
+    </section>
+
+    <!-- ================= 03 CONSEQUENCE ================= -->
+    <section class="slide" id="consequence" aria-label="The consequence">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Consequence</span>
+          <span class="sep"></span>
+          <span class="mono">Failure modes</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">The consequence</div>
+        <h1 class="s-title">Without a proof that crosses, the two halves cannot see each other.</h1>
+        <p class="s-sub">Four failures follow from one missing piece. If no runtime can prove the other's state, no ownership rule can cross the boundary.</p>
+
+        <div class="fail-grid">
+          <div class="fail">
+            <div class="idx">01</div>
+            <h3>Ownership stops at the boundary</h3>
+            <p>Native ownership rules do not automatically follow an ERC-20 or ERC-721 representation.</p>
+          </div>
+          <div class="fail">
+            <div class="idx">02</div>
+            <h3>EVM apps cannot read the conditions</h3>
+            <p>Solidity sees a token. It cannot see the identity, vesting or permission rules that make it valid.</p>
+          </div>
+          <div class="fail">
+            <div class="idx">03</div>
+            <h3>Unlocking can strand a representation</h3>
+            <p>Backing can leave while tokens still circulate, unless the EVM state is checked first.</p>
+          </div>
+          <div class="fail">
+            <div class="idx">04</div>
+            <h3>A sync service becomes the authority</h3>
+            <p>The alternative to proofs is a privileged operator that every user has to trust.</p>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top:26px">Wrapping moves the asset. It does not <b>enforce</b> the relationship between the backing and its representation.</div>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / Consequence</span><span class="f">03 / 12</span></footer>
+    </section>
+
+    <!-- ================= 04 THE IDEA ================= -->
+    <section class="slide" id="title" aria-label="The idea">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">The idea</span>
+          <span class="sep"></span>
+          <span class="mono">Dual face title</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">The idea</div>
+        <h1 class="s-title" style="max-width:30ch">Give the asset one title. Then give it two faces that must agree.</h1>
+
+        <div class="faces">
+          <div class="panel face">
+            <div class="panel-head"><span>WASM face / legal record / module listed</span><span class="badge badge--accent">Specimen</span></div>
+            <div class="face-rows">
+              <div class="frow"><span>Native backing</span><b>100.00 POT</b></div>
+              <div class="frow"><span>Owner</span><b>5Grw…utQY</b></div>
+              <div class="frow"><span>Identity</span><b>verified</b></div>
+              <div class="frow"><span>Vesting</span><b>24 months</b></div>
+              <div class="frow"><span>Permissions</span><b>pure account</b></div>
+              <div class="frow"><span>Revision</span><b>07</b></div>
+            </div>
+          </div>
+
+          <div class="spine" aria-hidden="true">
+            <div class="line"></div>
+            <div class="arr">WASM &rarr; EVM proof</div>
+            <div class="title-chip">
+              <div class="k">Title identifier</div>
+              <div class="v">0x7f3a…c19e</div>
+              <div class="v" style="color:#8492a6">revision 07</div>
+              <div class="k" style="margin-top:6px;opacity:.75">Specimen</div>
+            </div>
+            <div class="arr">EVM &rarr; WASM proof</div>
+            <div class="line"></div>
+          </div>
+
+          <div class="panel face">
+            <div class="panel-head"><span>EVM face / market / Revive today</span><span class="badge badge--accent">Specimen</span></div>
+            <div class="face-rows">
+              <div class="frow"><span>Standard</span><b>ERC-20</b></div>
+              <div class="frow"><span>Contract</span><b>0xA19c…B3C5</b></div>
+              <div class="frow"><span>Supply</span><b>100.00 LEMO</b></div>
+              <div class="frow"><span>Holder</span><b>0x8C4e…2f19</b></div>
+              <div class="frow"><span>Accepted revision</span><b>07</b></div>
+              <div class="frow"><span>Transfer rule</span><b>proof required</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:26px;border-top:1px solid var(--line);padding-top:18px">
+          <p class="small"><b style="color:var(--ink);font-weight:520">The hash is a commitment, not a proof.</b> It names the relationship. It cannot show that backing exists or that identity holds.</p>
+          <p class="small"><b style="color:var(--ink);font-weight:520">The design requires each runtime to verify the other.</b> A relayer can carry proof bytes, not authorize them. Today the root source is a trusted finalized checkpoint.</p>
+        </div>
+        <p class="mono" style="font-size:9px;color:var(--faint);margin-top:14px;letter-spacing:.1em;text-align:right">SPECIMEN VALUES. NO TITLE IS DEPLOYED ON THE TESTNET.</p>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / The idea</span><span class="f">04 / 12</span></footer>
+    </section>
+
+    <!-- ================= 05 ARCHITECTURE ================= -->
+    <section class="slide" id="architecture" aria-label="Architecture">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Architecture</span>
+          <span class="sep"></span>
+          <span class="mono">Two gates</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">Architecture</div>
+        <h1 class="s-title" style="font-size:44px;max-width:none">The design: two proofs, two gates, one title.</h1>
+        <p class="s-sub" style="margin-top:12px">No shared storage and no relayer in the trust path. The EVM gate is buildable today. The native gate needs the WASM contracts module.</p>
+
+        <svg class="diagram" viewBox="0 0 1424 500" role="img" aria-label="Registry and backing on WASM, ERC-20 and ERC-721 on EVM, with verifiers in both directions" style="margin-top:14px">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="#6d95ff"/>
+            </marker>
+          </defs>
+
+          <text x="0" y="10" class="svg-mono-s" fill="#66748b">ARROWS CARRY PROOF BYTES, NOT CALLS</text>
+          <text x="1424" y="10" text-anchor="end" class="svg-mono-s" fill="#66748b">SOLID: ENFORCEMENT PATH / DASHED: DISCOVERY</text>
+
+          <!-- row A : native to evm -->
+          <rect x="0" y="30" width="380" height="120" rx="10" fill="#090f18" stroke="#17212f"/>
+          <text x="20" y="56" class="svg-mono-s" fill="#6d95ff">WASM / LEGAL RECORD</text>
+          <rect x="296" y="42" width="68" height="18" rx="3" fill="rgba(245,181,68,.1)" stroke="#6b5326"/>
+          <text x="330" y="55" text-anchor="middle" class="svg-mono-s" fill="#d7b371">LISTED</text>
+          <text x="20" y="80" class="svg-mono" style="font-size:18px" fill="#e8eef8">Title registry</text>
+          <text x="20" y="110" class="svg-mono" fill="#b9c4d5">backing / identity / vesting</text>
+          <text x="20" y="131" class="svg-mono" fill="#b9c4d5">owner / permissions / revision</text>
+
+          <rect x="470" y="30" width="484" height="120" rx="10" fill="rgba(47,107,255,.08)" stroke="rgba(47,107,255,.34)"/>
+          <text x="490" y="56" class="svg-mono-s" fill="#a8c2ff">EVM VERIFIER / SOLIDITY</text>
+          <text x="490" y="84" class="svg-sans" font-size="19" fill="#e9eef7">Proof check before transfer</text>
+          <text x="490" y="110" class="svg-mono" fill="#b9c4d5">finalized root / trie walk / revision</text>
+          <text x="490" y="131" class="svg-mono" fill="#b9c4d5">reverts when any check fails</text>
+
+          <rect x="1044" y="30" width="380" height="120" rx="10" fill="#090f18" stroke="#17212f"/>
+          <text x="1064" y="56" class="svg-mono-s" fill="#6d95ff">EVM / MARKET</text>
+          <rect x="1340" y="42" width="68" height="18" rx="3" fill="rgba(47,214,163,.08)" stroke="#245243"/>
+          <text x="1374" y="55" text-anchor="middle" class="svg-mono-s" fill="#7fc9ae">LIVE</text>
+          <text x="1064" y="80" class="svg-mono" style="font-size:18px" fill="#e8eef8">ERC-20 or ERC-721</text>
+          <text x="1064" y="110" class="svg-mono" fill="#b9c4d5">transfer validation gate</text>
+          <text x="1064" y="131" class="svg-mono" fill="#b9c4d5">supply and ownership</text>
+
+          <line x1="380" y1="90" x2="462" y2="90" stroke="#6d95ff" marker-end="url(#ar)"/>
+          <line x1="954" y1="90" x2="1036" y2="90" stroke="#6d95ff" marker-end="url(#ar)"/>
+          <text x="421" y="80" text-anchor="middle" class="svg-mono-s" fill="#8492a6">PROOF</text>
+          <text x="995" y="80" text-anchor="middle" class="svg-mono-s" fill="#8492a6">GATE</text>
+
+          <!-- vertical bindings -->
+          <line x1="190" y1="150" x2="190" y2="300" stroke="#35455e" stroke-dasharray="3 5"/>
+          <line x1="1234" y1="150" x2="1234" y2="300" stroke="#35455e" stroke-dasharray="3 5"/>
+          <text x="202" y="230" class="svg-mono-s" fill="#66748b">SAME TITLE_ID</text>
+          <text x="1246" y="230" class="svg-mono-s" fill="#66748b">SAME REVISION</text>
+
+          <!-- row B : evm to native -->
+          <rect x="0" y="300" width="380" height="120" rx="10" fill="#090f18" stroke="#17212f"/>
+          <text x="20" y="326" class="svg-mono-s" fill="#6d95ff">WASM / LEGAL RECORD</text>
+          <text x="20" y="354" class="svg-sans" font-size="19" fill="#e9eef7">Native unbond</text>
+          <text x="20" y="380" class="svg-mono" fill="#b9c4d5">verify EVM retirement first</text>
+          <text x="20" y="401" class="svg-mono" fill="#b9c4d5">release backing last</text>
+
+          <rect x="470" y="300" width="484" height="120" rx="10" fill="rgba(47,107,255,.08)" stroke="rgba(47,107,255,.34)"/>
+          <text x="490" y="326" class="svg-mono-s" fill="#a8c2ff">NATIVE VERIFIER / WASM</text>
+          <text x="490" y="354" class="svg-sans" font-size="19" fill="#e9eef7">Proof check before unbond</text>
+          <text x="490" y="380" class="svg-mono" fill="#b9c4d5">supply zero / tokens retired</text>
+          <text x="490" y="401" class="svg-mono" fill="#b9c4d5">bound to contract and nonce</text>
+
+          <rect x="1044" y="300" width="380" height="120" rx="10" fill="#090f18" stroke="#17212f"/>
+          <text x="1064" y="326" class="svg-mono-s" fill="#6d95ff">EVM / MARKET</text>
+          <text x="1064" y="354" class="svg-sans" font-size="19" fill="#e9eef7">Supply and burn state</text>
+          <text x="1064" y="380" class="svg-mono" fill="#b9c4d5">finalized head / burn receipt</text>
+          <text x="1064" y="401" class="svg-mono" fill="#b9c4d5">outstanding balance check</text>
+
+          <line x1="1044" y1="360" x2="962" y2="360" stroke="#6d95ff" marker-end="url(#ar)"/>
+          <line x1="470" y1="360" x2="388" y2="360" stroke="#6d95ff" marker-end="url(#ar)"/>
+          <text x="1001" y="350" text-anchor="middle" class="svg-mono-s" fill="#8492a6">PROOF</text>
+          <text x="429" y="350" text-anchor="middle" class="svg-mono-s" fill="#8492a6">GATE</text>
+
+          <!-- statement store -->
+          <rect x="0" y="446" width="1424" height="52" rx="6" fill="none" stroke="#232f42" stroke-dasharray="5 5"/>
+          <text x="20" y="468" class="svg-mono-s" fill="#8492a6">STATEMENT STORE / NOTICEBOARD</text>
+          <text x="20" y="487" class="svg-mono" fill="#66748b">signed title announcements on lemo/&lt;title_id&gt; / discovery only</text>
+          <text x="1404" y="487" text-anchor="end" class="svg-mono-s" fill="#66748b">GOSSIP DISTRIBUTES / PROOFS ENFORCE</text>
+        </svg>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / Architecture</span><span class="f">05 / 12</span></footer>
+    </section>
+
+    <!-- ================= 06 RULE ONE ================= -->
+    <section class="slide" id="rule-1" aria-label="Rule one">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Rule one</span>
+          <span class="sep"></span>
+          <span class="mono">EVM transfer</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">Rule one</div>
+        <h1 class="s-title">An EVM transfer needs a finalized, current native proof.</h1>
+        <p class="s-sub">Before any ERC-20 or ERC-721 transfer settles, the EVM face proves that the native title still authorizes it.</p>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 560px;gap:64px;margin-top:26px">
+          <div>
+            <div class="panel-head" style="padding-left:0;border-bottom:1px solid var(--line-strong)">The proof must establish</div>
+            <div class="check-list" style="border-top:0">
+              <div class="check-row"><span class="n">01</span><p>The title exists at the proven state root.</p></div>
+              <div class="check-row"><span class="n">02</span><p>Backing is still bound to that title.</p></div>
+              <div class="check-row"><span class="n">03</span><p>Native identity conditions are still satisfied.</p></div>
+              <div class="check-row"><span class="n">04</span><p>Vesting still permits the movement.</p></div>
+              <div class="check-row"><span class="n">05</span><p>The revision is current, and the proof head is finalized and fresh.</p></div>
+            </div>
+            <p class="small" style="margin-top:16px">This is the design rule, not a deployed check. A valid signature over stale state is not a valid proof.</p>
+          </div>
+
+          <div>
+            <div class="verdict verdict--ok">
+              <div class="vh"><span class="vt">Allow</span><span class="res">transfer settles</span></div>
+              <p>All five checks pass against one finalized native root, and the proven revision equals the revision the token last accepted.</p>
+            </div>
+            <div class="verdict verdict--bad">
+              <div class="vh"><span class="vt">Revert</span><span class="res">supply untouched</span></div>
+              <p>Identity cleared, backing unbound, vesting expired, proof stale, or proof from revision r-1. The transfer does not settle.</p>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <span class="badge badge--ok">valid proof</span>
+              <span class="badge badge--bad">otherwise reverted</span>
+              <span class="badge badge--warn">native input needs the module</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / Rule one</span><span class="f">06 / 12</span></footer>
+    </section>
+
+    <!-- ================= 07 RULE TWO ================= -->
+    <section class="slide" id="rule-2" aria-label="Rule two">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Rule two</span>
+          <span class="sep"></span>
+          <span class="mono">Native unbond</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">Rule two</div>
+        <h1 class="s-title" style="max-width:30ch">Native backing cannot unlock while a representation is outstanding.</h1>
+        <p class="s-sub">Before unbonding, the WASM face proves that the EVM side is fully retired at a finalized head. Burn first, unlock second.</p>
+
+        <div class="seq">
+          <div class="seq-step"><span class="n">STEP 01</span><b>Representation burned</b><span class="m">supply to zero</span></div>
+          <div class="seq-arrow">&rarr;</div>
+          <div class="seq-step"><span class="n">STEP 02</span><b>Burn finalizes</b><span class="m">finalized EVM head</span></div>
+          <div class="seq-arrow">&rarr;</div>
+          <div class="seq-step"><span class="n">STEP 03</span><b>EVM proof checked</b><span class="m">in the WASM verifier</span></div>
+          <div class="seq-arrow">&rarr;</div>
+          <div class="seq-step"><span class="n">STEP 04</span><b>Backing unlocks</b><span class="m">last, never first</span></div>
+        </div>
+
+        <p class="small" style="margin-top:10px">Design rule, not a deployed check. Step 03 runs on chain only once the WASM contracts module is live; today it is listed for V3.0.</p>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 1fr;gap:56px;margin-top:22px">
+          <div>
+            <div class="panel-head" style="padding-left:0;border-bottom:1px solid var(--line-strong)">The proof must establish</div>
+            <div class="check-list" style="border-top:0">
+              <div class="check-row"><span class="n">01</span><p>ERC-20 supply is zero, or every ERC-721 representation is retired.</p></div>
+              <div class="check-row"><span class="n">02</span><p>The proof belongs to this title, this contract and this operation.</p></div>
+              <div class="check-row"><span class="n">03</span><p>The EVM state is finalized, the proof is current and cannot be replayed.</p></div>
+            </div>
+          </div>
+          <div>
+            <div class="verdict verdict--ok" style="margin-top:0">
+              <div class="vh"><span class="vt">Unlock</span><span class="res">backing released</span></div>
+              <p>Nothing is outstanding and the retirement proof is bound to this title at the revision being released.</p>
+            </div>
+            <div class="verdict verdict--bad">
+              <div class="vh"><span class="vt">Revert</span><span class="res">unbond refused</span></div>
+              <p>Any ERC-20 balance or live ERC-721 representation remains, or the proof is from another contract, revision or chain.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / Rule two</span><span class="f">07 / 12</span></footer>
+    </section>
+
+    <!-- ================= 08 LIFECYCLE ================= -->
+    <section class="slide" id="lifecycle" aria-label="Lifecycle">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Lifecycle</span>
+          <span class="sep"></span>
+          <span class="mono">Revision binding</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">Lifecycle</div>
+        <h1 class="s-title" style="max-width:34ch">Five steps. Every one leaves a receipt the other side can verify.</h1>
+
+        <div class="life">
+          <div class="life-col">
+            <div class="n">01</div>
+            <h3>Create</h3>
+            <p>Native title written and backing locked. Ownership, identity and vesting recorded on WASM.</p>
+            <div class="kv"><span>REVISION</span><b>+1</b></div>
+            <div class="kv"><span>PROOF</span><b>none yet</b></div>
+            <div class="kv"><span>ENFORCED</span><b>WASM registry</b></div>
+          </div>
+          <div class="life-col">
+            <div class="n">02</div>
+            <h3>Represent</h3>
+            <p>ERC-20 or ERC-721 issued against the same title, only after the native backing is proven.</p>
+            <div class="kv"><span>REVISION</span><b>+1</b></div>
+            <div class="kv"><span>PROOF</span><b>native title</b></div>
+            <div class="kv"><span>ENFORCED</span><b>EVM verifier</b></div>
+          </div>
+          <div class="life-col">
+            <div class="n">03</div>
+            <h3>Transfer</h3>
+            <p>Ownership moves through familiar token interfaces. Each transfer re-checks the title.</p>
+            <div class="kv"><span>REVISION</span><b>unchanged</b></div>
+            <div class="kv"><span>PROOF</span><b>native, current</b></div>
+            <div class="kv"><span>ENFORCED</span><b>EVM gate</b></div>
+          </div>
+          <div class="life-col">
+            <div class="n">04</div>
+            <h3>Update</h3>
+            <p>Identity, backing or owner changes. The revision increments and older proofs expire.</p>
+            <div class="kv"><span>REVISION</span><b>+1</b></div>
+            <div class="kv"><span>PROOF</span><b>new revision</b></div>
+            <div class="kv"><span>ENFORCED</span><b>WASM registry</b></div>
+          </div>
+          <div class="life-col">
+            <div class="n">05</div>
+            <h3>Redeem</h3>
+            <p>Representation returned and burned. Once the burn finalizes, the backing unlocks.</p>
+            <div class="kv"><span>REVISION</span><b>+1 at burn</b></div>
+            <div class="kv"><span>PROOF</span><b>EVM retirement</b></div>
+            <div class="kv"><span>ENFORCED</span><b>native verifier</b></div>
+          </div>
+        </div>
+
+        <div class="rev-strip">
+          <span class="lbl">Proof lineage</span>
+          <span class="rev-chip live">rev 06</span>
+          <span class="rev-chip dead">rev 06 proof</span>
+          <span class="bar"></span>
+          <span class="rev-chip live">rev 07</span>
+          <span class="lbl" style="letter-spacing:.08em;color:var(--ink-2)">A change to identity, backing or ownership increments the revision and kills every older proof. Valid bytes from revision 06 are still the wrong answer at 07.</span>
+        </div>
+        <p class="mono" style="font-size:9px;letter-spacing:.1em;color:var(--faint);margin-top:14px">DESIGN. NO STEP HAS RUN END TO END ON PORTALDOT V3.</p>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / Lifecycle</span><span class="f">08 / 12</span></footer>
+    </section>
+
+    <!-- ================= 09 HARD PART ================= -->
+    <section class="slide" id="hard-problems" aria-label="The hard part">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">The hard part</span>
+          <span class="sep"></span>
+          <span class="mono">Verification</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">The hard part</div>
+        <h1 class="s-title" style="max-width:30ch">The work is proof plumbing, not the token contract.</h1>
+        <p class="s-sub">Five problems decide whether this protocol is real. Each one is a requirement, not a later optimization.</p>
+
+        <table class="tbl tbl--roomy" style="margin-top:18px">
+          <thead>
+            <tr><th></th><th>Problem</th><th>What must hold</th><th>The failure it prevents</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="i">01</td>
+              <td class="p">Finality</td>
+              <td class="c">Verify against a finalized state root, never against a head an RPC simply reports.</td>
+              <td class="e">A reorg erases the state that authorized a transfer after it settled.</td>
+            </tr>
+            <tr>
+              <td class="i">02</td>
+              <td class="p">Freshness</td>
+              <td class="c">A proof accepted once cannot authorize a second, later action.</td>
+              <td class="e">A title that changed is moved again on the strength of old bytes.</td>
+            </tr>
+            <tr>
+              <td class="i">03</td>
+              <td class="p">Revision binding</td>
+              <td class="c">Every proof names the revision it proves. Any property change increments it.</td>
+              <td class="e">Cleared identity or unbound backing leaves old proofs looking current.</td>
+            </tr>
+            <tr>
+              <td class="i">04</td>
+              <td class="p">Replay protection</td>
+              <td class="c">Bind proof to chain id, genesis, title, runtime, contract, operation and nonce.</td>
+              <td class="e">One proof is reused across titles, contracts or chains.</td>
+            </tr>
+            <tr>
+              <td class="i">05</td>
+              <td class="p">Interrupted transitions</td>
+              <td class="c">Order mint, burn and unlock so a failed step cannot strand or duplicate value.</td>
+              <td class="e">A burn without an unlock, or an unlock while supply still exists.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display:flex;align-items:center;gap:14px;margin-top:20px;padding-top:14px;border-top:1px solid var(--line)">
+          <span class="badge badge--bad">eth_getProof / -32601</span>
+          <p class="small" style="max-width:120ch">The testnet EVM endpoint does not implement account proofs. The EVM witness path needs a real source before rule one can be enforced. We report the node's refusal rather than invent a witness.</p>
+        </div>
+        <p class="small" style="margin-top:16px;color:var(--ink-2);font-size:15px">Enforcement lives in the receiving runtime. A message is never the authority. Root source today is a trusted finalized checkpoint, and removing that trust is part of the work.</p>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / The hard part</span><span class="f">09 / 12</span></footer>
+    </section>
+
+    <!-- ================= 10 LIVE ================= -->
+    <section class="slide" id="live" aria-label="What is live today">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Live today</span>
+          <span class="sep"></span>
+          <span class="mono">Status</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">What is live today</div>
+        <h1 class="s-title" style="font-size:46px;max-width:40ch">A console, a client-side witness, and no deployed title.</h1>
+        <p class="s-sub" style="margin-top:12px">Every figure below came from the two public endpoints on 2026-11-02 at 14:20 UTC. Nothing here is a projection. The contract layer has 71 Foundry tests; the proof service has 1,077 tests.</p>
+
+        <div class="stats" style="grid-template-columns:repeat(5,1fr);margin-top:18px">
+          <div class="stat"><div class="k">Best head</div><div class="v">292,823</div><div class="m">chain_getHeader</div></div>
+          <div class="stat"><div class="k">Finalized head</div><div class="v">292,820</div><div class="m">state root 0x77db…4e53</div></div>
+          <div class="stat"><div class="k">Finality lag</div><div class="v">3</div><div class="m">blocks behind best</div></div>
+          <div class="stat"><div class="k">Revive head</div><div class="v">292,823</div><div class="m">eth_blockNumber</div></div>
+          <div class="stat"><div class="k">Chain id</div><div class="v">420420777</div><div class="m">eth_chainId, genesis matched</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:36px;margin-top:20px">
+          <div class="status" style="border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:6px 16px 8px">
+            <div class="panel-head" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Status / component</span><span>Evidence</span></div>
+            <div class="row"><span>Native backing and ownership registry</span><span class="tag req">Implementation required</span></div>
+            <div class="row"><span>ERC-20 / ERC-721 representation</span><span class="tag req">Tested, not deployed</span></div>
+            <div class="row"><span>Native to EVM state proof verification</span><span class="tag design">Tested</span></div>
+            <div class="row"><span>EVM to native state proof verification</span><span class="tag none">Blocked by module</span></div>
+            <div class="row"><span>Revision and replay protection</span><span class="tag req">Tested, not deployed</span></div>
+            <div class="row"><span>End-to-end deployment</span><span class="tag none">Not demonstrated</span></div>
+            <div class="row"><span>Security audit</span><span class="tag none">Not performed</span></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;justify-content:space-between;gap:12px">
+            <div class="mini">
+              <div class="mh"><span>Console</span><span>native + Revive</span></div>
+              <p>Finalized heads, finality lag and slot cadence from the native node. Head and chain id from Revive. Plain JSON-RPC from the browser, serialized to survive the public endpoints.</p>
+              <div class="mf">/console /console/network</div>
+            </div>
+            <div class="mini">
+              <div class="mh"><span>Native witness</span><span>verified in the browser</span></div>
+              <p>A storage proof for System.Number at the finalized head. Every trie node is re-hashed with blake2b-256 and checked against the state root the chain published.</p>
+              <div class="mf">/console/proofs</div>
+            </div>
+            <div class="mini">
+              <div class="mh"><span>Proof service</span><span>not deployed</span></div>
+              <p>Trie verifier, typed RPC clients and a Fastify API, tested with 1,077 cases including a live captured proof. The contract layer adds 71 Foundry tests. No endpoint is deployed.</p>
+              <div class="mf">server/ / contracts/ / fixtures</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+          <span class="badge badge--bad" style="font-size:8px">eth_getProof refused</span>
+          <p class="mono" style="font-size:9px;color:var(--faint);letter-spacing:.04em">Revive answered -32601. Root source today is a trusted finalized checkpoint.</p>
+        </div>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / What is live today</span><span class="f">10 / 12</span></footer>
+    </section>
+
+    <!-- ================= 11 WHY PORTALDOT ================= -->
+    <section class="slide" id="why-portaldot" aria-label="Why Portaldot">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">Why Portaldot</span>
+          <span class="sep"></span>
+          <span class="mono">One live, one listed</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">Why Portaldot</div>
+        <h1 class="s-title" style="max-width:36ch">This model needs both runtimes. Portaldot has one live and one listed.</h1>
+
+        <table class="tbl" style="margin-top:22px">
+          <thead><tr><th style="width:230px">Network</th><th>What it gives the asset</th><th style="width:360px">What is missing</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="p" style="color:var(--muted);font-weight:400">Portaldot today / Revive only</td>
+              <td class="c">ERC-20 and ERC-721 markets, Solidity applications, live finality, and native assets, identity, vesting and proxy records in the runtime.</td>
+              <td class="e">No WASM contracts module, so no on-chain native title for a verifier to read.</td>
+            </tr>
+            <tr>
+              <td class="p" style="color:var(--muted);font-weight:400">WASM contracts only, elsewhere</td>
+              <td class="c">Contract-level native ownership, identity, vesting and permission rules.</td>
+              <td class="e">No EVM market. The representation has nowhere to execute.</td>
+            </tr>
+            <tr>
+              <td class="p" style="color:var(--accent-bright);font-weight:500">Portaldot with both</td>
+              <td class="c">Revive live now, WASM contracts module for V3.0, one finality. Proofs can cross once both exist.</td>
+              <td class="e">The native gate cannot be enforced until that module ships.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:56px;margin-top:30px;align-items:start">
+          <div>
+            <p class="quote">The asset does not choose between WASM and EVM. It belongs to both, and neither can act without proving that the other agrees.</p>
+            <div class="quote-attr">LEMO design invariant / not yet enforced end to end</div>
+          </div>
+          <div>
+            <div class="callout" style="font-size:15px"><b>No cross-call dependency.</b> ink! to Solidity calls are awaiting confirmation. The design moves proof bytes instead, and carrying them authorizes nothing.</div>
+            <p class="small" style="margin-top:16px">The EVM-side gate is buildable now. The native-side check waits on the module. Statement Store stays a noticeboard: signed announcements, never authorization.</p>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);margin-top:34px;border-top:1px solid var(--line)">
+          <div style="padding:18px 26px 0 0;border-right:1px solid var(--line)">
+            <div class="mono" style="font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)">Shared finality</div>
+            <p style="font-size:14px;line-height:1.45;color:var(--ink-2);margin-top:7px">The proof and the state it proves settle under one validator set.</p>
+          </div>
+          <div style="padding:18px 26px 0 26px;border-right:1px solid var(--line)">
+            <div class="mono" style="font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)">Two verifiers</div>
+            <p style="font-size:14px;line-height:1.45;color:var(--ink-2);margin-top:7px">One on EVM now, one native when the module ships.</p>
+          </div>
+          <div style="padding:18px 0 0 26px">
+            <div class="mono" style="font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)">No relayer authority</div>
+            <p style="font-size:14px;line-height:1.45;color:var(--ink-2);margin-top:7px">A relayer can carry bytes. It cannot make a bad proof verify.</p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / Why Portaldot</span><span class="f">11 / 12</span></footer>
+    </section>
+
+    <!-- ================= 12 CLOSE ================= -->
+    <section class="slide" id="ask" aria-label="The ask">
+      <header class="s-head">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M4.5 6.5h7.5v19H4.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M27.5 6.5H20v19h7.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16 3.5v25" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>LEMO</span>
+        </div>
+        <div class="head-meta">
+          <span class="mono">The ask</span>
+          <span class="sep"></span>
+          <span class="mono">Next milestones</span>
+        </div>
+      </header>
+
+      <div class="s-body">
+        <div class="kicker">The ask</div>
+        <h1 class="s-title" style="max-width:34ch">Build the EVM gate now. Build the native gate when the module ships.</h1>
+        <p class="s-sub">The design is public and the console is live. What is missing is the deployed pair: an EVM gate with a real title source, a native gate once the WASM contracts module lands, and the rejection cases proven on chain.</p>
+
+        <div class="milestones">
+          <div class="ms">
+            <div class="n">M1 / DEPENDENCY</div>
+            <h3>Module and noticeboard</h3>
+            <p>Confirm the WASM contracts module on V3 testnet, and Statement Store support on the target node.</p>
+          </div>
+          <div class="ms">
+            <div class="n">M2 / TITLE AND GATE</div>
+            <h3>Registry plus EVM verifier</h3>
+            <p>Title registry with real backing. EVM verifier deployed against the same title id and revision.</p>
+          </div>
+          <div class="ms">
+            <div class="n">M3 / BOTH DIRECTIONS</div>
+            <h3>Two verifiers, two roots</h3>
+            <p>Native state proven on EVM, EVM state proven on native, each against a finalized head.</p>
+          </div>
+          <div class="ms">
+            <div class="n">M4 / REJECTIONS</div>
+            <h3>Break it on purpose</h3>
+            <p>Cleared identity, unbound backing, stale or replayed proof, outstanding supply. Then redeem and unlock.</p>
+          </div>
+        </div>
+
+        <div class="ask">
+          <div class="l">What we need</div>
+          <p>Engineering time to land M2 to M4, a security review before any real asset uses this, and a Portaldot contact to confirm the WASM module and Statement Store timelines. No capital ask, no token sale, no fake traction.</p>
+        </div>
+
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-top:26px;padding-top:18px;border-top:1px solid var(--line)">
+          <p style="font-size:17px;line-height:1.5;color:var(--ink-2);max-width:78ch">No registry. No token. No audit. Everything here is design, live network state, or a named dependency, and every slide says which.</p>
+          <div style="text-align:right">
+            <div class="mono" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">Repository</div>
+            <div class="mono" style="font-size:12px;color:var(--ink-2);margin-top:4px">github.com/subheeksh5599/lemo</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="s-foot"><span>LEMO / The ask</span><span class="f">12 / 12</span></footer>
+    </section>
+
+  </div>
+</div>
+
+
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var current = 0;
+
+  function fit() {
+    var s = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+    stage.style.setProperty('--s', String(s));
+  }
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function show(index, updateHash) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach(function (slide, i) {
+      var active = i === current;
+      slide.classList.toggle('is-active', active);
+      slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+      if ('inert' in slide) { slide.inert = !active; }
+    });
+    if (updateHash !== false) {
+      var id = slides[current].id;
+      if (window.location.hash !== '#' + id) {
+        history.replaceState(null, '', '#' + id);
+      }
+    }
+    document.title = 'LEMO / ' + pad(current + 1) + ' of ' + slides.length;
+  }
+
+  function go(delta) { show(current + delta, true); }
+
+  window.addEventListener('keydown', function (event) {
+    if (event.metaKey || event.ctrlKey || event.altKey) { return; }
+    var key = event.key;
+    if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown' || key === ' ' || key === 'Spacebar') {
+      event.preventDefault(); go(1);
+    } else if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') {
+      event.preventDefault(); go(-1);
+    } else if (key === 'Home') {
+      event.preventDefault(); show(0, true);
+    } else if (key === 'End') {
+      event.preventDefault(); show(slides.length - 1, true);
+    }
+  });
+
+  document.addEventListener('click', function (event) {
+    if (event.target.closest('a, button')) { return; }
+    if (window.getSelection && String(window.getSelection()) !== '') { return; }
+    if (event.clientX < window.innerWidth * 0.18) { go(-1); } else { go(1); }
+  });
+
+  window.addEventListener('hashchange', function () {
+    var id = window.location.hash.replace('#', '');
+    for (var i = 0; i < slides.length; i++) {
+      if (slides[i].id === id) { show(i, false); break; }
+    }
+  });
+
+  window.addEventListener('resize', fit);
+
+  fit();
+  var initial = 0;
+  var hash = window.location.hash.replace('#', '');
+  for (var i = 0; i < slides.length; i++) {
+    if (slides[i].id === hash) { initial = i; break; }
+  }
+  show(initial, true);
+})();
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@
 import { RefreshCw } from 'lucide-react'
 
 import { useConsole } from '@/components/console/console-provider'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useNow } from '@/hooks/use-console-data'
 import { cn } from '@/lib/utils'
 
@@ -42,17 +43,7 @@ export function LiveStatus() {
 
   return (
     <span className="flex items-center gap-2" role="status" aria-live="polite" aria-atomic="true">
-      <span
-        aria-hidden="true"
-        className={cn(
-          'size-[6px] shrink-0 rounded-full',
-          status === 'live' && 'bg-ok',
-          status === 'stale' && 'bg-warn',
-          status === 'down' && 'bg-bad',
-          status === 'reading' && 'animate-pulse bg-faint',
-        )}
-      />
-      <span className={cn('font-mono text-[10.5px] uppercase tracking-[0.12em]', COLOR[status])}>
+      <span className={cn('font-mono text-[10.5px]', COLOR[status])}>
         {WORD[status]}
       </span>
       {ago === null ? null : (
@@ -74,23 +65,24 @@ export function RefreshButton({ className }: { className?: string }) {
   const busy = refreshing || reading
 
   return (
-    <button
-      type="button"
-      onClick={() => void refresh()}
-      disabled={busy}
-      aria-label={busy ? 'Refreshing readings' : 'Refresh every reading on this page'}
-      title={busy ? 'Refreshing' : 'Refresh'}
-      className={cn(
-        'inline-flex size-[30px] items-center justify-center rounded-[6px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50',
-        className,
-      )}
-    >
-      <RefreshCw
-        className={cn('size-[14px]', busy && 'animate-spin')}
-        strokeWidth={1.6}
-        aria-hidden="true"
-        style={busy ? { animationDuration: '1.1s' } : undefined}
-      />
-    </button>
+    <Tooltip label={busy ? 'Refreshing' : 'Refresh'}>
+      <button
+        type="button"
+        onClick={() => void refresh()}
+        disabled={busy}
+        aria-label={busy ? 'Refreshing readings' : 'Refresh every reading on this page'}
+        className={cn(
+          'inline-flex size-11 items-center justify-center rounded-[6px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50',
+          className,
+        )}
+      >
+        <RefreshCw
+          className={cn('size-[14px]', busy && 'animate-spin')}
+          strokeWidth={1.6}
+          aria-hidden="true"
+          style={busy ? { animationDuration: '1.1s' } : undefined}
+        />
+      </button>
+    </Tooltip>
   )
 }

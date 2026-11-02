@@ -35,3 +35,6 @@ broadcast
 
 # local probes
 .probe-*.mjs
+
+# design-differently before/after captures
+.design-differently/

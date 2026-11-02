@@ -73,7 +73,7 @@ export function RevisionSeal({
       />
       <text
         fill="currentColor"
-        fontFamily="'JetBrains Mono Variable', monospace"
+        fontFamily="var(--font-mono), ui-monospace, monospace"
         fontSize="6.6"
         letterSpacing="1.7"
         opacity="0.72"
@@ -87,7 +87,7 @@ export function RevisionSeal({
         y="64"
         textAnchor="middle"
         fill="currentColor"
-        fontFamily="'Geist Variable', sans-serif"
+        fontFamily="'Instrument Sans Variable', sans-serif"
         fontSize="25"
         fontWeight="480"
         letterSpacing="-1"
@@ -99,7 +99,7 @@ export function RevisionSeal({
         y="77"
         textAnchor="middle"
         fill="currentColor"
-        fontFamily="'JetBrains Mono Variable', monospace"
+        fontFamily="var(--font-mono), ui-monospace, monospace"
         fontSize="5.2"
         letterSpacing="1.8"
         opacity="0.7"

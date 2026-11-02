@@ -49,7 +49,7 @@ export default function ConsoleProofs() {
             one native witness, one refusal, both read at the finalized head
           </p>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+        <p className="font-mono text-[10px] text-muted">
           verification runs in this browser
         </p>
       </div>
@@ -69,7 +69,7 @@ export default function ConsoleProofs() {
             <div key={index} className="min-w-0 border-l border-line pl-3">
               <p className="flex items-baseline gap-2">
                 <span className="font-mono text-[10px] tabular-nums text-muted">{index}</span>
-                <span className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-ink-2">
+                <span className="font-mono text-[10.5px] text-ink-2">
                   {name}
                 </span>
               </p>

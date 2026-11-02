@@ -181,11 +181,11 @@ export default function ConsoleOverview() {
             {native?.chain ?? 'Portaldot V3 testnet'}
             {native === null
               ? ', reading the native endpoint'
-              : ` · finalized #${formatInt(native.finalized.number)} of #${formatInt(native.best)}`}
+              : `, finalized #${formatInt(native.finalized.number)} of #${formatInt(native.best)}`}
             {blocks.length === 0 ? '' : `, ${formatInt(blocks.length)} blocks read`}
           </p>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+        <p className="font-mono text-[10px] text-muted">
           json-rpc, one serialized queue
         </p>
       </div>
@@ -311,7 +311,7 @@ export default function ConsoleOverview() {
 
         <div className="grid gap-4">
           <RuntimeComparison />
-          <p className="px-1 font-mono text-[10px] uppercase leading-4 tracking-[0.08em] text-muted">
+          <p className="px-1 font-mono text-[10px] leading-4 text-muted">
             {NATIVE_RPC.replace('https://', '')}
             <br />
             {EVM_RPC.replace('https://', '')}

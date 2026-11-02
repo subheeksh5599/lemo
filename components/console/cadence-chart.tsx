@@ -134,7 +134,7 @@ export function CadenceChart({
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 border-t border-line pt-2.5 font-mono text-[10.5px] tracking-[0.02em] text-muted">
+      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 border-t border-line pt-2.5 font-mono text-[10.5px] text-muted">
         <span>
           {formatInt(data.length)} blocks, #{formatInt(data[0]?.number ?? null)} to #
           {formatInt(data.at(-1)?.number ?? null)}

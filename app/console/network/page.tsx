@@ -84,7 +84,7 @@ function EndpointPanel({
             />
             <Row
               label="Samples"
-              value={latency.samples.map((sample) => `${Math.round(sample)} ms`).join(' · ')}
+              value={latency.samples.map((sample) => `${Math.round(sample)} ms`).join(', ')}
               tone="muted"
             />
           </>
@@ -132,7 +132,7 @@ export default function ConsoleNetwork() {
             two endpoints, one serialized queue, every call listed
           </p>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+        <p className="font-mono text-[10px] text-muted">
           concurrency held at 1
         </p>
       </div>

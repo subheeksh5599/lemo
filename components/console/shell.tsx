@@ -147,7 +147,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
         >
           <LemoMark className="size-[18px] shrink-0 text-accent" />
           <span className="text-[14.5px] font-medium tracking-[-0.01em] text-ink">LEMO</span>
-          <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
+          <span className="ml-auto font-mono text-[9px] text-muted">
             console
           </span>
         </Link>
@@ -157,7 +157,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="lg:pl-[236px]">
-        <div className="sticky top-0 z-30 border-b border-line bg-canvas/92 backdrop-blur-md lg:hidden">
+        <div className="sticky top-0 z-30 border-b border-line bg-canvas lg:hidden">
           <div className="flex h-12 items-center gap-2 px-4">
             <Link href="/" className="flex items-center gap-2">
               <LemoMark className="size-4 text-accent" />

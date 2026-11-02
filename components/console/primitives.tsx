@@ -156,7 +156,7 @@ export function State({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.11em] tabular-nums',
+        'inline-flex items-center gap-1.5 font-mono text-[10.5px] tabular-nums',
         color,
         className,
       )}
@@ -172,8 +172,7 @@ export function Skeleton({ lines = 3 }: { lines?: number }) {
       {Array.from({ length: lines }, (_, index) => (
         <div
           key={index}
-          className="h-3 animate-pulse rounded-[3px] bg-raised"
-          style={{ width: `${100 - index * 12}%`, animationDuration: '1.8s' }}
+          className="h-3 rounded-[3px] bg-raised"
         />
       ))}
     </div>

@@ -1,16 +1,27 @@
 @import 'tailwindcss';
 @import './tokens.css';
-@import '@fontsource-variable/geist';
-@import '@fontsource-variable/jetbrains-mono';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
 
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
   html, body { overflow-x: clip; }
   html {
     scrollbar-color: var(--color-line-strong) var(--color-canvas);
+    scrollbar-width: thin;
     scroll-padding-top: 96px;
     color-scheme: dark;
   }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--color-canvas); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 8px;
+    border: 2px solid var(--color-canvas);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-line-bright); }
+  ::-webkit-scrollbar-button { display: none; }
   body {
     margin: 0;
     background: var(--color-canvas);
@@ -22,22 +33,6 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-
-  /* A single fixed texture: faint grid fading out below the fold. */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-    background-size: 72px 72px;
-    -webkit-mask-image: radial-gradient(ellipse 100% 62% at 50% 0%, #000 0%, transparent 82%);
-    mask-image: radial-gradient(ellipse 100% 62% at 50% 0%, #000 0%, transparent 82%);
-  }
-  body > * { position: relative; z-index: 1; }
 
   ::selection { background: var(--color-accent); color: #fff; }
   :focus-visible { outline: 2px solid var(--color-accent-bright); outline-offset: 3px; border-radius: 2px; }
@@ -84,8 +79,7 @@
     font-family: var(--font-mono);
     font-size: var(--text-meta);
     line-height: 1.4;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
+    letter-spacing: 0.01em;
     color: var(--color-muted);
     font-variant-numeric: tabular-nums;
   }
@@ -143,7 +137,7 @@
     border-radius: var(--radius-xs);
     font-family: var(--font-mono);
     font-size: 10px; font-weight: 500;
-    letter-spacing: 0.09em; text-transform: uppercase;
+    letter-spacing: 0.01em;
     color: var(--color-ink-2); white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
@@ -177,8 +171,7 @@
     font-family: var(--font-mono);
     font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0.01em;
     color: var(--color-muted);
     text-align: left;
     padding: 9px 0;
@@ -193,16 +186,6 @@
   table.grid td.num, table.grid th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   table.grid tr:last-child td { border-bottom: 0; }
 
-  /* Small live indicator. Only for real state, never decoration. */
-  .live-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--color-ok); flex: none;
-    box-shadow: 0 0 0 0 rgba(47, 214, 163, 0.55);
-    animation: live-pulse 2.4s var(--ease-out) infinite;
-  }
-  .live-dot--stale { background: var(--color-warn); animation: none; }
-  .live-dot--down { background: var(--color-bad); animation: none; }
-
   .skip-link {
     position: fixed; left: 16px; top: 16px; z-index: 60;
     padding: 8px 12px; border-radius: var(--radius-sm);
@@ -211,17 +194,6 @@
     transition: transform 160ms var(--ease-out);
   }
   .skip-link:focus { transform: none; }
-}
-
-@keyframes live-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(47, 214, 163, 0.5); }
-  70% { box-shadow: 0 0 0 6px rgba(47, 214, 163, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(47, 214, 163, 0); }
-}
-
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
 }
 
 @keyframes dash-travel {

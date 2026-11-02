@@ -39,7 +39,7 @@ export function EvmWitnessPanel({ className }: { className?: string }) {
           onClick={() => void read()}
           disabled={reading}
           aria-label="Ask the endpoint again"
-          className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-[5px] border border-line px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted transition-colors duration-150 hover:border-line-strong hover:text-ink disabled:opacity-50"
+          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-[5px] border border-line px-3 font-mono text-[10px] text-muted transition-colors duration-150 hover:border-line-strong hover:text-ink disabled:opacity-50"
         >
           <RefreshCw
             className={cn('size-3', reading && 'animate-spin')}
@@ -70,7 +70,7 @@ export function EvmWitnessPanel({ className }: { className?: string }) {
       ) : (
         <>
           <div className="rounded-[6px] border border-warn/30 bg-warn/5 px-2.5 py-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-warn">
+            <p className="font-mono text-[10px] text-warn">
               {data.method}
             </p>
             <p className="mt-1 font-mono text-[12px] leading-5 text-ink">{data.reason}</p>

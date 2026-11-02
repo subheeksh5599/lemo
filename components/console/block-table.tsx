@@ -51,7 +51,7 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
                   #{formatInt(block.number)}
                 </span>
                 {index === 0 ? (
-                  <span className="ml-2 font-mono text-[9.5px] uppercase tracking-[0.1em] text-accent">
+                  <span className="ml-2 font-mono text-[9.5px] text-accent">
                     head
                   </span>
                 ) : null}
@@ -67,7 +67,7 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
                   <CopyButton
                     value={block.hash}
                     label={`block ${block.number} hash`}
-                    className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                    className="opacity-60 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
                   />
                 </span>
               </td>
@@ -84,7 +84,7 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
           ))}
         </tbody>
       </table>
-      <p className="mt-2 px-3.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-muted">
+      <p className="mt-2 px-3.5 font-mono text-[10.5px] text-muted">
         times in utc, slot measured between neighbours
       </p>
     </div>

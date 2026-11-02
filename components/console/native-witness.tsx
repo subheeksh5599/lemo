@@ -9,6 +9,7 @@ import { useNativeWitness } from '@/hooks/use-proof'
 import type { NativeWitness } from '@/lib/chain'
 import { bytes, formatInt, hashShort, ms } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { Tooltip } from '@/components/ui/tooltip'
 
 function verdict(witness: NativeWitness) {
   const status = witness.verification.status
@@ -171,21 +172,22 @@ export function NativeWitnessPanel({
               {state.word}
             </State>
           )}
-          <button
-            type="button"
-            onClick={() => void read()}
-            disabled={reading}
-            aria-label="Read the witness again"
-            title="Read the witness again"
-            className="inline-flex size-7 items-center justify-center rounded-[5px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50"
-          >
-            <RefreshCw
-              className={cn('size-3.5', reading && 'animate-spin')}
-              strokeWidth={1.6}
-              aria-hidden="true"
-              style={reading ? { animationDuration: '1.1s' } : undefined}
-            />
-          </button>
+          <Tooltip label="Read again">
+            <button
+              type="button"
+              onClick={() => void read()}
+              disabled={reading}
+              aria-label="Read the witness again"
+              className="inline-flex size-11 items-center justify-center rounded-[5px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50"
+            >
+              <RefreshCw
+                className={cn('size-3.5', reading && 'animate-spin')}
+                strokeWidth={1.6}
+                aria-hidden="true"
+                style={reading ? { animationDuration: '1.1s' } : undefined}
+              />
+            </button>
+          </Tooltip>
         </>
       }
     >

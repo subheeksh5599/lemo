@@ -3,12 +3,18 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'LEMO | One title across Portaldot native and Revive',
+  title: 'LEMO: One title, two runtimes',
   description:
     'LEMO is a design for one asset title across Portaldot native records and a Revive EVM representation, with finalized state proofs gating transfers. The native record exists today; the WASM contract module is not live.',
-  icons: { icon: '/lemo-mark.svg' },
+  icons: {
+    icon: [
+      { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/lemo-mark.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
-    title: 'LEMO | One enforceable title across two runtimes',
+    title: 'LEMO: One title, two runtimes',
     description:
       'A native record and an EVM representation, designed to be held to the same conditions by finalized state proofs.',
     type: 'website',

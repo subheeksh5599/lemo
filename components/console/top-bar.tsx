@@ -12,11 +12,11 @@ export function TopBar() {
   const item = currentNav(pathname)
 
   return (
-    <div className="sticky top-0 z-30 hidden h-14 items-center justify-between gap-6 border-b border-line bg-canvas/90 px-7 backdrop-blur-md lg:flex">
+    <div className="sticky top-0 z-30 hidden h-14 items-center justify-between gap-6 border-b border-line bg-canvas px-7 lg:flex">
       <div className="flex min-w-0 items-center gap-2">
         <Link
           href="/console"
-          className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition-colors duration-150 hover:text-ink-2"
+          className="shrink-0 font-mono text-[10px] text-muted transition-colors duration-150 hover:text-ink-2"
         >
           Console
         </Link>

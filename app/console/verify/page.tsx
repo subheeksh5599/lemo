@@ -68,7 +68,7 @@ function Result({ result }: { result: StorageProof }) {
       <section className="overflow-hidden rounded-[10px] border border-line bg-surface shadow-[inset_0_1px_0_0_rgba(255,255,255,0.035)]">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-3.5 py-3">
           <div className="min-w-0">
-            <p className={cn('flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em]', color)}>
+            <p className={cn('flex items-center gap-2 font-mono text-[11px]', color)}>
               <Icon className="size-3.5" strokeWidth={2.2} aria-hidden="true" />
               {verdict.word}
             </p>
@@ -98,7 +98,7 @@ function Result({ result }: { result: StorageProof }) {
             <p className="mt-1.5 truncate text-[11px] text-muted">
               {result.decoded === null
                 ? 'no bytes at this key'
-                : `${result.decoded.reading} | ${result.decoded.note}`}
+                : `${result.decoded.reading}, ${result.decoded.note}`}
             </p>
           </div>
           <div className="bg-surface px-3.5 py-3">
@@ -211,7 +211,7 @@ export default function ConsoleVerify() {
             checkpoint, which is the assumption this check rests on.
           </p>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+        <p className="font-mono text-[10px] text-muted">
           state_getReadProof, verified in the browser
         </p>
       </div>

@@ -689,17 +689,18 @@ function Security() {
       <div className="mx-auto max-w-[900px] px-6 text-center">
         <Eyebrow light>VERIFICATION &amp; BOUNDARIES</Eyebrow>
         <h2 className="mt-4 text-[clamp(1.8rem,3vw,2.5rem)] font-normal leading-[1.25] tracking-[-0.035em]">
-          A proof can be checked. The gate is live.
+          A proof can be checked. The gate is deployed.
         </h2>
         <p className="mx-auto mt-5 max-w-[680px] text-[14px] leading-[1.7] text-white/60">
           The trie verifier is checked against real finalized captures in TypeScript
           and Solidity, and the four support contracts are deployed on Portaldot V3.
-          The native registry and the WASM contracts module are not; the root feed is
-          still a trusted checkpoint. The landing page says that on purpose.
+          The gate is paused after a burn fix in source, so the live contract predates
+          that fix. The native registry and the WASM contracts module are not; the root
+          feed is still a trusted checkpoint. The landing page says that on purpose.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 font-mono text-[9.5px] tracking-[0.12em] text-white/45">
           <span>TRUSTED ROOT FEED</span>
-          <span>FOUR CONTRACTS LIVE</span>
+          <span>GATE PAUSED</span>
           <span>ETH_GETPROOF REFUSED</span>
         </div>
         <Link href="/console/network" className="mt-8 inline-flex items-center gap-1.5 text-[12px] text-[#6e94ff] hover:text-white">
@@ -714,7 +715,7 @@ function Security() {
 const FAQS = [
   [
     'Does LEMO exist on a public chain?',
-    'The proof verifier, title design and four support contracts are live on Portaldot V3. The native registry and the WASM contracts module are not. The gate uses a deployment placeholder commitment until a real native title record is available.',
+    'The proof verifier, title design and four support contracts are live on Portaldot V3. The native registry and the WASM contracts module are not. The gate is paused after a burn-authority fix in source, and it uses a deployment placeholder commitment until a real native title record is available.',
   ],
   [
     'What exactly is proven?',
@@ -726,7 +727,7 @@ const FAQS = [
   ],
   [
     'Can I move a title today?',
-    'Not yet. The gate and verifier are deployed, but the gate is bound to a deployment placeholder commitment. A real native title record and its proof are still required before a mint or transfer can settle.',
+    'Not yet. The gate and verifier are deployed, but the gate is paused after a burn fix and bound to a deployment placeholder commitment. A real native title record and its proof are still required before a mint or transfer can settle.',
   ],
   [
     'Where does the state root come from?',

@@ -48,9 +48,13 @@ pub mod pallet {
 
   /// Mirrors whether an EVM representation currently has supply. The native
   /// chain cannot read EVM storage, so the bridge/runtime API writes this flag.
+  ///
+  /// `OptionQuery` is deliberate: an unwritten flag means "unknown", and an
+  /// unknown representation is treated as live. Only an explicit `Some(false)`
+  /// can authorise a native unbond.
   #[pallet::storage]
   pub type RepresentationLive<T: Config> =
-    StorageMap<_, Blake2_128Concat, T::Hash, bool, ValueQuery>;
+    StorageMap<_, Blake2_128Concat, T::Hash, bool, OptionQuery>;
 
   #[pallet::event]
   #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -184,7 +188,10 @@ pub mod pallet {
       let who = ensure_signed(origin)?;
       let record = Titles::<T>::get(title_id).ok_or(Error::<T>::TitleMissing)?;
       ensure!(record.owner == who, Error::<T>::NotOwner);
-      ensure!(!RepresentationLive::<T>::get(title_id), Error::<T>::RepresentationLive);
+      ensure!(
+        RepresentationLive::<T>::get(title_id) == Some(false),
+        Error::<T>::RepresentationLive
+      );
 
       Titles::<T>::remove(title_id);
       RepresentationLive::<T>::remove(title_id);
@@ -413,6 +420,27 @@ mod tests {
 
       assert_ok!(LemoTitle::request_unbond(RuntimeOrigin::signed(1), h(1)));
       assert!(crate::Titles::<Test>::get(h(1)).is_none());
+    })
+  }
+
+  #[test]
+  fn unbond_is_refused_while_representation_state_is_unknown() {
+    new_test_ext().execute_with(|| {
+      assert_ok!(LemoTitle::create_title(
+        RuntimeOrigin::signed(1),
+        h(1),
+        1,
+        h(2),
+        h(3),
+        h(4),
+        h(5),
+        h(6)
+      ));
+
+      assert_noop!(
+        LemoTitle::request_unbond(RuntimeOrigin::signed(1), h(1)),
+        Error::<Test>::RepresentationLive
+      );
     })
   }
 

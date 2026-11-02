@@ -1,4 +1,11 @@
-import { Gauge, KeyRound, Network, ShieldCheck, type LucideIcon } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  Gauge,
+  KeyRound,
+  Network,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react'
 
 export type NavItem = {
   href: string
@@ -7,7 +14,8 @@ export type NavItem = {
   icon: LucideIcon
 }
 
-export const NAV: readonly NavItem[] = [
+/** Sections that only read the chain. */
+export const NAV_READ: readonly NavItem[] = [
   {
     href: '/console',
     label: 'Overview',
@@ -33,6 +41,19 @@ export const NAV: readonly NavItem[] = [
     icon: Network,
   },
 ]
+
+/** Sections that can change state on chain. */
+export const NAV_ACT: readonly NavItem[] = [
+  {
+    href: '/console/flow',
+    label: 'Transactions',
+    detail: 'Mint, transfer and verify through the gate',
+    icon: ArrowLeftRight,
+  },
+]
+
+/** Kept as one list for callers that do not care about the grouping. */
+export const NAV: readonly NavItem[] = [...NAV_READ, ...NAV_ACT]
 
 export function currentNav(pathname: string): NavItem | undefined {
   return NAV.find((item) => item.href === pathname)

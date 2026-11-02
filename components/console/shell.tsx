@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
@@ -7,7 +8,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { LemoMark } from '@/components/brand'
 import { useConsole } from '@/components/console/console-provider'
 import { LiveStatus, RefreshButton } from '@/components/console/live-status'
-import { NAV } from '@/components/console/navigation'
+import { NAV, NAV_ACT, NAV_READ, type NavItem } from '@/components/console/navigation'
 import { TopBar } from '@/components/console/top-bar'
 import { WalletMenu } from '@/components/wallet/wallet-menu'
 import { formatInt } from '@/lib/format'
@@ -27,13 +28,12 @@ const STATUS_DOT = {
   down: 'bg-bad',
 } as const
 
-function SidebarNav() {
+function NavLinks({ items }: { items: readonly NavItem[] }) {
   const pathname = usePathname()
 
   return (
-    <nav aria-label="Console" className="flex flex-col gap-1 px-3 pt-4">
-      <p className="meta px-2 pb-2">Read</p>
-      {NAV.map((item) => {
+    <>
+      {items.map((item) => {
         const active = pathname === item.href
         const Icon = item.icon
 
@@ -58,12 +58,30 @@ function SidebarNav() {
           </Link>
         )
       })}
+    </>
+  )
+}
+
+function SidebarNav() {
+  return (
+    <nav aria-label="Console" className="flex flex-col gap-1 px-3 pt-4">
+      <p className="meta px-2 pb-2">Read</p>
+      <NavLinks items={NAV_READ} />
+      <p className="meta px-2 pb-2 pt-4">Act</p>
+      <NavLinks items={NAV_ACT} />
     </nav>
   )
 }
 
 function MobileNav() {
   const pathname = usePathname()
+  const activeRef = useRef<HTMLAnchorElement | null>(null)
+
+  // The row scrolls; bring the current section into view rather than leaving it
+  // half off the right edge on a narrow screen.
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' })
+  }, [pathname])
 
   return (
     <nav
@@ -75,10 +93,11 @@ function MobileNav() {
         return (
           <Link
             key={item.href}
+            ref={active ? activeRef : undefined}
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex h-9 shrink-0 items-center rounded-[8px] px-3 text-[13px] transition-colors duration-150',
+              'flex h-9 shrink-0 items-center rounded-[8px] px-2.5 text-[13px] transition-colors duration-150',
               active ? 'bg-raised text-ink' : 'text-ink-2 hover:text-ink',
             )}
           >

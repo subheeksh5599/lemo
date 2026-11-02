@@ -144,7 +144,7 @@ cargo test (pallet)                10 passed, 0 failed
 
 On macOS, if the pallet fails to link because CommandLineTools ships a newer SDK than clang accepts, set `SDKROOT` to the 15.4 SDK for that command. The failure is a local toolchain fault, not a test failure.
 
-The live addresses, five settlement receipts and costs are in [docs/EVIDENCE.md](docs/EVIDENCE.md).
+The four-contract addresses and costs are in [docs/EVIDENCE.md](docs/EVIDENCE.md); the five legacy receipts are read live on `/console/legacy`.
 
 ## What LEMO is NOT
 

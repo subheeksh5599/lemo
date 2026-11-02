@@ -341,6 +341,7 @@ This repository describes the LEMO protocol design. It does not claim that the f
 | Component | Status |
 |---|---|
 | Dual-face title model | Design |
+| Proof servicing service (finalized proof packages, canonical digests, single-use replay record) | Implemented — `backend/` |
 | Native backing and ownership registry | Implementation required |
 | ERC-20 / ERC-721 representation | Implementation required |
 | WASM-to-EVM state proof verification | Implementation required |

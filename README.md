@@ -287,8 +287,21 @@ Deployment and native tPOT funding are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.m
 
 The demo script is [docs/demo-script.md](docs/demo-script.md). The console can read, verify and simulate; the gate and verifier are wired. A mint or transfer still needs a valid native title proof, which the current deployment placeholder commitment does not have.
 
-The site is live. The proof surface is live. All four support contracts are live. The gate's commitment is a deployment placeholder; minting still needs a real native title record and proof.
+The site is live. The proof surface is live. All four support contracts are live. The gate is a real deployed contract, but its title is not a real native record yet. That is the line between a working proof console and a working asset system.
+
+## What the live site can demonstrate
+
+| Demo beat | Works today |
+|---|---|
+| Read the finalized native head, Revive head and state root | Yes, from the node through the same-origin proxy |
+| Walk a real Substrate storage proof in the browser | Yes, against a live captured proof |
+| Show the EVM endpoint refusing `eth_getProof` | Yes, verbatim |
+| Inspect the deployed addresses and code | Yes, four support contracts |
+| Connect an EVM or Substrate wallet | Yes, runtime discovery, no invented provider |
+| Simulate a mint or transfer against the gate | Yes, `eth_call` from the signer |
+| Settle a mint or transfer | **No** — the gate's title commitment is a placeholder and no native title proof exists |
+| Create a native title, clear identity, unbond backing | **No** — the native registry is a pallet, not in the runtime |
 
 ---
 
-Protocol design, tested contracts, live console. No deployed gate, no live native registry, no third-party audit.
+Protocol design, tested contracts, live console. Four support contracts deployed; no live native registry and no third-party audit.

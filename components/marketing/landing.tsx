@@ -811,7 +811,7 @@ function Footer() {
             </Link>
             <p className="mt-4 max-w-[240px] text-[12px] leading-5 text-[#6b6b83]">
               A protocol design for one asset title across Portaldot native and
-              Revive. Live on Vercel; the first two contracts are on testnet.
+              Revive. Live on Vercel; all four support contracts are on testnet.
             </p>
             <a
               href="https://lemo-ebon.vercel.app"

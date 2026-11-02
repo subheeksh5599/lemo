@@ -38,3 +38,6 @@ broadcast
 
 # design-differently before/after captures
 .design-differently/
+
+# rust / native pallet
+pallets/**/target/

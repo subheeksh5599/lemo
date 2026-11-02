@@ -1,0 +1,135 @@
+# LEMO proof service
+
+**Status: working against Portaldot V3 Live.** Verified at finalized block **903809** on 2 Nov 2026:
+the state root reproduced by this service matched the block header, every declared key resolved to
+the same value the node reports through `state_getStorage`, and a rewritten state root was refused.
+
+```text
+28 tests, 0 failures  (27 offline, 1 live end-to-end)
+```
+
+This is the half of LEMO that has to exist before either contract face can check the other:
+something that turns a title's chain records into a proof a third party can verify against a
+block's own state root, without trusting the service that produced it.
+
+## What it does
+
+A LEMO title is a set of declared storage records — backing, owner, identity, vesting, revision.
+The service reads those records at the **finalized** head, asks the node for a read proof, checks
+that proof against the header's `stateRoot` before answering, and returns a package:
+
+```text
+finalized block { number, hash, parentHash, stateRoot }
+keys             the declared storage keys, one per field
+proof            the trie nodes the node returned
+digest           blake2b-256 over the canonical package body
+```
+
+Anyone can re-run the verification: hashing the proof nodes must yield `stateRoot`, and walking the
+key through those nodes must yield the record. A caller that re-verifies never has to trust this
+process, the node, or the transport.
+
+## The guarantee and its limits
+
+Enforced here:
+
+- a package only carries values that hash to the state root of the block it names;
+- a package is bound to one chain genesis, one title, one block, and its own digest;
+- the service refuses to answer with a proof it could not verify itself;
+- a digest can be consumed once; the second attempt is refused by a primary key, not by a check.
+
+Not enforced here, and not claimed:
+
+- **the LEMO pallet does not exist yet.** The service is layout-driven, so it works on any declared
+  key set today. The witness used in the tests is `System.Number` and `System.Account`, which are
+  real chain records and prove the mechanism, not the protocol.
+- no EVM-side counterpart, no on-chain verifier, no gossip transport. Proofs are served to a caller;
+  deciding whether a transfer or an unlock is legal stays a contract job.
+- the replay record is local to one instance. It records what this service handed out, not what the
+  chain allowed.
+
+## Run
+
+```bash
+npm install
+LEMO_RPC_URL=https://live-v3-node.portaldot.dev LEMO_PORT=8080 npm start
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `LEMO_RPC_URL` | required | Portaldot V3 node (HTTP JSON-RPC) |
+| `LEMO_PORT` | `8080` | listen port, loopback only |
+| `LEMO_DB_PATH` | `lemo.db` | title and replay database |
+| `LEMO_MIN_CONFIRMATIONS` | `0` | blocks required between a package block and head |
+| `LEMO_MAX_KEYS` | `32` | fields allowed in one title |
+| `LEMO_RPC_TIMEOUT_MS` | `10000` | per-call timeout |
+| `LEMO_RPC_ATTEMPTS` | `3` | transport retries; RPC errors are never retried |
+
+```bash
+npm test            # offline suite (uses a captured live proof)
+npm run test:live   # adds the end-to-end run against the node
+npm run typecheck   # strict TypeScript, no emit
+```
+
+## Endpoints
+
+| Route | Purpose |
+|---|---|
+| `GET /health` | chain identity, finalized head, node head, RPC latency |
+| `GET /titles` | registered title bindings |
+| `POST /titles` | declare a title's storage layout |
+| `GET /titles/:id` | one binding |
+| `GET /titles/:id/proof` | build, self-verify and return a package |
+| `POST /proofs/verify` | re-verify a package, decode every field |
+| `POST /proofs/consume` | mark a digest used; `409` on the second attempt |
+
+## Declaring a title
+
+```json
+{
+  "titleId": "0xabab…ab",
+  "label": "portaldot-finality-witness",
+  "fields": [
+    { "label": "revision", "pallet": "System", "item": "Number", "hasher": "identity", "args": [], "decode": "u32" },
+    { "label": "owner", "pallet": "System", "item": "Account", "hasher": "blake2_128_concat",
+      "args": [{ "type": "account32", "value": "0xfd66…0d" }], "decode": "bytes" }
+  ]
+}
+```
+
+`hasher` accepts the hashers the runtime metadata declares: `blake2_128`, `blake2_128_concat`,
+`blake2_256`, `twox64`, `twox64_concat`, `twox256`, `identity`. `args` accepts `vec`, `account32`,
+`hash32`, `u32`, `u64`, `u128`. `decode` accepts `bytes`, `u32`, `u64`, `u128`. Exactly one field is
+named `revision`; it must decode as `u32` or `u64`, and it is what a verifier compares to reject a
+package built against an older title state.
+
+## Why the trie verification is written here
+
+`state_getReadProof` returns nodes; it does not verify them. The trie is Portaldot's base-16
+Merkle-Patricia layout with SCALE node headers, partial keys packed two nibbles per byte, branch
+children addressed by a 16-bit bitmap, and blake2b-256 node hashes. That format is small enough to
+implement exactly, and verifying it in-process is what makes this service's answer checkable:
+
+- `src/trie/node.ts` decodes nodes;
+- `src/trie/proof.ts` indexes nodes by their own hash, so only the root the node set encodes can be
+  reached, and a missing node is reported as `PATH_INCOMPLETE` instead of being treated as absence;
+- `test/fixtures/system-witness.json` is a package captured from the live chain, so the offline suite
+  checks the real format, not a hand-built one.
+
+## Files
+
+```text
+src/bytes.ts             hex and little-endian helpers
+src/hashing.ts           blake2b-256/128, twox64/128/256, xxhash64
+src/scale.ts             compact integers
+src/trie/node.ts         node decoding
+src/trie/proof.ts        root verification and key lookup
+src/storage/layout.ts    storage key derivation and value decoding
+src/proofs/package.ts    package build, canonical digest, verification
+src/titles/model.ts      binding parsing and validation
+src/service.ts           service layer
+src/store.ts             titles and consumed digests (node:sqlite)
+src/http/server.ts       routes
+scripts/capture-fixture.ts  refresh the live fixture
+scripts/smoke.mjs           manual end-to-end run against a running server
+```

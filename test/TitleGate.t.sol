@@ -452,6 +452,12 @@ contract TitleGateTest is Test {
     assertEq(token.balanceOf(ALICE), 100, "outsider burn moved nothing");
   }
 
+  function test_ERC721AdvertisesTheStandardInterfaces() public {
+    assertTrue(nft.supportsInterface(0x01ffc9a7), "ERC-165");
+    assertTrue(nft.supportsInterface(0x80ac58cd), "ERC-721");
+    assertFalse(nft.supportsInterface(0xffffffff), "invalid interface");
+  }
+
   // -------------------------------------------------------------- helpers
 
   function _record(uint64 revision, bytes32 backing, bytes32 identity, address evm)

@@ -45,7 +45,7 @@ Let it sit for two seconds.
 
 Click **Security** in the top navigation.
 
-Expect: “A proof can be checked. The gate is live.” and the three boundary tags: trusted root feed, four contracts live, `eth_getProof` refused.
+Expect: “The gate is deployed.” and the three boundary tags: `GATE PAUSED`, `TRUSTED ROOT FEED`, `ETH_GETPROOF REFUSED`.
 
 Say: “Four support contracts are deployed: the Blake2b adapter, the trie verifier, the root feed and the ERC-20 gate. The native registry is still a pallet, the WASM contracts module is not live, and the root feed is one attested checkpoint, not a light client. The gate's title commitment is a deployment placeholder, so this is not yet a live asset system.”
 

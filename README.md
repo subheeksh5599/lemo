@@ -51,7 +51,7 @@ The honest demo is read-only: live heads, a real Substrate proof, `eth_getProof`
 | Proof service | **1,077 tests passing** | `server/` |
 | Security audit | **Self-audit; critical hazards mitigated** | [docs/AUDIT.md](docs/AUDIT.md); C-01 amount binding and H-06/H-07 open |
 
-The honest line: the site, the proof surface and four support contracts are live. The gate's title is a deployment placeholder, so this is not a live asset system yet.
+The honest line: the site, the proof surface and four support contracts are deployed. The gate's title is a deployment placeholder, so this is not a live asset system yet.
 
 ## The 20-second pitch
 
@@ -93,7 +93,6 @@ What a judge can verify without trusting the site: the addresses and code on Por
 - [Verify every claim in one command](#verify-every-claim-in-one-command)
 - [What LEMO is NOT](#what-lemo-is-not)
 - [The problem I set out to solve](#the-problem-i-set-out-to-solve)
-- [How projects with the same idea finish](#how-projects-with-the-same-idea-finish)
 - [What I built](#what-i-built)
 - [Architecture](#architecture)
 - [The two rules, step by step](#the-two-rules-step-by-step)
@@ -130,6 +129,7 @@ npm run build && npm run start
 ## Verify every claim in one command
 
 ```bash
+export PATH="$HOME/.foundry/bin:$PATH"
 npx tsc --noEmit
 forge test
 (cd server && npm test)
@@ -166,31 +166,6 @@ Portaldot V3 has two ways to hold an asset and no shared contract storage betwee
 
 Wrapping an asset moves it. It does not enforce the relationship between the original backing and its representation. LEMO makes the relationship the unit that both rooms have to accept.
 
-## How projects with the same idea finish
-
-The full census, with primary sources, is [`docs/competitive-research.md`](docs/competitive-research.md). It is a sample of the field, not an exhaustive claim.
-
-| Project | What shipped | How it closes the gap | What LEMO still lacks |
-|---|---|---|---|
-| Polkadot ERC-20 precompile | `pallet-assets` exposed as an ERC-20 address | Aliasing: one ledger, two interfaces | A deployed native title registry |
-| Hydration | Frontier EVM inside the native runtime | One runtime, one state; strongest objection to LEMO's premise | The native half in the runtime |
-| Moonbeam XC-20 | XCM-transferable ERC-20s | Wrapped representation plus XCM custody | A two-way proof instead of custody |
-| Snowbridge | Polkadot↔Ethereum bridge | BEEFY/Beacon light clients, permissionless relayers, third-party audits | A light-client root source and external audit |
-| Evmos `x/erc20` | Governance-registered Coin/ERC-20 pairs | Runtime-enforced pair registry | A native title, not just a pair |
-| Polymesh | Compliance on every transfer | Runtime identity claims and rules | An EVM face |
-| Centrifuge | ERC-20 shares with transfer hooks | ERC-1404-style memberlists and per-transfer checks | A native record outside the EVM runtime |
-| ERC-3643 / Tokeny | Compliant-token stack | On-chain identity and compliance registries | A second runtime that verifies the first |
-| tBTC | Bitcoin redemption with SPV proofs | One-way proof verification plus bonded signers | The mirror rule (native release blocked by outstanding EVM supply) |
-
-What they all did that this repo has not:
-
-1. **Deployed the authoritative side.** Their registry or light client is live; our native registry is still a pallet.
-2. **Closed the trust model.** Snowbridge has light clients and named audits; our root source is one attester and our audit is a self-audit.
-3. **Shipped a stranger-runnable lifecycle.** They have a live mint/transfer/redeem path with published transactions; our four-contract path cannot settle. The earlier two-contract deployment does, but only in EVM.
-4. **Published an external review.** We have not.
-
-LEMO's differentiator is still real: the unit of authorisation is a revisioned **title** — backing, owner, identity, vesting and permissions in one commitment — not a balance, and the invariant is meant to run both ways. The missing pieces are deployment and review, not the idea.
-
 ## What I built
 
 - **Solidity verifier**: walks blake2b-256 Substrate trie nodes from a state root, decodes a 320-byte title record, and returns a typed status.
@@ -204,28 +179,77 @@ LEMO's differentiator is still real: the unit of authorisation is a revisioned *
 
 ## Architecture
 
-```text
-                      Portaldot native runtime
-        owner / identity / vesting / permissions / backing
-                          │
-                          ▼
-                  title record + revision
-                          │
-                  finalized state root
-                          │
-                  storage inclusion proof
-                          │
-                    RootFeed (checkpoint)
-                          │
-                          ▼
-        Revive: SubstrateTrieVerifier ──► TitleGateERC20 / ERC721
-                          ▲                       │
-                          │                       ▼
-                    action nullifier        supply + ownership
-                          │
-                  native release check ──► UnbondGuard (not deployed)
-                          │
-                  earlier EVM-only path ──► /console/legacy (settled)
+```mermaid
+flowchart TB
+    subgraph NATIVE["Portaldot native runtime"]
+        A["owner / identity / vesting / permissions / backing"]
+        B["revisioned title record"]
+        A --> B
+    end
+
+    subgraph PROOF["Proof path"]
+        C["finalized header + state root"]
+        D["state_getReadProof witness"]
+        E["RootFeed checkpoint"]
+        B --> C
+        C --> E
+    end
+
+    subgraph REVIVE["Revive"]
+        F["SubstrateTrieVerifier"]
+        G["TitleGateERC20 / ERC721"]
+        H["supply + ownership"]
+        I["action nullifier"]
+        E --> F
+        D --> F
+        F --> G
+        G --> H
+        I --> G
+    end
+
+    subgraph GUARD["Native release rule"]
+        J["UnbondGuard (not deployed)"]
+        G -. "outstanding supply" .-> J
+    end
+
+    subgraph LEGACY["Earlier EVM-only deployment"]
+        K["LemoTitle"]
+        L["LemoERC20Lite"]
+        K --> L
+    end
+
+    classDef live fill:#0f172a,stroke:#2f6bff,color:#e9e9f3
+    classDef pending fill:#1a1a1a,stroke:#f59e0b,color:#e9e9f3
+    class F,G,H,I live
+    class J pending
+```
+
+The arrows carry bytes, not calls. Each environment verifies a proof against a state it already trusts. A relayer can carry a proof; it cannot make a bad proof verify. The earlier EVM-only path is separate; it does not connect to the native proof path.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant H as Holder
+    participant G as TitleGate
+    participant V as SubstrateTrieVerifier
+    participant F as RootFeed
+    participant P as Proof data
+
+    H->>G: mint or transfer with proof
+    G->>P: read stateRoot and nodes from calldata
+    P-->>G: proof bytes
+    G->>G: check paused, chain, title, token, revision
+    G->>V: verifyTitle(proof, commitment)
+    V->>V: hash node keys and walk from state root
+    V-->>G: status + record
+    G->>F: currentRoot()
+    F-->>G: accepted checkpoint
+    alt proof, root and binding all match
+        G->>G: consume action nullifier
+        G-->>H: move balance
+    else any check fails
+        G-->>H: revert before state change
+    end
 ```
 
 | Component | File | Role |
@@ -407,7 +431,7 @@ contracts/src/       earlier EVM-only registry and token
 pallets/lemo-title/  native title registry pallet
 server/              Fastify proof service
 backend/             parallel proof service for the two-contract deployment
-docs/                evidence, audit, deployment, demo, competitive research
+docs/                evidence, audit, deployment, demo
 test/                Foundry tests and harnesses
 script/              Foundry deployment script
 scripts/             native deploy and root attestation

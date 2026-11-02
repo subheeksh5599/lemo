@@ -48,3 +48,5 @@ pallets/**/target/
 *.db-wal
 contracts/artifacts/
 contracts/deployments.json
+.vercel
+.env*

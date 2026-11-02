@@ -2,402 +2,343 @@
 
 # LEMO
 
-### One asset. Two runtimes. One enforceable title.
+**One title. Two faces. A proof between them.**
 
-![Status](https://img.shields.io/badge/status-protocol%20design-orange)
-![Runtime](https://img.shields.io/badge/runtime-WASM%20%2B%20Revive-2563eb)
-![Assets](https://img.shields.io/badge/standard-ERC--20%20%2F%20ERC--721-8b5cf6)
-![Network](https://img.shields.io/badge/network-Portaldot%20V3-10b981)
+[![Status](https://img.shields.io/badge/status-tested%2C%20not%20deployed-f59e0b)](#what-is-real-and-what-is-not)
+![Revive](https://img.shields.io/badge/Portaldot%20V3-Revive%20live-2f6bff)
+![WASM](https://img.shields.io/badge/WASM%20contracts-listed%20for%20V3.0-8492a6)
+![Proofs](https://img.shields.io/badge/state%20proofs-blake2b%20trie-2fd6a3)
+![Tests](https://img.shields.io/badge/tests-1%2C077%20server%20%2B%2071%20Foundry-2fd6a3)
+
+[Protocol](#the-protocol) · [Rules](#the-two-rules) · [Contracts](#contracts) · [Console](#the-console) · [Evidence](docs/EVIDENCE.md) · [Deck](deck/lemo-deck.pdf) · [Demo script](docs/demo-script.md)
 
 </div>
 
-Portaldot V3 has two contract environments. One runs native WASM contracts. The other runs EVM contracts through Revive. They share the network's validator set, but their contract storage is not automatically shared.
+## Current state
 
-That creates a problem: an asset can have native backing, ownership and identity on one side, but Solidity applications on the other side have no reason to recognize that native asset.
+Portaldot V3 ships **Revive**, its EVM environment, today. The native runtime already holds assets, identity, vesting and proxy or multisig ownership records. The **WASM contract module is listed for V3.0 and is not live or documented**; ink! to Solidity cross calls are awaiting confirmation.
 
-**LEMO gives an asset one title across both runtimes.**
+LEMO is the design that gives an asset one revisioned title across the native record and a Revive representation, with a finalized state proof required in both directions. The EVM side is buildable now and is implemented here. The native side waits on the contract module.
 
-The WASM face is its legal record: backing, native ownership, identity, vesting and account permissions. The EVM face is its market representation: an ERC-20 or ERC-721 that existing Solidity applications can understand.
+| What exists in this repository | State |
+|---|---|
+| Live console reading both Portaldot V3 endpoints over JSON-RPC | Working |
+| Browser storage-proof verifier for the native state trie | Working, checked against a live proof |
+| Fastify proof service with typed RPC clients and offline fixtures | Working, 1,077 tests |
+| Solidity Substrate trie verifier | Working, checked against the same live proof |
+| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 71 Foundry tests |
+| Title commitment, RootFeed and unbond guard | Working, not deployed |
+| Deployed registry, token or verifier on the testnet | Not demonstrated |
+| Native-to-EVM and EVM-to-native enforcement on-chain | Not deployed. The EVM half is tested; the native half is blocked by the WASM module |
+| Security audit | Not performed |
 
-Neither face is allowed to act without cryptographically verifying the other's state.
-
-```text
-WASM TITLE                         EVM REPRESENTATION
-
-Native backing                     ERC-20 / ERC-721
-Identity                           Transfers
-Vesting                            Liquidity
-Proxy / Multisig ownership         Solidity applications
-        │                                  │
-        └──── Verified state proofs ──────┘
-```
-
-The result is one asset that can use native Portaldot ownership rules while remaining compatible with the EVM ecosystem.
-
-## The 20-second pitch
-
-Imagine an asset backed by 100 native units on Portaldot.
-
-Its WASM face records the 100 units, the owner, identity requirements and vesting conditions. Its EVM face issues the corresponding ERC-20 representation.
-
-The owner can trade that representation through Solidity applications without abandoning the native ownership rules.
-
-But the EVM token cannot move if the native title is invalid, and the native backing cannot be unlocked while the EVM representation is still circulating.
-
-**Two execution environments. One ownership agreement. No trusted marketplace server or privileged relayer.**
+The honest version: this is a tested protocol implementation and a live read-only console, not a live asset system. Read [docs/EVIDENCE.md](docs/EVIDENCE.md) for the artifact behind every claim.
 
 ## The problem
 
-Portaldot V3 introduces two execution environments, but having both environments does not automatically make their contract states interchangeable.
-
-A native asset and an EVM token are separate records.
-
-This creates several problems:
+Portaldot V3 has two ways to hold an asset and no shared contract storage between them.
 
 - Native ownership rules do not automatically follow an ERC-20 or ERC-721 representation.
-- EVM applications cannot automatically understand native identity and vesting conditions.
-- Unlocking native backing without checking the EVM representation creates a risk of unbacked circulating tokens.
-- A centralized service that synchronizes the two sides introduces another party that users must trust.
+- Solidity applications see a token, not the identity or vesting conditions behind it.
+- Backing can leave while a representation still circulates.
+- The usual fix is a synchronization service that becomes the authority.
 
-Wrapping an asset is not enough. The relationship between the original backing and its representation needs to be enforced.
+Wrapping an asset moves it. It does not enforce the relationship between the original backing and its representation.
 
-## What LEMO does
+## The protocol
 
-LEMO creates a shared title identifier with two independently maintained representations.
+LEMO creates one title identifier with two independently maintained faces.
 
-### 1. The WASM face — the legal record
+### The native record
 
-The native side maintains:
+The native runtime holds backing, owner, identity status, vesting conditions, account permissions and a revision. This is the authoritative record for whether the asset still qualifies for its title.
 
-| Record | Purpose |
-|---|---|
-| Backing | Locked POT or supported native assets |
-| Owner | Native account controlling the title |
-| Identity | Native identity requirements and status |
-| Vesting | Release schedules and restrictions |
-| Permissions | Pure Account, proxy or multisig ownership |
-| Revision | Version of the native title state |
+Today these records live in runtime storage. The WASM contract module that would let a contract enforce title logic on this side is listed for V3.0, not launched.
 
-This is the authoritative record for native ownership and backing conditions.
+### The Revive representation
 
-### 2. The EVM face — the market representation
+The EVM face exposes a familiar ERC-20 or ERC-721. It carries the same title identifier, its current supply or ownership, and the last native revision it accepted.
 
-The EVM side exposes a familiar token interface.
+Existing Solidity applications can interact with the token through familiar interfaces. The token does not replace the native title. It represents an asset governed by that title.
 
-| Record | Purpose |
-|---|---|
-| ERC-20 | Fungible representation |
-| ERC-721 | Unique asset representation |
-| Title ID | Reference to the native title |
-| Supply / ownership | Current circulating representation |
-| Revision | Last accepted native title revision |
+```text
+NATIVE RECORD                         REVIVE REPRESENTATION
+backing                               ERC-20 / ERC-721
+owner                                 supply / holders
+identity                              transfers
+vesting                               Solidity applications
+permissions
+revision
+        \                              /
+         finalized state proofs
+          \                          /
+           one title identifier
+```
 
-Existing Solidity applications can interact with the token through familiar interfaces.
+## The two rules
 
-The EVM token does not replace the native title. It represents an asset governed by that title.
+### Rule 1: the EVM gate checks the native title
+
+Before an ERC-20 or ERC-721 transfer, the EVM face verifies a finalized native title proof. The proof must establish that the title exists, backing is bound, identity and vesting conditions hold, the revision is current, and the proof is fresh.
+
+If identity is cleared, backing is unbound or the proof is stale, the transfer reverts.
+
+This gate is implemented in Solidity and tested against a live native proof.
+
+### Rule 2: the native gate checks the representation
+
+Before native unbonding, the native side must verify that the EVM representation is fully retired: ERC-20 supply is zero, or every ERC-721 representation has been burned. The proof must belong to the correct title, contract and revision, and must not be replayable.
+
+This rule is implemented as native guard logic in `contracts/UnbondGuard.sol` and tested locally. Enforcing it on Portaldot needs the WASM contract module. It cannot be claimed as live.
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    OWNER["Native owner<br/>Pure Account / Proxy / Multisig"]
+    OWNER["Owner<br/>account, proxy or multisig"]
 
-    subgraph WASM["WASM — Legal record"]
-        W1["Title Registry"]
-        W2["Backing locked"]
-        W3["Identity + Vesting"]
-        W4["Owner + Permissions"]
+    subgraph NATIVE["Portaldot native runtime"]
+        N1["Assets and backing"]
+        N2["Identity and vesting"]
+        N3["Owner and permissions"]
+        N4["Title record and revision"]
     end
 
-    subgraph VERIFY["Cross-runtime verification"]
-        P1["Finalized state proof"]
+    subgraph PROOF["Cross-runtime verification"]
+        P1["Finalized header and state root"]
         P2["Storage inclusion proof"]
-        P3["Revision + freshness checks"]
+        P3["Revision, freshness, replay checks"]
     end
 
-    subgraph EVM["Revive — Market representation"]
-        E1["LEMO ERC-20 / ERC-721"]
-        E2["Transfer validation"]
-        E3["Supply / Ownership"]
+    subgraph EVM["Revive"]
+        E1["TitleGate ERC-20 / ERC-721"]
+        E2["SubstrateTrieVerifier"]
+        E3["Supply and ownership"]
     end
 
-    GOSSIP["Statement Store<br/>Public title-hash announcements"]
+    FEED["RootFeed<br/>attested checkpoint"]
 
-    OWNER --> W1
-    W1 --> W2
-    W1 --> W3
-    W1 --> W4
-
-    W1 --> P1
-    E3 --> P2
-    P1 <--> P3
-    P2 <--> P3
+    OWNER --> NATIVE
+    N1 --> N4
+    N2 --> N4
+    N3 --> N4
+    N4 --> P1
+    P1 --> FEED
+    FEED --> E2
+    P2 --> E2
     P3 --> E2
-
-    E1 --> E2
+    E2 --> E1
     E1 --> E3
-
-    W1 -.-> GOSSIP
-    E1 -.-> GOSSIP
+    E1 -. "announcements" .-> STORE["Statement Store"]
 ```
 
-The proof exchange is not a contract-to-contract function call. Each environment receives proof data and must independently verify it against an authenticated finalized state.
-
-## The core guarantee
-
-LEMO enforces two essential rules.
-
-### Rule 1 — EVM cannot move an invalid title
-
-Before an ERC-20 or ERC-721 transfer, the EVM face must verify the relevant native title state.
-
-The proof must establish that:
-
-- The title exists.
-- Its backing is still bound.
-- Its native identity conditions remain satisfied.
-- The title revision is current.
-- The proof is finalized and sufficiently fresh.
-
-If identity is cleared, backing is unbound or the proof is stale, the transfer reverts.
-
-### Rule 2 — Native backing cannot be unlocked while tokens circulate
-
-Before native unbonding, the WASM face must verify the EVM state.
-
-The proof must establish that:
-
-- The corresponding ERC-20 supply is zero, or all relevant ERC-721 representations have been retired.
-- The proof belongs to the correct title and contract.
-- The EVM state is finalized.
-- The proof is current and cannot be replayed.
-
-If any representation remains outstanding, native unbonding reverts.
-
-```text
-ERC TRANSFER
-
-Valid native title proof?
-        │
-   YES ─┴─ NO
-    │       │
- ALLOW    REVERT
-
-
-NATIVE UNBOND
-
-EVM representation fully retired?
-        │
-   YES ─┴─ NO
-    │       │
- UNLOCK   REVERT
-```
+The proof exchange is not a contract-to-contract call. Each environment receives proof data and verifies it against an authenticated finalized state. The arrows carry bytes, not calls.
 
 ## The title
 
-Every LEMO asset has one unique title identifier.
-
-The title commits to the relationship between its two faces.
-
-Conceptually:
+Every LEMO asset has one title identifier. The title commits to the relationship between its faces.
 
 ```text
-LEMO_TITLE = {
-    title_id,
-    native_asset,
-    backing_amount,
-    native_owner,
-    identity_status,
-    vesting_rules,
-    evm_representation,
-    evm_contract,
-    revision
+LEMO_TITLE {
+  title_id            0x7f3a...c19e
+  chain_id            420420777
+  native_asset        POT
+  backing_amount      100.00
+  native_owner        5Grw...utQY
+  identity_hash       0x...
+  vesting_hash        0x...
+  permissions_hash    0x...
+  evm_contract        0xA19c...B3C5
+  revision            07
 }
 ```
 
-A versioned title hash identifies the committed state.
+The hash is domain separated and versioned. Changing an important title property increments the revision. Proofs from previous revisions cannot authorize a transfer.
 
-Changing an important title property increments its revision. Proofs from previous revisions cannot be accepted as current.
+`LEMO_TITLE` is a commitment, not proof of validity. Each runtime must verify the underlying state.
 
-The title hash is a commitment, not proof of validity by itself. Each runtime must independently verify the underlying state.
-
-## The lifecycle
+## Lifecycle
 
 ### 1. Create
 
-The owner creates a native title and locks the required backing.
-
-The WASM registry records the asset, ownership, identity conditions and vesting rules.
+The owner creates a native title and locks backing. Ownership, identity conditions and vesting rules are recorded in the native runtime.
 
 ### 2. Represent
 
-The EVM face is created using the same title identifier.
-
-The initial ERC-20 supply or ERC-721 ownership is established only after verifying the native backing.
+The EVM representation is created against the same title identifier, but only after the native backing is verified.
 
 ### 3. Transfer
 
-An owner transfers the EVM representation.
-
-The EVM contract checks an authenticated, finalized proof of the native title's current eligibility before allowing the transfer.
+An owner transfers the representation. The token calls the verifier before changing state. A finalized native proof at the current revision is required, and the proof is consumed so it cannot be replayed.
 
 ### 4. Update
 
-If native identity, backing or ownership conditions change, the title revision changes.
-
-Old proofs become invalid. The EVM face must obtain an accepted proof of the new state before allowing another transfer.
+If identity, backing or ownership changes, the title revision increments. Proofs from the previous revision stop working. The EVM face must obtain a proof of the new state before the next transfer.
 
 ### 5. Redeem
 
-The EVM representation is returned and burned.
+The representation is burned. After the burn finalizes, an EVM state proof can release the native backing. Burn first, unlock second.
 
-After the burn is finalized, a valid EVM state proof can be submitted to the native side.
+## Proof pipeline
 
-Only then can the original backing be unlocked.
+The proof pipeline is ordinary, verifiable cryptography:
 
-## Statement Store — the public noticeboard
+1. Read `chain_getFinalizedHead` and the header at that hash.
+2. Ask `state_getReadProof` for the storage key at that block.
+3. Index the returned nodes by `blake2b_256(node)`.
+4. Walk from the state root, consuming partial keys and branch nibbles.
+5. Return the proven value, or `ABSENT`, `INCOMPLETE`, `INVALID`, `ROOT_MISMATCH` or `VALUE_MISMATCH`.
 
-LEMO uses Statement Store as an announcement mechanism, not as its source of truth.
+The same algorithm exists in two places and both are checked against a live proof:
 
-A title announcement can be published to a topic such as:
+- `lib/proofs.ts` runs in the browser.
+- `contracts/SubstrateTrieVerifier.sol` runs on Revive.
 
-```text
-lemo/<title_id>
+The service fixture is `server/test/fixtures/portaldot-v3.json`: finalized block 292863, `System.Number` key, 4 nodes, state root `0x90d67ea5...60cbe5`, proven value `0xff770400` (292863 little endian). The contract fixture is a separate capture at block 292815 with the same 4-node shape, proven value `0xcf770400`.
+
+### Trust model
+
+The verifier proves that a value sits under a state root. It does not prove that the root came from the canonical chain. Today the root source is the **RootFeed**, an attested finalized checkpoint. A relayer can carry bytes; it cannot make a bad proof verify, but it can feed a wrong root if the attester is dishonest.
+
+This is a real trust assumption. A light client that verifies finality on the EVM side is the next step, not something this build claims. See [contracts/README.md](contracts/README.md).
+
+The EVM endpoint on the public testnet answers `eth_getProof` with `Method not found`. The console shows that refusal. It does not invent an EVM witness.
+
+## Contracts
+
+`contracts/` is a Foundry project. Nothing is deployed.
+
+| Contract | Purpose |
+|---|---|
+| `SubstrateTrieVerifier.sol` | Verifies a Substrate storage proof against a state root and returns a typed status |
+| `LemoTitle.sol` | Canonical domain-separated title commitment and revision rule |
+| `TitleGateERC20.sol` | ERC-20 transfers gated by a native title proof |
+| `TitleGateERC721.sol` | ERC-721 transfers gated by a native title proof |
+| `RootFeed.sol` | Attested finalized state root with an explicit trust assumption |
+| `UnbondGuard.sol` | Rule 2 logic: refuse unbond while a representation is outstanding |
+| `ReviveBlake2b256.sol` | Adapter for the Revive `hashBlake256` precompile |
+
+The gates bind a proof to chain id, title id, token contract, operation, revision and root, then consume a nullifier so the same proof cannot authorize two operations. The tests cover stale root, old revision, unbound backing, cleared identity, wrong contract, wrong chain, wrong operation, replay, paused state and a real end-to-end proof.
+
+```bash
+forge build
+forge test
 ```
 
-It contains a signed title-state announcement and the latest known title hash.
+## The console
 
-Other subscribers can discover the title and observe updates without querying a central marketplace API.
+The console reads both runtimes from the browser over plain JSON-RPC. It is a reading surface, not an authority: nothing it shows can authorize a transfer.
 
-The important distinction:
-
-**Gossip distributes information. Cryptographic proofs enforce ownership.**
-
-Statement Store delivery is best-effort and announcements may expire. LEMO must never treat a gossip message as proof that an asset is backed or valid.
-
-Portaldot-compatible Statement Store availability is an implementation dependency that must be verified against the target node.
-
-## Where the guarantee is enforced
-
-| Guarantee | Enforcement |
+| Route | What it shows |
 |---|---|
-| Native backing exists | WASM title registry |
-| Owner and permissions remain valid | Native title rules |
-| Identity requirements remain satisfied | Native identity state and proof |
-| Vesting restrictions remain satisfied | Native vesting rules and proof |
-| EVM transfer has valid backing | EVM proof verifier |
-| Old title revisions cannot authorize transfers | Revision and freshness checks |
-| EVM supply cannot exceed its backing | Mint and burn accounting |
-| Backing cannot unlock while tokens circulate | Native verification of EVM state |
-| Gossip cannot authorize a transfer | On-chain verification |
+| `/` | The protocol, the two rules, the lifecycle and the honest status |
+| `/console` | Finalized heads, finality lag, slot cadence, recent blocks, native witness, runtime comparison |
+| `/console/proofs` | The node-by-node native witness and the EVM endpoint's refusal |
+| `/console/verify` | Paste any storage key, fetch its proof, verify it in the browser and read the steps |
+| `/console/network` | Endpoints, genesis and chain-id checks, latency, and the exact RPC calls used |
 
-## What LEMO is NOT
+Every number comes from a node. The witness panel re-hashes each node with blake2b-256 and reports whether the set is bound to the state root the chain published.
 
-LEMO is not:
+Endpoint defaults point at the public Portaldot V3 testnet and are overridable:
 
-- A traditional cross-chain bridge moving assets between unrelated blockchains.
-- A centralized wrapping service.
-- A marketplace that holds custody of assets.
-- A relayer that decides whether a transfer is legitimate.
-- A token whose backing is verified only through a public dashboard.
-- A replacement for native identity, ownership or vesting rules.
+```bash
+NEXT_PUBLIC_NATIVE_RPC=https://test-node-v3.portaldot.dev
+NEXT_PUBLIC_EVM_RPC=https://test-evm-rpc-v3.portaldot.dev
+NEXT_PUBLIC_GENESIS_HASH=0xd4f9acbcf7f52388d8b095abe3c198d19fc510e0343e643e87cfbccb155283bd
+NEXT_PUBLIC_CHAIN_ID=420420777
+```
 
-It is an ownership coordination protocol between Portaldot's native WASM and EVM environments.
+Reads are serialized through a small queue because the public endpoints drop connections when several calls land together. A failed read is reported as a failed read, never replaced with a cached number.
 
-## The hard engineering problems
+## Proof service
 
-LEMO's central challenge is cross-runtime state verification.
+`server/` is a Fastify service with typed request and response schemas. It verifies every proof before returning it and never accepts a caller-supplied state root.
 
-Sharing a validator set does not automatically give one contract environment access to the storage of the other.
+| Endpoint | Purpose |
+|---|---|
+| `GET /healthz` | Liveness |
+| `GET /v1/network` | Chain, genesis match, best and finalized heads, finality lag, Revive chain id and head |
+| `GET /v1/witness/native?key=0x...&at=finalized` | Fetch and verify a native storage witness |
+| `POST /v1/verify/native` | Verify a supplied proof or fetch one |
+| `GET /v1/witness/evm?address=0x...` | Report the EVM endpoint's own answer, including its refusal to serve `eth_getProof` |
+| `GET /v1/reads` | The exact RPC methods the service uses |
 
-The implementation must solve:
+```bash
+cd server
+npm install
+npm run dev        # http://127.0.0.1:8787
+npm test           # 1,077 tests, including a live-captured proof fixture
+```
 
-**1. State proof verification**
+## Statement Store
 
-The WASM face and EVM face need a way to verify each other's storage proofs against authenticated finalized state roots.
+`statement_submit` and `statement_subscribeStatement` are present on the V3 testnet and a WebSocket subscription to `any` is accepted. Publication of a signed title announcement is not wired into this build, and no gossip message is ever treated as proof.
 
-**2. Finality**
+The rule stays: **gossip distributes information. Cryptographic proofs enforce ownership.**
 
-A proof must be tied to a finalized block, not merely a block reported by an RPC provider.
+## What is real and what is not
 
-**3. Freshness**
-
-A previously valid proof must not authorize an operation after the underlying title has changed.
-
-**4. Replay protection**
-
-Proofs must be bound to the chain, title ID, runtime, contract, operation and revision.
-
-**5. Interrupted transitions**
-
-Issuing, burning and unlocking must be sequenced so that a failed operation cannot create an unbacked representation or release backing prematurely.
-
-These are core protocol requirements, not optional optimizations.
-
-## What's real vs pending — the honesty table
-
-This repository describes the LEMO protocol design. It does not claim that the following mechanisms have already been implemented or deployed.
-
-| Component | Status |
+| Component | State |
 |---|---|
 | Dual-face title model | Design |
+| WASM contract runtime on Portaldot V3 | Not launched by the network |
 | Native backing and ownership registry | Implementation required |
-| ERC-20 / ERC-721 representation | Implementation required |
-| WASM-to-EVM state proof verification | Implementation required |
-| EVM-to-WASM state proof verification | Implementation required |
-| Finality and freshness verification | Implementation required |
-| Revision and replay protection | Implementation required |
-| Statement Store integration | Portaldot support and integration to verify |
-| End-to-end deployment | Not yet demonstrated |
+| ERC-20 / ERC-721 representation | Contracts tested, not deployed |
+| Native-to-EVM state proof verification | Tested in TypeScript and Solidity |
+| EVM-to-native state proof verification | Blocked by the WASM module |
+| Finality and freshness verification | Service only |
+| Revision and replay protection | Contracts tested, not deployed |
+| Root source | Trusted checkpoint |
+| Statement Store | Transport available |
+| End-to-end deployment | Not demonstrated |
 | Security audit | Not performed |
 
 ## Acceptance criteria
 
-LEMO should not be considered complete until these checks pass.
-
 - [ ] Create a title with real native backing on Portaldot V3.
 - [ ] Establish its corresponding ERC-20 or ERC-721 representation.
-- [ ] Verify native state from the EVM environment using a real finalized state proof.
+- [x] Verify native state from the EVM environment using a real finalized state proof. Tested in Foundry against the live fixture, not deployed.
 - [ ] Verify EVM state from the native environment using a real finalized state proof.
-- [ ] Reject transfers after native identity is cleared.
-- [ ] Reject transfers after native backing is unbound.
-- [ ] Reject stale or replayed proofs.
-- [ ] Reject native unbonding while ERC-20 supply remains outstanding.
-- [ ] Reject native unbonding while an ERC-721 representation remains outstanding.
+- [x] Reject transfers after native identity is cleared. Tested in Foundry.
+- [x] Reject transfers after native backing is unbound. Tested in Foundry.
+- [x] Reject stale or replayed proofs. Tested in Foundry.
+- [ ] Reject native unbonding while ERC-20 supply remains outstanding on-chain.
+- [ ] Reject native unbonding while an ERC-721 representation remains outstanding on-chain.
 - [ ] Demonstrate successful redemption and native unlock.
-- [ ] Verify that interrupted transitions cannot create unbacked tokens.
+- [x] Verify that interrupted transitions cannot create unbacked tokens. Contract paths fail closed in tests.
 - [ ] Demonstrate discovery through the supported gossip transport without treating gossip as authoritative state.
 - [ ] Verify the complete lifecycle on the actual Portaldot V3 testnet.
 
-## Tech stack
+## Running it locally
 
-| Layer | Technology |
-|---|---|
-| Native execution | Portaldot WASM contracts |
-| Native language | Rust / ink! |
-| EVM execution | Portaldot Revive |
-| EVM language | Solidity |
-| Token interfaces | ERC-20 / ERC-721 |
-| Ownership | Identity, vesting, proxy and multisig |
-| State verification | Finalized headers and authenticated storage proofs |
-| Discovery | Statement Store, subject to Portaldot support |
-| Network | Portaldot V3 |
+```bash
+npm install
+npm run dev      # site at http://localhost:3000, console at /console
+npm run build    # production build
+```
 
-## Why Portaldot?
+The proof service under `server/` is a separate package with its own install and scripts. The contracts under `contracts/` are a Foundry project with its own `forge test`.
 
-LEMO depends on the existence of both execution environments.
+## Deck and demo
 
-On a chain with only WASM, its EVM representation has nowhere to execute. On a chain with only EVM, its native ownership record has nowhere to live.
+- [deck/lemo-deck.pdf](deck/lemo-deck.pdf) is a 12-slide pitch deck. The editable source is [deck/index.html](deck/index.html).
+- [docs/deck-notes.md](docs/deck-notes.md) has speaker notes and the captured live figures.
+- [docs/demo-script.md](docs/demo-script.md) is a click-by-click walkthrough of the site. The team records the video.
 
-Portaldot brings both environments into the same network.
+## Why Portaldot
 
-That makes it possible to explore a different asset model: native ownership rules with EVM compatibility, without making a centralized service the authority between them.
+LEMO needs a network with a native asset and ownership system, an EVM environment, and a shared validator set. Portaldot V3 has the first two today and lists the third piece, the WASM contract module, for V3.0.
 
-**The asset does not choose between WASM and EVM. It belongs to both, and neither can act without proving that the other agrees.**
+The design does not need a bridge, a custodian or a privileged relayer. It needs a proof path between two environments that already settle under the same finality. A relayer can carry the bytes. The receiving verifier decides.
 
 ## References
 
-- [Portaldot Developer Documentation](https://portaldot-dev.readthedocs.io/en/latest/)
-- [Portaldot Native Identity](https://portaldot-dev.readthedocs.io/en/latest/module-interface/extrinsics/identity.html)
-- [Portaldot Contracts Interface](https://portaldot-dev.readthedocs.io/en/latest/module-interface/extrinsics/contracts.html)
-- [Statement Store — Polkadot reference](https://docs.polkadot.com/reference/apps/infrastructure/statement-store/)
+- [Portaldot developer documentation](https://portaldot-dev.readthedocs.io/en/latest/)
+- [Portaldot native identity](https://portaldot-dev.readthedocs.io/en/latest/module-interface/extrinsics/identity.html)
+- [Portaldot contracts interface](https://portaldot-dev.readthedocs.io/en/latest/module-interface/extrinsics/contracts.html)
+- [Statement Store reference](https://docs.polkadot.com/reference/apps/infrastructure/statement-store/)
+- [Competitive and completeness research](docs/competitive-research.md)
+
+---
+
+Protocol design, tested contracts, live read-only console. No deployed registry, no token, no audit.

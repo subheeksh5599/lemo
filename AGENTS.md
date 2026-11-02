@@ -7,3 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Design
+
+Before changing UI code, read [`DESIGN_RULES.md`](DESIGN_RULES.md). It is the source of truth for fonts, color tokens, shared components, motion and copy.

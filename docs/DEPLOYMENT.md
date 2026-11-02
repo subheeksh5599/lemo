@@ -46,7 +46,25 @@ The public testnet cost model, measured by another V3 project:
 A deployment of this repository's four contracts is larger than that example;
 budget the code-size sum from `forge build --sizes`, not the 899 byte figure.
 
-## Deploying
+## Deploying through the native wallet
+
+The funded account is the sr25519 SS58 wallet, not the EVM address. Deploy with
+`revive.instantiateWithCode` so the storage deposit comes from native tPOT:
+
+```bash
+PORTALDOT_MNEMONIC=... STORAGE_LIMIT_TPOT=500 \
+  node scripts/native-deploy.mjs ReviveBlake2b256
+```
+
+For EVM bytecode the constructor arguments are appended to the creation code and
+the pallet's `data` field stays `0x`. A weight limit above the block maximum
+returns `Transaction would exhaust the block limits`; `1.5e12` refTime is safe.
+
+Measured: the 779-byte hasher costs 71.78 tPOT. The 8,553-byte verifier needs
+about 675 tPOT; with 462 tPOT remaining the node returns
+`StorageDepositNotEnoughFunds`. The full four-contract suite is about 1,349 tPOT.
+
+## Deploying from an EVM key
 
 The Foundry script signs as the EVM key. The key needs its mapped native account
 funded, not the 0x address.

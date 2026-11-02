@@ -4,8 +4,6 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 
-import { WalletMenu } from '@/components/wallet/wallet-menu'
-
 const NAV = [
   { label: 'Protocol', href: '#how' },
   { label: 'Proofs', href: '#stats' },
@@ -66,7 +64,6 @@ export function Header() {
         </nav>
 
         <div className="flex items-center justify-self-end gap-3">
-          <WalletMenu className="hidden sm:inline-flex" />
           <Link
             href="/console"
             className="inline-flex h-10 items-center rounded-lg bg-[#0428cb] px-5 text-[14px] font-medium text-white transition-opacity hover:opacity-90"

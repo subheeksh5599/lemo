@@ -1,0 +1,20 @@
+{
+  "name": "@lemo/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LEMO EVM face: title registry and representation token",
+  "scripts": {
+    "compile": "node scripts/compile.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "demo": "node scripts/demo.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@scure/bip32": "^2.4.0",
+    "@scure/bip39": "^2.4.0",
+    "solc": "^0.8.38",
+    "viem": "^2.57.14"
+  }
+}

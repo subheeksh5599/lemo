@@ -286,6 +286,7 @@ The rule stays: **gossip distributes information. Cryptographic proofs enforce o
 |---|---|
 | Dual-face title model | Design |
 | WASM contract runtime on Portaldot V3 | Not launched by the network |
+| Proof servicing service (finalized proof packages, canonical digests, single-use replay record) | Implemented — `backend/` |
 | Native backing and ownership registry | Implementation required |
 | ERC-20 / ERC-721 representation | Contracts tested, not deployed |
 | Native-to-EVM state proof verification | Tested in TypeScript and Solidity |
@@ -322,6 +323,18 @@ npm run build    # production build
 ```
 
 The proof service under `server/` is a separate package with its own install and scripts. The contracts under `contracts/` are a Foundry project with its own `forge test`.
+
+The parallel two-contract EVM deployment is recorded in
+[`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md): title registry
+`0xc88763FA361669fC5d95c2BDD924b0E2872488bB` and ERC-20 representation
+`0x61c35d5e811b99f2641b43e9ef97e50d52de8ff7`. It is a separate implementation
+from the gate used by `/console/flow`; do not point the flow page at it.
+
+The proof-servicing half of that deployment is implemented in `backend/`: it reads
+a title's declared storage records at the finalized head, verifies the returned
+read proof against the block's own `stateRoot`, and only then hands out a package.
+See `backend/README.md` for the routes, the layout declaration format, and the
+limits of what the service can claim.
 
 ## Deck and demo
 

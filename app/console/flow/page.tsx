@@ -115,6 +115,17 @@ export default function FlowPage() {
         </div>
       </div>
 
+      {unset.length === 0 ? (
+        <Notice tone="warn" title="Gate deployed, title proof not">
+          <p className="max-w-[86ch]">
+            The ERC-20 gate and verifier are live, but the gate&apos;s title commitment is a
+            deployment placeholder. A mint or transfer will revert until a real native title
+            record and its storage proof exist. The page keeps the real address and the real
+            revert path; it does not fake a successful transaction.
+          </p>
+        </Notice>
+      ) : null}
+
       {unset.length === 0 ? null : (
         <Notice tone="warn" title="Nothing is deployed yet">
           <p className="max-w-[82ch]">

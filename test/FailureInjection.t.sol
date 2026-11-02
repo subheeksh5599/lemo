@@ -446,6 +446,51 @@ contract FailureInjectionTest is Test {
     token.transfer(BOB, 10, proof);
   }
 
+  /// @notice Scenario 21: a burn request is completed after the representation
+  /// has been minted again at the same revision. The release must re-check Rule
+  /// 2, not trust the request-time check.
+  function test_21_CompletedUnbondRechecksRepresentation() public {
+    _mintBase();
+    (ITitleVerifier.TitleProof memory burnProof, bytes32 root2) =
+      _proof(2, BACKING, IDENTITY, OP_BURN);
+    _attest(root2);
+
+    vm.prank(ALICE);
+    token.burn(ALICE, 100, burnProof);
+    bytes32 id = guard.requestUnbond(burnProof);
+
+    (ITitleVerifier.TitleProof memory mintProof, bytes32 root3) =
+      _proof(2, BACKING, IDENTITY, OP_MINT);
+    _attest(root3);
+    vm.prank(ALICE);
+    token.mint(ALICE, 100, mintProof);
+    assertTrue(token.representationOutstanding(), "representation is live again");
+
+    vm.expectRevert(UnbondGuard.RepresentationOutstanding.selector);
+    vm.prank(ATTESTER);
+    guard.completeUnbond(id);
+    assertEq(uint256(guard.requestState(id)), uint256(UnbondGuard.State.PENDING));
+  }
+
+  /// @notice Scenario 22: a second unbond for the same title is refused while
+  /// the first one is still pending, even if it uses a different proof.
+  function test_22_OnlyOneOpenUnbondPerTitle() public {
+    _mintBase();
+    (ITitleVerifier.TitleProof memory first, bytes32 root2) =
+      _proof(2, BACKING, IDENTITY, OP_BURN);
+    _attest(root2);
+
+    vm.prank(ALICE);
+    token.burn(ALICE, 100, first);
+    bytes32 id = guard.requestUnbond(first);
+
+    (ITitleVerifier.TitleProof memory second, bytes32 root3) =
+      _proof(3, BACKING, IDENTITY, OP_BURN);
+    _attest(root3);
+    vm.expectRevert(abi.encodeWithSelector(UnbondGuard.RequestAlreadyOpen.selector, TITLE_ID, id));
+    guard.requestUnbond(second);
+  }
+
   // ------------------------------------------------------------- helpers
 
   function _record(uint64 revision, bytes32 backing, bytes32 identity, address evm)

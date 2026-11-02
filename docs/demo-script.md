@@ -1,134 +1,122 @@
 # LEMO demo script (website only)
 
-Length: 4 minutes. Everything below happens in the browser. Do not open a terminal, an editor, or the repository page during the demo.
+Length: 3 minutes 30 seconds. Everything happens in the browser. Do not open a terminal, an editor, or the repository page during the demo.
 
 ## Before you start
 
-1. The site is already running and open at `http://localhost:3000` (or the deployed URL). Do not start anything during the demo.
-2. Use one window, 1440 pixels wide or wider, browser zoom at 100 percent. Close other tabs so the console reads are not competing for the connection.
-3. The public endpoints drop connections when several calls land at once, so let each page settle for two or three seconds before clicking again.
-4. Have `deck/lemo-deck.pdf` open in a second window as a fallback. If the site fails completely, switch to the PDF and say the site is down, without pretending it is not.
+1. Open **https://lemo-ebon.vercel.app** and let the landing page settle. Do not start anything during the demo.
+2. Use one window, at least 1280 pixels wide, browser zoom 100 percent. Close competing tabs.
+3. The public endpoints serialize calls. Let each console page settle for two or three seconds before clicking again.
+4. Have `deck/lemo-deck.pdf` open in a second window as a fallback. If the site fails completely, show the PDF and say the site is down. Do not claim its numbers are live.
 
-The console reads the chain live, so every number will be higher than the deck. Say that once, early, and then read what is on screen.
+The console reads the chain live. Every head will be higher than the deck. Say that once, early.
 
-## 0:00 to 0:20, landing page
+## 0:00 to 0:25, the landing page
 
-Do: stay at the top of the home page. Move the cursor near the headline but do not click.
+Stay at the top of the page. Move the cursor near the headline but do not click.
 
-Expect: the headline "One asset, two runtimes, one title", the specimen register on the right, and the live strip below the first screen.
+Expect: the headline **“One title. Two runtimes.”**, the blue announcement bar **“Four support contracts live on Portaldot V3”**, the interactive globe, and the live stats strip below the first screen.
 
-Say: "This is the public design. One asset, one revisioned title, and a bidirectional proof gate between Portaldot's native runtime and Revive. The register on the right is a specimen, and it is labeled as one. Nothing is deployed."
-Do: point at the specimen label, then at the live strip.
+Say: “One native record, one EVM representation, one title. The native room holds the legal record. The EVM room holds the token. A finalized state proof is what lets the token move, and the same title revision has to survive on both sides.”
 
-## 0:20 to 0:50, the protocol section
+Point at the announcement bar, then at the live stats strip.
 
-Do: click the button "Read the protocol" under the headline.
+## 0:25 to 0:55, how it works
 
-Expect: the page scrolls to the protocol section with the two faces and the title identifier.
+Click **Protocol** in the top navigation. It scrolls to “How LEMO works”.
 
-Say: "The native side is the legal record: backing, owner, identity, vesting, permissions, revision. The EVM side is the market representation: an ERC-20 or ERC-721 that Solidity already understands. They are tied by one title id and one revision. The native record exists today; the WASM contract module is still listed for V3.0."
+Expect: the heading “Bind the title once. Then both runtimes enforce the same conditions, on every transfer.” and the steps Connect / Onboard / Observe / Run.
 
-Do: scroll down one screen slowly, stopping at the diagram.
+Say: “The title is bound once: backing, owner, identity, vesting, permissions, revision. The EVM side is an ERC-20 or ERC-721 that Solidity already understands. The token does not replace the native record; it represents an asset governed by it.”
 
-## 0:50 to 1:20, rules
+Scroll one screen slowly to the flow diagram.
 
-Do: click "Rules" in the top navigation.
+## 0:55 to 1:20, the live band
 
-Expect: the two rules, each with the allow and revert conditions.
+Click **Proofs** in the top navigation. It scrolls to the live stat band.
 
-Say: "Rule one: an EVM transfer verifies a finalized native proof before it settles. Rule two: native unbond verifies that the EVM representation is fully retired. Both are design rules. The EVM gate is buildable now. The native gate waits on the WASM contracts module, which is listed for V3.0."
+Expect: Finalized head, EVM head, State root, Read at, Native latency. All five are node reads.
 
-Do: point at the "revert" line in each rule, then move on. Do not read every bullet.
+Say: “These are live reads, not deck numbers. The finalized head and the EVM head are separate calls. The state root is the one the proof will be checked against.”
 
-## 1:20 to 1:40, lifecycle
+Let it sit for two seconds.
 
-Do: click "Lifecycle" in the top navigation.
+## 1:20 to 1:50, the boundary
 
-Expect: five steps and the revision line.
+Click **Security** in the top navigation.
 
-Say: "Create, represent, transfer, update, redeem. The revision is the safety rail. Change identity, backing or ownership and the revision increments, so every older proof stops being current. Valid bytes from revision 06 are the wrong answer at 07."
+Expect: “A proof can be checked. The gate is live.” and the three boundary tags: trusted root feed, four contracts live, `eth_getProof` refused.
 
-## 1:40 to 2:00, status
+Say: “Four support contracts are deployed: the Blake2b adapter, the trie verifier, the root feed and the ERC-20 gate. The native registry is still a pallet, the WASM contracts module is not live, and the root feed is one attested checkpoint, not a light client. The gate's title commitment is a deployment placeholder, so this is not yet a live asset system.”
 
-Do: click "Status" in the top navigation.
+Do not scroll past this section. It is the credibility moment.
 
-Expect: the honest status table, including design, implementation required, not demonstrated, and no audit.
+## 1:50 to 2:20, console overview
 
-Say: "This table is the one to judge us on. The WASM contract runtime is not launched. The native registry is still implementation required. The ERC-20 and ERC-721 gates are tested but not deployed. Native-to-EVM proof verification is tested in TypeScript and Solidity. EVM-to-native is blocked by the WASM module. End to end is not demonstrated, and there is no audit. The console below is real, and it only reads."
+Click **Open console** in the top right.
 
-Do: do not scroll past this section. It is the credibility moment.
+Expect: the Overview page. Five stat cells (finalized head, finality lag, median slot, Revive head, genesis match), then Slot cadence, Recent finalized blocks and Runtimes.
 
-## 2:00 to 2:30, console overview
+Say: “Every figure is a call this page made. The native endpoint and Revive are read separately. The panel says Revive is live while the native face is not launched.”
 
-Do: click "Open console" in the top right of the navigation.
+Click the refresh icon once. Wait two seconds. The timestamp and heads move forward.
 
-Expect: the Overview page. Five stat cells at the top (finalized head, finality lag, median slot, Revive head, genesis match), then "Slot cadence", "Recent finalized blocks" and the "Runtimes" panel.
+Say: “That is a live read, not a cache.”
 
-Say: "Finalized head, finality lag, median slot, and the Revive head. Each figure is a call this page made. The cadence chart is built from finalized blocks. The native endpoint and Revive are read separately, and the panel says the Revive side is live while the native face is not launched."
+## 2:20 to 2:50, proofs
 
-Do: point at "Finalized head" and "Finality lag". Then point at the "Runtimes" panel hint.
+Click **Proofs** in the left sidebar.
 
-Do: click the refresh icon at the top right of the console once. Wait two seconds.
+Expect: Native witness on the left, Key derivation and EVM account witness on the right.
 
-Expect: the timestamp next to the live indicator updates, and the heads move forward.
+Say: “The witness is a storage proof for System.Number at the finalized head. Every node is rehashed with blake2b-256, the walk consumes the key nibble by nibble, and the proven bytes must equal state_getStorage at the same block. The verification runs in this browser.”
 
-Say: "That is a live read, not a cached number."
+Point at the verified state and the three check lines. If it says absent or incomplete, read what it says and move on.
 
-## 2:30 to 3:15, proofs
+Click refresh inside Native witness once. The block number increases.
 
-Do: click "Proofs" in the left sidebar.
+Say: “New block, new root, new proof.”
 
-Expect: the "Native witness" panel on the left, "Key derivation" and "EVM account witness" on the right.
+Move to EVM account witness. Expect the red **eth_getProof unavailable** and the node’s own `-32601 Method not found`.
 
-Say: "The witness is a storage proof for System.Number at the finalized head. Every node is rehashed with blake2b-256, the walk consumes the key nibble by nibble, and the proven bytes must equal state_getStorage at the same block. The verification runs in this browser. The node is not trusted to tell the truth about the value."
+Say: “This is the honest failure. Revive does not serve account proofs, so there is no EVM witness. We print the refusal instead of inventing one.”
 
-Do: point at the green "verified" state, then at the three check lines under it. If the panel says "absent" or "incomplete", say what it says and move on. Do not explain it away.
+## 2:50 to 3:10, verify key
 
-Do: click the refresh icon inside the Native witness panel once.
+Click **Verify key** in the left sidebar.
 
-Expect: the proof re-reads at a newer finalized head and the block number increases.
+Expect: Input with a hex storage key and a Trie walk panel.
 
-Say: "New block, new root, new proof."
+Click **System.Number key**. Wait for the walk.
 
-Do: move to the "EVM account witness" card on the right.
+Expect: the key fills, the proof is read at the finalized head, and the walk lists nodes with the root-binding result.
 
-Expect: the red badge "eth_getProof unavailable" and the node's own message, `-32601 Method not found`.
+Say: “This is the same check with the key exposed. The key is two prefixes concatenated and the proof is read at the finalized block, not at latest. The walk shows every step.”
 
-Say: "This is the honest failure. The Revive endpoint does not implement account proofs, so there is no EVM witness to show. We print the node's refusal instead of inventing one. That is the open problem on the EVM side of rule two."
+Point at the root line. Do not type a random key on stage.
 
-Do: do not click "Ask the endpoint again" more than once. The answer will not change.
+## 3:10 to 3:30, network and flow
 
-## 3:15 to 3:45, verify key
+Click **Network** in the left sidebar.
 
-Do: click "Verify key" in the left sidebar.
+Expect: Native records, Revive runtime, and Checks with six rows.
 
-Expect: an "Input" panel with a hex storage key field and a "Trie walk" panel.
+Say: “The endpoints, the genesis match, the Revive chain id, and the exact calls this console makes. Genesis matches, chain id matches, the native proof roots, and Revive refuses the account proof as reported.”
 
-Do: click the button "System.Number key". Wait for the walk to finish.
+Click **Transactions** in the left sidebar.
 
-Expect: the input fills with the 32 byte key, the proof is read at the finalized head, and the trie walk lists the nodes with the root binding result.
+Expect: the flow page with the three deployed addresses and the native funding panel.
 
-Say: "This is the same check with the key exposed. The key is two prefixes concatenated, read at the finalized block hash rather than at latest. The walk shows each step: rehash, root, walk, compare. If any step fails, the panel says so."
+Say: “This is the write surface. The gate is at `0xfbef…741f`, the verifier at `0xe5ca…6bAc`, the feed at `0xc1c9…d5c0`. Mint is wired, but the gate is bound to a deployment placeholder commitment. Without a real native title record and its proof, the transaction must revert. We show that rather than fake a successful mint.”
 
-Do: scroll inside the page to the "Trie walk" panel and point at the root line. Do not type a random key on stage.
-
-## 3:45 to 4:00, network
-
-Do: click "Network" in the left sidebar.
-
-Expect: "Native records", "Revive runtime", and a "Checks" panel with six rows.
-
-Say: "One last page: the endpoints, the genesis match, the Revive chain id, and the exact calls this console makes. Genesis matches, chain id matches, a native proof roots, and Revive refuses the account proof as reported. Every check here is a call this page made."
-
-Do: stop. Do not scroll further.
+Stop. Do not click Mint on stage.
 
 ## If something goes wrong
 
-- A panel shows a red error: read the message out loud, say the public endpoint dropped a call, click refresh once, and continue. Do not reload the whole page unless two panels fail.
-- The console shows "reading" for more than ten seconds: wait, then click refresh. The endpoints serialize calls.
-- The site is unreachable: switch to `deck/lemo-deck.pdf`, say the live site is down, and walk slides 10 and 2 instead. Do not claim live numbers from the PDF are current.
-- Someone asks for the repository: say it is public and will be shared after the run. Do not open it on screen during the demo.
+- A panel shows red: read the message, say the public endpoint dropped a call, click refresh once, continue.
+- “Reading” for more than ten seconds: wait, then refresh. The endpoints serialize calls.
+- Site unreachable: switch to `deck/lemo-deck.pdf`, say the live site is down, and walk slides 10 and 2. Do not claim PDF numbers are current.
 
 ## Words to avoid on stage
 
-"Deployed", "audited", "live users", "TVL", "partnership", "trustless", "production ready", "two live runtimes". Revive is live. The WASM contracts module is listed. The rest is design.
+“Audited”, “trustless”, “production ready”, “live asset system”, “live users”, “TVL”, “partnership”. Four support contracts are live on testnet. The native registry is not. The gate’s title commitment is a placeholder. Say that plainly.

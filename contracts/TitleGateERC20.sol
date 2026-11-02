@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TitleGateBase } from "./TitleGateBase.sol";
 import { ITitleVerifier } from "./ITitleVerifier.sol";
-import { RootFeed } from "./RootFeed.sol";
+import { IRootFeed } from "./IRootFeed.sol";
 
 /// @title TitleGateERC20
 /// @notice A fungible representation of one LEMO title, where every movement
@@ -35,7 +35,7 @@ contract TitleGateERC20 is TitleGateBase {
 
   constructor(
     ITitleVerifier verifier_,
-    RootFeed feed_,
+    IRootFeed feed_,
     bytes32 titleId_,
     bytes32 titleCommitment_,
     address owner_,

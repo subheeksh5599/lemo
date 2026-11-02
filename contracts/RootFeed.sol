@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import { IRootFeed } from "./IRootFeed.sol";
+
 /// @title RootFeed
 /// @notice The only place a state root enters the gate. One attester publishes
 /// the state root of a finalized native block, and every gate compares the root
@@ -24,7 +26,7 @@ pragma solidity 0.8.26;
 /// every later attestation. A pinned feed is a one shot deployment: the pinned
 /// block is the last state anything can prove. Pinning is irreversible by
 /// construction, since an unpin would make the pin decorative.
-contract RootFeed {
+contract RootFeed is IRootFeed {
   address public owner;
   address public attester;
   bool public pinned;

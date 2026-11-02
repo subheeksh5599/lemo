@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { ITitleVerifier } from "./ITitleVerifier.sol";
 import { TitleLib, TitleRecord } from "./LemoTitle.sol";
-import { RootFeed } from "./RootFeed.sol";
+import { IRootFeed } from "./IRootFeed.sol";
 import { IRepresentation } from "./IRepresentation.sol";
 
 /// @title TitleGateBase
@@ -37,7 +37,7 @@ abstract contract TitleGateBase is IRepresentation {
   uint8 internal constant OP_BURN = 3;
 
   ITitleVerifier public immutable verifier;
-  RootFeed public immutable feed;
+  IRootFeed public immutable feed;
   bytes32 public immutable titleId;
   uint256 public immutable boundChainId;
   address public immutable owner;
@@ -89,7 +89,7 @@ abstract contract TitleGateBase is IRepresentation {
 
   constructor(
     ITitleVerifier verifier_,
-    RootFeed feed_,
+    IRootFeed feed_,
     bytes32 titleId_,
     bytes32 titleCommitment_,
     address owner_

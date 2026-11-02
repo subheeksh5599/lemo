@@ -7,6 +7,8 @@ import { IBlake2b256 } from "lemo/IBlake2b256.sol";
 import { ReviveBlake2b256 } from "lemo/ReviveBlake2b256.sol";
 import { SubstrateTrieVerifier } from "lemo/SubstrateTrieVerifier.sol";
 import { RootFeed } from "lemo/RootFeed.sol";
+import { ThresholdRootFeed } from "lemo/ThresholdRootFeed.sol";
+import { IRootFeed } from "lemo/IRootFeed.sol";
 import { TitleRecord, TitleLib } from "lemo/LemoTitle.sol";
 import { TitleGateERC20 } from "lemo/TitleGateERC20.sol";
 
@@ -54,13 +56,28 @@ contract Deploy is Script {
     console2.log("chain id", block.chainid);
     console2.log("rpc", _envOr("RPC_URL", "(not set)"));
     console2.log("deployer", deployer);
-    console2.log("attester", vm.envAddress("ATTESTER"));
+    console2.log("attester", vm.envOr("ATTESTER", address(0)));
+    console2.log("threshold", vm.envOr("THRESHOLD", uint256(0)));
 
     vm.startBroadcast(deployerKey);
 
     ReviveBlake2b256 reviveHash = new ReviveBlake2b256();
     SubstrateTrieVerifier trieVerifier = new SubstrateTrieVerifier(IBlake2b256(address(reviveHash)));
-    RootFeed rootFeed = new RootFeed(vm.envAddress("ATTESTER"));
+
+    // A threshold set is the independent root source. Without THRESHOLD, the
+    // deploy falls back to the single attested feed; with it, the feed needs
+    // ATTESTER_1..3 to agree before any root is accepted.
+    uint256 threshold = vm.envOr("THRESHOLD", uint256(0));
+    IRootFeed rootFeed;
+    if (threshold == 0) {
+      rootFeed = new RootFeed(vm.envAddress("ATTESTER"));
+    } else {
+      address[] memory attesters = new address[](3);
+      attesters[0] = vm.envAddress("ATTESTER_1");
+      attesters[1] = vm.envAddress("ATTESTER_2");
+      attesters[2] = vm.envAddress("ATTESTER_3");
+      rootFeed = new ThresholdRootFeed(attesters, threshold);
+    }
 
     // The record names the token, so the token address has to be predicted
     // before the record can be hashed. Predict, verify the commitment against

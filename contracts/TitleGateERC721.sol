@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TitleGateBase } from "./TitleGateBase.sol";
 import { ITitleVerifier } from "./ITitleVerifier.sol";
-import { RootFeed } from "./RootFeed.sol";
+import { IRootFeed } from "./IRootFeed.sol";
 
 interface IERC721Receiver {
   function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
@@ -42,7 +42,7 @@ contract TitleGateERC721 is TitleGateBase {
 
   constructor(
     ITitleVerifier verifier_,
-    RootFeed feed_,
+    IRootFeed feed_,
     bytes32 titleId_,
     bytes32 titleCommitment_,
     address owner_,

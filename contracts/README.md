@@ -51,6 +51,8 @@ roots quoted below are either read from a public node or computed by a test.**
 | `contracts/LemoTitle.sol` | `TitleRecord`, the versioned commitment, the revision book |
 | `contracts/ITitleVerifier.sol` | what a gate is allowed to depend on |
 | `contracts/RootFeed.sol` | one attester, optional irreversible pin |
+| `contracts/ThresholdRootFeed.sol` | M-of-N attesters; a quorum must agree on the same root and block |
+| `contracts/IRootFeed.sol` | the three getters a gate depends on |
 | `contracts/TitleGateBase.sol` | the shared gate: seven bindings plus the nullifier |
 | `contracts/TitleGateERC20.sol` | fungible representation |
 | `contracts/TitleGateERC721.sol` | unique representation, one token per title |
@@ -154,15 +156,22 @@ proof. `safeTransferFrom` delegates to the same gate.
 
 ### The root feed and the trust model
 
-`RootFeed` holds one root published by one attester. The trie walk, the record
-decode, the commitment and the nullifier are trustless **given** that root. The root
-itself is not:
+`RootFeed` holds one root published by one attester. `ThresholdRootFeed` holds the
+same root only after a fixed M-of-N set of attesters submits the same
+`(root, blockNumber)` pair, and refuses an older block or a duplicate vote. The
+trie walk, the record decode, the commitment and the nullifier are trustless
+**given** that root. The root itself is not:
 
 - the attester can publish any root, including one from a block that is not final,
   from a fork, or from nothing at all;
 - the attester can publish an older root, which is how a proof consumed once could
   in principle become usable again with a different nullifier scope;
 - the owner can replace the attester at any time.
+
+`scripts/attest-root.sh` reads `chain_getFinalizedHead` and `chain_getHeader`
+from every endpoint in `NATIVE_RPCS`, refuses unless they all return the same
+root and block, and then sends `attest(root, block)` from one attester. Run it on
+each signer of a `ThresholdRootFeed`; the quorum moves the root, not one key.
 
 Pinned mode fixes one root forever and refuses every later attestation, including
 an unpin (there is no unpin). A pinned feed is a one shot deployment: the pinned
@@ -258,8 +267,9 @@ Running `forge install` again is not needed: `forge-std` is vendored under
 | `test/LemoTitle.t.sol` | 13 | the shared vectors, version and domain separation, native record round trip, revision rule |
 | `test/TitleGate.t.sol` | 17 | one end to end transfer through the real verifier, the six required reverts, and the smaller refusals |
 | `test/FailureInjection.t.sol` | 20 | 20 named failure scenarios, each asserting both the revert and that nothing moved |
+| `test/ThresholdRootFeed.t.sol` | 12 | quorum, duplicate votes, competing roots, stale blocks, split votes, root advancement |
 
-71 tests in total, all with the real blake2b. Where a mock is used it is
+83 tests in total, all with the real blake2b. Where a mock is used it is
 `test/harness/MockTitleVerifier.sol`, which still recomputes the commitment from the
 record it returns, so a gate anchored on the wrong record fails there too.
 

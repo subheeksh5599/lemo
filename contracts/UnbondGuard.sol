@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { ITitleVerifier } from "./ITitleVerifier.sol";
 import { TitleRecord } from "./LemoTitle.sol";
-import { RootFeed } from "./RootFeed.sol";
+import { IRootFeed } from "./IRootFeed.sol";
 import { IRepresentation } from "./IRepresentation.sol";
 
 /// @title UnbondGuard
@@ -29,7 +29,7 @@ contract UnbondGuard {
   uint8 public constant REQUIRED_PROOF_OPERATION = 3; // burn
 
   ITitleVerifier public immutable verifier;
-  RootFeed public immutable feed;
+  IRootFeed public immutable feed;
   IRepresentation public immutable representation;
   bytes32 public immutable titleId;
   address public immutable attester;
@@ -64,7 +64,7 @@ contract UnbondGuard {
 
   constructor(
     ITitleVerifier verifier_,
-    RootFeed feed_,
+    IRootFeed feed_,
     IRepresentation representation_,
     bytes32 titleId_,
     address attester_

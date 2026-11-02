@@ -24,13 +24,18 @@ async function startService(): Promise<{ base: string; server: HttpServer; chain
     port: 0,
     databasePath: join(dir, "lemo.db"),
     rpcUrl,
-    rpcTimeoutMs: 15_000,
-    rpcAttempts: 3,
+    evmRpcUrl: null,
+    statementsUrl: rpcUrl,
+    listenHost: "127.0.0.1",
+    timeoutMs: 15_000,
     minConfirmations: 0,
-    maxKeysPerPackage: 8,
+    maxFields: 8,
+    logLevel: "error",
+    rateLimitPerSecond: 100,
+    rateLimitBurst: 100,
   };
 
-  const chain = new PortaldotChain(new RpcClient({ url: rpcUrl, timeoutMs: config.rpcTimeoutMs, attempts: config.rpcAttempts }));
+  const chain = new PortaldotChain(new RpcClient({ url: rpcUrl, timeoutMs: config.timeoutMs, attempts: 3 }));
   const service = new ChainService({ chain, store: new Store(config.databasePath), config });
   const server = new HttpServer({ service, config });
   const { port } = await server.listen();

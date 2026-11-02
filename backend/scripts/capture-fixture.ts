@@ -40,6 +40,7 @@ async function main(): Promise<void> {
         decode: "bytes",
       },
     ],
+    evm: null,
   };
 
   const built = await buildPackage({ chain, identity, binding });

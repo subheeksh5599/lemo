@@ -1,5 +1,10 @@
 export type Hex = `0x${string}`;
 
+/** Re-types an already-validated hex string. Validation happens at the edge. */
+export function asHex(value: string): Hex {
+  return value as Hex;
+}
+
 const HEX_PATTERN = /^0x[0-9a-fA-F]*$/;
 
 export function isHex(value: unknown): value is Hex {
@@ -57,3 +62,36 @@ export function toNibbles(bytes: Uint8Array): number[] {
 
   return nibbles;
 }
+
+export function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+
+  return out;
+}
+
+/**
+ * Reads an unsigned little-endian integer. A width mismatch is an error, never
+ * a silently shorter read: `System.Number` is a u32, and decoding its 4 bytes
+ * as anything else produces a plausible wrong block number.
+ */
+export function readUintLE(bytes: Uint8Array, width: 4 | 8 | 16): bigint {
+  if (bytes.length < width) {
+    throw new RangeError(`expected at least ${width} bytes, got ${bytes.length}`);
+  }
+
+  let value = 0n;
+
+  for (let index = width - 1; index >= 0; index -= 1) {
+    value = (value << 8n) | BigInt(bytes[index] ?? 0);
+  }
+
+  return value;
+}
+

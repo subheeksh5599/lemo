@@ -8,7 +8,7 @@
 ![Revive](https://img.shields.io/badge/Portaldot%20V3-Revive%20live-2f6bff)
 ![WASM](https://img.shields.io/badge/WASM%20contracts-listed%20for%20V3.0-8492a6)
 ![Proofs](https://img.shields.io/badge/state%20proofs-blake2b%20trie-2fd6a3)
-![Tests](https://img.shields.io/badge/tests-1%2C077%20server%20%2B%2071%20Foundry-2fd6a3)
+![Tests](https://img.shields.io/badge/tests-1%2C077%20server%20%2B%2083%20Foundry-2fd6a3)
 
 [Protocol](#the-protocol) · [Rules](#the-two-rules) · [Contracts](#contracts) · [Console](#the-console) · [Evidence](docs/EVIDENCE.md) · [Deck](deck/lemo-deck.pdf) · [Demo script](docs/demo-script.md)
 
@@ -18,7 +18,7 @@
 
 Portaldot V3 ships **Revive**, its EVM environment, today. The native runtime already holds assets, identity, vesting and proxy or multisig ownership records. The **WASM contract module is listed for V3.0 and is not live or documented**; ink! to Solidity cross calls are awaiting confirmation.
 
-LEMO is the design that gives an asset one revisioned title across the native record and a Revive representation, with a finalized state proof required in both directions. The EVM side is buildable now and is implemented here. The native side waits on the contract module.
+LEMO is the design that gives an asset one revisioned title across the native record and a Revive representation, with a finalized state proof required in both directions. The EVM side is implemented here. The native registry is implemented as a FRAME pallet in `pallets/lemo-title`; the remaining step is a runtime upgrade.
 
 | What exists in this repository | State |
 |---|---|
@@ -26,10 +26,11 @@ LEMO is the design that gives an asset one revisioned title across the native re
 | Browser storage-proof verifier for the native state trie | Working, checked against a live proof |
 | Fastify proof service with typed RPC clients and offline fixtures | Working, 1,077 tests |
 | Solidity Substrate trie verifier | Working, checked against the same live proof |
-| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 71 Foundry tests |
-| Title commitment, RootFeed and unbond guard | Working, not deployed |
-| Deployed registry, token or verifier on the testnet | Not demonstrated |
-| Native-to-EVM and EVM-to-native enforcement on-chain | Not deployed. The EVM half is tested; the native half is blocked by the WASM module |
+| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 83 Foundry tests |
+| Title commitment, RootFeed, threshold root feed and unbond guard | Working, 83 Foundry tests; 9 pallet tests |
+| Native title registry (`pallets/lemo-title`) | Working in tests; runtime inclusion not deployed |
+| Deployed registry, token or verifier on the testnet | Not deployed |
+| Native-to-EVM and EVM-to-native enforcement on-chain | EVM half tested; native pallet tested; the runtime upgrade is the remaining chain step |
 | Security audit | Not performed |
 
 The honest version: this is a tested protocol implementation and a live read-only console, not a live asset system. Read [docs/EVIDENCE.md](docs/EVIDENCE.md) for the artifact behind every claim.
@@ -198,9 +199,9 @@ The service fixture is `server/test/fixtures/portaldot-v3.json`: finalized block
 
 ### Trust model
 
-The verifier proves that a value sits under a state root. It does not prove that the root came from the canonical chain. Today the root source is the **RootFeed**, an attested finalized checkpoint. A relayer can carry bytes; it cannot make a bad proof verify, but it can feed a wrong root if the attester is dishonest.
+The verifier proves that a value sits under a state root. It does not prove that the root came from the canonical chain. Today the root source is `RootFeed` (one attester) or `ThresholdRootFeed` (a fixed M-of-N quorum; no single key can move the root). A relayer can carry bytes; it cannot make a bad proof verify, but it can feed a wrong root if the quorum is dishonest.
 
-This is a real trust assumption. A light client that verifies finality on the EVM side is the next step, not something this build claims. See [contracts/README.md](contracts/README.md).
+This is a real trust assumption. A light client that verifies finality on the EVM side is the next step, not something this build claims. See [contracts/README.md](contracts/README.md). The native registry source, calls and runtime integration are in [docs/NATIVE_REGISTRY.md](docs/NATIVE_REGISTRY.md).
 
 The EVM endpoint on the public testnet answers `eth_getProof` with `Method not found`. The console shows that refusal. It does not invent an EVM witness.
 
@@ -215,6 +216,7 @@ The EVM endpoint on the public testnet answers `eth_getProof` with `Method not f
 | `TitleGateERC20.sol` | ERC-20 transfers gated by a native title proof |
 | `TitleGateERC721.sol` | ERC-721 transfers gated by a native title proof |
 | `RootFeed.sol` | Attested finalized state root with an explicit trust assumption |
+| `ThresholdRootFeed.sol` | M-of-N root attestations; no single key can move the accepted root |
 | `UnbondGuard.sol` | Rule 2 logic: refuse unbond while a representation is outstanding |
 | `ReviveBlake2b256.sol` | Adapter for the Revive `hashBlake256` precompile |
 

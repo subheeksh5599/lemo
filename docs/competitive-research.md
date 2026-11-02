@@ -13,7 +13,7 @@
 
 **0.3 LEMO has implemented one third of its README.** What exists is one-sided but real: a Fastify service with a blake2b-256 Substrate trie verifier (`server/src/proofs/trie.ts`) and 1,077 passing tests (`npm test`, 2026-11-02) covering tampered root, tampered child, wrong key, missing node, absence proofs, one proof captured from the live chain, and a 1,019-case stress suite. The EVM side returns the node's own `eth_getProof` refusal [9]. After this report was written, a Foundry contract layer was added (71 tests) for the trie verifier, title commitment and transfer gates. Still no deployment.
 
-> Execution update: the plan below was acted on. `contracts/` now contains the Solidity verifier, title commitment, transfer gates, RootFeed and unbond guard with 71 passing Foundry tests. `docs/EVIDENCE.md` is the current status map. Deployment, the native-side gate and the audit remain open.
+> Execution update: the plan below was acted on. `contracts/` now contains the Solidity verifier, title commitment, transfer gates, RootFeed and unbond guard with 83 passing Foundry tests. `docs/EVIDENCE.md` is the current status map. Deployment, the native-side gate and the audit remain open.
 
 
 ## 1. Category comparison

@@ -68,7 +68,7 @@ Say: "The token contract is the easy part. Five problems decide whether this is 
 
 ### 10. What is live today (50 seconds)
 
-Say: "What runs today is a reading surface, a client side witness, a Solidity verifier with 71 Foundry tests, and a proof service with 1,077 tests. The console reads the native node and Revive over plain JSON-RPC. It shows finalized head 292,820 and lag 3 at 14:20 UTC. The witness pulls a storage proof for System.Number at the finalized head, rehashes every trie node with blake2b-256, and checks it against the root the chain published. The status table is the honest one: the WASM runtime is not launched, the gates are tested but not deployed, end to end is not demonstrated, and there is no audit. The EVM endpoint refuses eth_getProof and the console prints the refusal."
+Say: "What runs today is a reading surface, a client side witness, a Solidity verifier with 83 Foundry tests, and a proof service with 1,077 tests. The console reads the native node and Revive over plain JSON-RPC. It shows finalized head 292,820 and lag 3 at 14:20 UTC. The witness pulls a storage proof for System.Number at the finalized head, rehashes every trie node with blake2b-256, and checks it against the root the chain published. The status table is the honest one: the WASM runtime is not launched, the gates are tested but not deployed, end to end is not demonstrated, and there is no audit. The EVM endpoint refuses eth_getProof and the console prints the refusal."
 
 Point at: the red `eth_getProof unavailable` badge, then the `Not performed` audit row.
 

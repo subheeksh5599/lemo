@@ -13,7 +13,7 @@ Snapshot: 2026-11-02. Nothing in this repository is deployed on any network.
 | Lint | `npx oxlint` | 0 errors, warnings listed in the audit |
 | Proof service | `cd server && npx tsc --noEmit && npm test` | Pass, 1,077 tests |
 | Stress suite | inside `npm test` | 1,019 deterministic cases, seed 20261102 |
-| Contracts | `export PATH=$PATH:$HOME/.foundry/bin && forge test` | 71 passed, 0 failed |
+| Contracts | `export PATH=$PATH:$HOME/.foundry/bin && forge test` | 83 passed, 0 failed |
 | Live chain reads | `curl` / console | PortaldotV3 Test, chain id 420420777 |
 | Statement Store | WebSocket `statement_subscribeStatement ["any"]` | Accepted, subscription id returned |
 

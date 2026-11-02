@@ -1,0 +1,29 @@
+[profile.default]
+src = "contracts"
+test = "test"
+out = "out"
+libs = ["test/lib"]
+solc_version = "0.8.26"
+optimizer = true
+optimizer_runs = 200
+# Portaldot V3 ships Revive (pallet-revive). Its EVM interpreter rejects Cancun
+# opcodes (MCOPY 0x5e in particular), and a constructor that emits one reverts
+# with empty data during eth_estimateGas. Target shanghai for every build.
+evm_version = "shanghai"
+bytecode_hash = "none"
+cbor_metadata = false
+ffi = false
+fs_permissions = [{ access = "read", path = "./shared" }, { access = "read", path = "./test/fixtures" }]
+remappings = [
+  "forge-std/=test/lib/forge-std/src/",
+  "lemo/=contracts/",
+]
+
+[fmt]
+line_length = 100
+tab_width = 2
+bracket_spacing = true
+int_types = "long"
+
+[fuzz]
+runs = 64

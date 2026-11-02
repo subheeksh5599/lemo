@@ -1,0 +1,89 @@
+{
+  "note": "Canonical LEMO title commitment vectors. hash = keccak256(abi.encode(domain, version, titleId, chainId, nativeAsset, backing, owner, identityHash, vestingHash, permissionsHash, evmContract, revision)). Generated with cast abi-encode then cast keccak (Foundry 1.8.7); consumed by test/LemoTitle.t.sol so Solidity and any off-chain tool hash the same bytes.",
+  "domain": "0x58966a7ae95435e44fc398da049fedb5dc740a3a474065085a6882fe315c7674",
+  "domainPreimage": "LEMO.TITLE.COMMITMENT",
+  "version": 1,
+  "chainIdNote": "420420777 is the PortaldotV3 Test EVM chain id",
+  "addressesNote": "owner and evmContract are Foundry's published default anvil accounts, used as hash inputs only. Nothing is deployed at them.",
+  "format": "Parallel arrays plus a records object, so the Solidity reader never has to decode an array of structs.",
+  "names": [
+    "base",
+    "identity-cleared",
+    "revision-bumped",
+    "backing-unbound"
+  ],
+  "hashes": [
+    "0xcf2123f99e5daf47372f33b78cee97eaea439a2a40660b8578de9823adc079d4",
+    "0x00f6c2d9d3193ebcaf90ce633db64734f5fd2ccafa25a4bf77791a15d92ae7a3",
+    "0x339f6afc206c2af8501c4f0ba3372345ecaa7ec91ff331960d0e9601978ef284",
+    "0x26c51952c8f819297586caba1817cb58de7fe45572a3479cbb2dbe4823595fc1"
+  ],
+  "notes": [
+    "revision 1, identity present, backing bound; the accepting vector",
+    "identityHash zero: a gate must refuse this record",
+    "same title one revision later, every other field identical",
+    "backing zero: nothing native is bound to this representation"
+  ],
+  "records": {
+    "titleId": [
+      "0x17dac34ef52ecd30d0bf9490e9f556a7205cdc7a83b047512c94f77d87b99b55",
+      "0x17dac34ef52ecd30d0bf9490e9f556a7205cdc7a83b047512c94f77d87b99b55",
+      "0x17dac34ef52ecd30d0bf9490e9f556a7205cdc7a83b047512c94f77d87b99b55",
+      "0x17dac34ef52ecd30d0bf9490e9f556a7205cdc7a83b047512c94f77d87b99b55"
+    ],
+    "chainId": [
+      "420420777",
+      "420420777",
+      "420420777",
+      "420420777"
+    ],
+    "nativeAsset": [
+      "0x37b79f2948f6f8cb0e74d1c89a4b2639ff676c4c387b25e3ce7f133d191bfecc",
+      "0x37b79f2948f6f8cb0e74d1c89a4b2639ff676c4c387b25e3ce7f133d191bfecc",
+      "0x37b79f2948f6f8cb0e74d1c89a4b2639ff676c4c387b25e3ce7f133d191bfecc",
+      "0x37b79f2948f6f8cb0e74d1c89a4b2639ff676c4c387b25e3ce7f133d191bfecc"
+    ],
+    "backing": [
+      "0xad1747230d77014a0563aa66cc406f6d1fa94ed2dffc268ef0fecf2eafae3d02",
+      "0xad1747230d77014a0563aa66cc406f6d1fa94ed2dffc268ef0fecf2eafae3d02",
+      "0xad1747230d77014a0563aa66cc406f6d1fa94ed2dffc268ef0fecf2eafae3d02",
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ],
+    "owner": [
+      "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    ],
+    "identityHash": [
+      "0xdd123782a4d5b4a39c8cfbe17423bb7ec6d6d60f383c1f23589f61e822b4cbb5",
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "0xdd123782a4d5b4a39c8cfbe17423bb7ec6d6d60f383c1f23589f61e822b4cbb5",
+      "0xdd123782a4d5b4a39c8cfbe17423bb7ec6d6d60f383c1f23589f61e822b4cbb5"
+    ],
+    "vestingHash": [
+      "0x60222697fb704139d1879b62665597c1ce989d3b3ed68bbf5ade17060ab19c6e",
+      "0x60222697fb704139d1879b62665597c1ce989d3b3ed68bbf5ade17060ab19c6e",
+      "0x60222697fb704139d1879b62665597c1ce989d3b3ed68bbf5ade17060ab19c6e",
+      "0x60222697fb704139d1879b62665597c1ce989d3b3ed68bbf5ade17060ab19c6e"
+    ],
+    "permissionsHash": [
+      "0x927725f66b7149e4ba389282e92b60522bb38f26a222211af73ed72bffb43580",
+      "0x927725f66b7149e4ba389282e92b60522bb38f26a222211af73ed72bffb43580",
+      "0x927725f66b7149e4ba389282e92b60522bb38f26a222211af73ed72bffb43580",
+      "0x927725f66b7149e4ba389282e92b60522bb38f26a222211af73ed72bffb43580"
+    ],
+    "evmContract": [
+      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+    ],
+    "revision": [
+      "1",
+      "1",
+      "2",
+      "1"
+    ]
+  }
+}

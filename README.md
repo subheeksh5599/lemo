@@ -4,11 +4,11 @@
 
 **One title. Two faces. A proof between them.**
 
-[![Status](https://img.shields.io/badge/status-tested%2C%20not%20deployed-f59e0b)](#what-is-real-and-what-is-not)
+[![Status](https://img.shields.io/badge/status-two%20contracts%20live-f59e0b)](#what-is-real-and-what-is-not)
 ![Revive](https://img.shields.io/badge/Portaldot%20V3-Revive%20live-2f6bff)
 ![WASM](https://img.shields.io/badge/WASM%20contracts-listed%20for%20V3.0-8492a6)
 ![Proofs](https://img.shields.io/badge/state%20proofs-blake2b%20trie-2fd6a3)
-![Tests](https://img.shields.io/badge/tests-1%2C077%20server%20%2B%2083%20Foundry-2fd6a3)
+![Tests](https://img.shields.io/badge/tests-1%2C077%20server%20%2B%2086%20Foundry-2fd6a3)
 
 [Protocol](#the-protocol) · [Rules](#the-two-rules) · [Contracts](#contracts) · [Console](#the-console) · [Evidence](docs/EVIDENCE.md) · [Deck](deck/lemo-deck.pdf) · [Demo script](docs/demo-script.md)
 
@@ -26,13 +26,14 @@ LEMO is the design that gives an asset one revisioned title across the native re
 | Browser storage-proof verifier for the native state trie | Working, checked against a live proof |
 | Fastify proof service with typed RPC clients and offline fixtures | Working, 1,077 tests |
 | Solidity Substrate trie verifier | Working, checked against the same live proof |
-| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 83 Foundry tests |
-| Title commitment, RootFeed, threshold root feed and unbond guard | Working, 83 Foundry tests; 9 pallet tests |
+| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 86 Foundry tests |
+| Title commitment, RootFeed, threshold root feed and unbond guard | Working, 86 Foundry tests; 9 pallet tests |
 | Native title registry (`pallets/lemo-title`) | Working in tests; runtime inclusion not deployed |
 | Deployment and tPOT funding | See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
-| Deployed registry, token or verifier on the testnet | Not deployed |
-| Native-to-EVM and EVM-to-native enforcement on-chain | EVM half tested; native pallet tested; the runtime upgrade is the remaining chain step |
-| Security audit | Not performed |
+| Hasher and root feed on Portaldot V3 | Deployed: `0x15ae…7e22`, `0xc1c9…d5c0`; see [docs/EVIDENCE.md](docs/EVIDENCE.md) |
+| Gate and verifier on the testnet | Not deployed; ~675 + ~600 tPOT |
+| Transaction console at `/console/flow` | Working; waits for `NEXT_PUBLIC_LEMO_GATE` and `_VERIFIER` |
+| Security audit | Self-audit in [docs/AUDIT.md](docs/AUDIT.md); critical findings fixed |
 
 The honest version: this is a tested protocol implementation and a live read-only console, not a live asset system. Read [docs/EVIDENCE.md](docs/EVIDENCE.md) for the artifact behind every claim.
 

@@ -15,7 +15,7 @@ export function Announcement() {
   return (
     <div className="relative z-[60] flex h-9 items-center justify-center gap-2 bg-[#0428cb] px-4 text-center text-[12px] text-white">
       <span className="truncate">
-        Contracts tested, console live on Portaldot V3
+        Four support contracts live on Portaldot V3
       </span>
       <Link href="/console" className="inline-flex shrink-0 items-center gap-1 underline underline-offset-2">
         Open the console

@@ -152,7 +152,7 @@ function ConsolePreview({ native, evm, status }: Heads) {
             <span className="size-2 rounded-full bg-white/25" />
             <span className="size-2 rounded-full bg-white/25" />
             <span className="mx-auto rounded-md bg-white/10 px-24 py-1 font-mono text-[9px] text-white/55">
-              console.lemo.xyz
+              Open the console
             </span>
           </div>
 
@@ -689,17 +689,17 @@ function Security() {
       <div className="mx-auto max-w-[900px] px-6 text-center">
         <Eyebrow light>VERIFICATION &amp; BOUNDARIES</Eyebrow>
         <h2 className="mt-4 text-[clamp(1.8rem,3vw,2.5rem)] font-normal leading-[1.25] tracking-[-0.035em]">
-          A proof can be checked. A deployment is still missing.
+          A proof can be checked. The gate is live.
         </h2>
         <p className="mx-auto mt-5 max-w-[680px] text-[14px] leading-[1.7] text-white/60">
           The trie verifier is checked against real finalized captures in TypeScript
-          and Solidity. The native registry is not deployed, the WASM contracts
-          module is not live, and the root feed is a trusted checkpoint. The landing
-          page says that on purpose.
+          and Solidity, and the four support contracts are deployed on Portaldot V3.
+          The native registry and the WASM contracts module are not; the root feed is
+          still a trusted checkpoint. The landing page says that on purpose.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 font-mono text-[9.5px] tracking-[0.12em] text-white/45">
           <span>TRUSTED ROOT FEED</span>
-          <span>TESTED, NOT DEPLOYED</span>
+          <span>FOUR CONTRACTS LIVE</span>
           <span>ETH_GETPROOF REFUSED</span>
         </div>
         <Link href="/console/network" className="mt-8 inline-flex items-center gap-1.5 text-[12px] text-[#6e94ff] hover:text-white">
@@ -714,7 +714,7 @@ function Security() {
 const FAQS = [
   [
     'Does LEMO exist on a public chain?',
-    'The proof verifier and the title design exist in code and are exercised against real Portaldot V3 state. The native WASM contracts module is listed for V3.0 and is not live. No LEMO registry is deployed.',
+    'The proof verifier, title design and four support contracts are live on Portaldot V3. The native registry and the WASM contracts module are not. The gate uses a deployment placeholder commitment until a real native title record is available.',
   ],
   [
     'What exactly is proven?',
@@ -726,7 +726,7 @@ const FAQS = [
   ],
   [
     'Can I move a title today?',
-    'No. The transfer path is designed and tested, but no gate is deployed. The console reads state; it does not send transactions.',
+    'Not yet. The gate and verifier are deployed, but the gate is bound to a deployment placeholder commitment. A real native title record and its proof are still required before a mint or transfer can settle.',
   ],
   [
     'Where does the state root come from?',
@@ -734,7 +734,7 @@ const FAQS = [
   ],
   [
     'What is still missing?',
-    'The native title registry, the live WASM module, and an independent root source. The contracts layer and the browser verifier are already tested.',
+    'The native title registry in the runtime, the live WASM module, and an independent root source. The contract layer and browser verifier are deployed and tested.',
   ],
 ]
 
@@ -753,7 +753,7 @@ function Faq() {
             polished ones. If one is missing, open the console and read the state.
           </p>
           <Link href="/console" className="mt-6 inline-flex items-center gap-1.5 text-[13px] text-[#0428cb] hover:underline">
-            console.lemo.xyz
+            Open the console
             <ArrowUpRight className="size-3.5" aria-hidden="true" />
           </Link>
         </div>
@@ -845,7 +845,7 @@ function Footer() {
         </div>
 
         <div className="flex flex-col gap-2 pt-6 text-[10.5px] text-[#8c92a3] sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 LEMO. Protocol design, not deployed.</p>
+          <p>© 2026 LEMO. Contracts live; native registry pending.</p>
           <p className="font-mono">Portaldot V3 · Revive · Substrate trie</p>
         </div>
       </div>

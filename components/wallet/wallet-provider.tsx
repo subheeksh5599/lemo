@@ -50,27 +50,42 @@ export type WalletChain = {
 export type WalletContextValue = {
   evmWallets: EvmWallet[]
   substrateWallets: SubstrateWallet[]
+  /** The most recently connected account. What the header menu shows. */
   activeAccount: ActiveWalletAccount | null
+  /** The EVM account that signs, held independently of the Substrate slot. */
+  evmAccount: ActiveWalletAccount | null
+  /** The Substrate account, held independently of the EVM slot. */
+  substrateAccount: ActiveWalletAccount | null
   chain: WalletChain | null
   status: WalletStatus
   error: string | null
   connect: (walletId: string) => Promise<void>
+  /** Clears both slots. */
   disconnect: () => void
+  /** Clears one slot and leaves the other connected. */
+  disconnectKind: (kind: WalletKind) => void
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null)
 
-/** The only thing persisted: a wallet id. Never an address, never a chain. */
+/**
+ * The only thing persisted: a wallet id. Never an address, never a chain.
+ *
+ * One kind is stored per key so a page that holds an EVM signer and a Substrate
+ * identity at the same time can restore both.
+ */
 const LAST_WALLET_KEY = 'lemo.wallet.last'
+const LAST_WALLET_EVM_KEY = 'lemo.wallet.evm'
+const LAST_WALLET_SUBSTRATE_KEY = 'lemo.wallet.substrate'
 const WALLET_ID_MAX_LENGTH = 160
 
-function readLastWalletId(): string | null {
+function readStoredId(key: string, prefix: 'evm:' | 'substrate:'): string | null {
   try {
-    const value = window.localStorage.getItem(LAST_WALLET_KEY)
+    const value = window.localStorage.getItem(key)
     if (value === null || value.length === 0 || value.length > WALLET_ID_MAX_LENGTH) {
       return null
     }
-    if (!value.startsWith('evm:') && !value.startsWith('substrate:')) return null
+    if (!value.startsWith(prefix)) return null
     return value
   } catch {
     return null
@@ -78,16 +93,24 @@ function readLastWalletId(): string | null {
 }
 
 function rememberWalletId(walletId: string) {
+  const key = walletId.startsWith('evm:') ? LAST_WALLET_EVM_KEY : LAST_WALLET_SUBSTRATE_KEY
   try {
     window.localStorage.setItem(LAST_WALLET_KEY, walletId)
+    window.localStorage.setItem(key, walletId)
   } catch {
     // Storage can be denied in private modes; the session still works.
   }
 }
 
-function forgetWalletId() {
+function forgetWalletId(kind: WalletKind) {
   try {
-    window.localStorage.removeItem(LAST_WALLET_KEY)
+    window.localStorage.removeItem(kind === 'evm' ? LAST_WALLET_EVM_KEY : LAST_WALLET_SUBSTRATE_KEY)
+    // The combined key predates the per-kind slots; a leftover id there would
+    // silently reconnect a wallet the user just disconnected.
+    const last = window.localStorage.getItem(LAST_WALLET_KEY)
+    if (last !== null && last.startsWith(`${kind}:`)) {
+      window.localStorage.removeItem(LAST_WALLET_KEY)
+    }
   } catch {
     // Nothing to clean up if storage is unavailable.
   }
@@ -112,22 +135,52 @@ function walletErrorMessage(cause: unknown, name: string): string {
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [evmWallets, setEvmWallets] = useState<EvmWallet[]>([])
   const [substrateWallets, setSubstrateWallets] = useState<SubstrateWallet[]>([])
+  const [evmAccount, setEvmAccount] = useState<ActiveWalletAccount | null>(null)
+  const [substrateAccount, setSubstrateAccount] = useState<ActiveWalletAccount | null>(null)
   const [activeAccount, setActiveAccount] = useState<ActiveWalletAccount | null>(null)
   const [status, setStatus] = useState<WalletStatus>('detecting')
   const [error, setError] = useState<string | null>(null)
 
-  const accountRef = useRef<ActiveWalletAccount | null>(null)
+  const slotsRef = useRef<{ evm: ActiveWalletAccount | null; substrate: ActiveWalletAccount | null }>(
+    { evm: null, substrate: null },
+  )
+  const activeKindRef = useRef<WalletKind | null>(null)
   const evmWatchRef = useRef<(() => void) | null>(null)
   const substrateWatchRef = useRef<(() => void) | null>(null)
   const connectingRef = useRef(false)
   const connectionEpochRef = useRef(0)
   const mountedRef = useRef(true)
-  const restoreAttemptedRef = useRef(false)
+  const evmRestoreAttemptedRef = useRef(false)
 
-  const updateAccount = useCallback((next: ActiveWalletAccount | null) => {
-    accountRef.current = next
+  const syncActive = useCallback(() => {
+    const slots = slotsRef.current
+    const preferred = activeKindRef.current
+    const next =
+      preferred === 'substrate'
+        ? (slots.substrate ?? slots.evm)
+        : preferred === 'evm'
+          ? (slots.evm ?? slots.substrate)
+          : (slots.evm ?? slots.substrate)
+
     setActiveAccount(next)
   }, [])
+
+  const setSlot = useCallback(
+    (kind: WalletKind, account: ActiveWalletAccount | null) => {
+      slotsRef.current = { ...slotsRef.current, [kind]: account }
+      if (account === null && activeKindRef.current === kind) {
+        activeKindRef.current = kind === 'evm' ? 'substrate' : 'evm'
+      } else if (account !== null) {
+        activeKindRef.current = kind
+      }
+
+      if (kind === 'evm') setEvmAccount(account)
+      else setSubstrateAccount(account)
+
+      syncActive()
+    },
+    [syncActive],
+  )
 
   const clearEvmWatch = useCallback(() => {
     evmWatchRef.current?.()
@@ -147,11 +200,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const walletId = `evm:${wallet.id}`
 
       const disconnectStale = () => {
-        if (accountRef.current?.walletId !== walletId) return
-        updateAccount(null)
+        if (slotsRef.current.evm?.walletId !== walletId) return
+        setSlot('evm', null)
         setStatus('idle')
         setError(null)
-        forgetWalletId()
+        forgetWalletId('evm')
       }
 
       evmWatchRef.current = subscribeEvmProvider(wallet.provider, {
@@ -161,19 +214,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             disconnectStale()
             return
           }
-          const current = accountRef.current
+          const current = slotsRef.current.evm
           if (current === null || current.walletId !== walletId) return
-          updateAccount({ ...current, address })
+          setSlot('evm', { ...current, address })
         },
         onChain: (chainId) => {
-          const current = accountRef.current
+          const current = slotsRef.current.evm
           if (current === null || current.walletId !== walletId) return
-          updateAccount({ ...current, chainId })
+          setSlot('evm', { ...current, chainId })
         },
         onDisconnect: disconnectStale,
       })
     },
-    [clearEvmWatch, updateAccount],
+    [clearEvmWatch, setSlot],
   )
 
   /** Follow the connected Substrate extension's account subscription. */
@@ -184,22 +237,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const walletId = `substrate:${wallet.id}`
 
       substrateWatchRef.current = subscribeSubstrateAccounts(extension, (accounts) => {
-        const current = accountRef.current
+        const current = slotsRef.current.substrate
         if (current === null || current.walletId !== walletId) return
 
         const address = accounts[0]?.address
         if (address === undefined) {
-          updateAccount(null)
+          setSlot('substrate', null)
           setStatus('idle')
           setError(null)
-          forgetWalletId()
+          forgetWalletId('substrate')
           return
         }
 
-        updateAccount({ ...current, address })
+        setSlot('substrate', { ...current, address })
       })
     },
-    [clearSubstrateWatch, updateAccount],
+    [clearSubstrateWatch, setSlot],
   )
 
   // EIP-6963 discovery runs for the life of the provider.
@@ -230,21 +283,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
    * Restore only what the user already authorized: the stored wallet id is
    * enough to find the provider, and `eth_accounts` is a silent read. It never
    * calls `eth_requestAccounts` on load, so a page visit cannot prompt.
+   *
+   * The EVM slot restores on its own. The Substrate slot needs an explicit
+   * `enable` call, which can prompt, so it is never restored unasked.
    */
   useEffect(() => {
-    if (restoreAttemptedRef.current) return
+    if (evmRestoreAttemptedRef.current) return
 
-    const stored = readLastWalletId()
+    const stored =
+      readStoredId(LAST_WALLET_EVM_KEY, 'evm:') ?? readStoredId(LAST_WALLET_KEY, 'evm:')
 
-    if (stored === null || !stored.startsWith('evm:')) {
-      restoreAttemptedRef.current = true
+    if (stored === null) {
+      evmRestoreAttemptedRef.current = true
       return
     }
 
     const wallet = evmWallets.find((item) => `evm:${item.id}` === stored)
     if (wallet === undefined) return
 
-    restoreAttemptedRef.current = true
+    evmRestoreAttemptedRef.current = true
 
     void (async () => {
       const accounts = await readEvmAccounts(wallet.provider)
@@ -255,7 +312,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (!mountedRef.current) return
 
       watchEvm(wallet)
-      updateAccount({
+      setSlot('evm', {
         walletId: stored,
         walletName: wallet.name,
         kind: 'evm',
@@ -265,7 +322,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setStatus('connected')
       setError(null)
     })()
-  }, [evmWallets, updateAccount, watchEvm])
+  }, [evmWallets, setSlot, watchEvm])
 
   useEffect(() => {
     mountedRef.current = true
@@ -307,6 +364,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setError(null)
       setStatus('connecting')
 
+      const anyConnected = () =>
+        slotsRef.current.evm !== null || slotsRef.current.substrate !== null
+
       try {
         if (evm !== undefined) {
           try {
@@ -314,7 +374,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             if (!mountedRef.current || connectionEpochRef.current !== epoch) return
 
             watchEvm(evm)
-            updateAccount({
+            setSlot('evm', {
               walletId: resolvedId,
               walletName: evm.name,
               kind: 'evm',
@@ -326,7 +386,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           } catch (cause) {
             if (!mountedRef.current || connectionEpochRef.current !== epoch) return
             setError(walletErrorMessage(cause, evm.name))
-            setStatus(accountRef.current === null ? 'error' : 'connected')
+            setStatus(anyConnected() ? 'connected' : 'error')
           }
           return
         }
@@ -347,7 +407,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           if (!mountedRef.current || connectionEpochRef.current !== epoch) return
 
           watchSubstrate(substrate, extension)
-          updateAccount({
+          setSlot('substrate', {
             walletId: resolvedId,
             walletName: substrate.name,
             kind: 'substrate',
@@ -359,24 +419,40 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         } catch (cause) {
           if (!mountedRef.current || connectionEpochRef.current !== epoch) return
           setError(walletErrorMessage(cause, substrate.name))
-          setStatus(accountRef.current === null ? 'error' : 'connected')
+          setStatus(anyConnected() ? 'connected' : 'error')
         }
       } finally {
         connectingRef.current = false
       }
     },
-    [evmWallets, substrateWallets, updateAccount, watchEvm, watchSubstrate],
+    [evmWallets, substrateWallets, setSlot, watchEvm, watchSubstrate],
+  )
+
+  const disconnectKind = useCallback(
+    (kind: WalletKind) => {
+      connectionEpochRef.current += 1
+      if (kind === 'evm') clearEvmWatch()
+      else clearSubstrateWatch()
+      setSlot(kind, null)
+      forgetWalletId(kind)
+      setError(null)
+      setStatus(slotsRef.current.evm !== null || slotsRef.current.substrate !== null ? 'connected' : 'idle')
+    },
+    [clearEvmWatch, clearSubstrateWatch, setSlot],
   )
 
   const disconnect = useCallback(() => {
     connectionEpochRef.current += 1
     clearEvmWatch()
     clearSubstrateWatch()
-    updateAccount(null)
+    activeKindRef.current = null
+    setSlot('evm', null)
+    setSlot('substrate', null)
+    forgetWalletId('evm')
+    forgetWalletId('substrate')
     setStatus('idle')
     setError(null)
-    forgetWalletId()
-  }, [clearEvmWatch, clearSubstrateWatch, updateAccount])
+  }, [clearEvmWatch, clearSubstrateWatch, setSlot])
 
   const chain = useMemo<WalletChain | null>(() => {
     if (activeAccount === null) return null
@@ -389,13 +465,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       evmWallets,
       substrateWallets,
       activeAccount,
+      evmAccount,
+      substrateAccount,
       chain,
       status,
       error,
       connect,
       disconnect,
+      disconnectKind,
     }),
-    [evmWallets, substrateWallets, activeAccount, chain, status, error, connect, disconnect],
+    [
+      evmWallets,
+      substrateWallets,
+      activeAccount,
+      evmAccount,
+      substrateAccount,
+      chain,
+      status,
+      error,
+      connect,
+      disconnect,
+      disconnectKind,
+    ],
   )
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>

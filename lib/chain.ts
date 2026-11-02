@@ -57,7 +57,7 @@ export const MAX_IN_FLIGHT = 2
 
 type RpcEnvelope<T> = {
   result?: T
-  error?: { code?: number; message?: string }
+  error?: { code?: number; message?: string; data?: unknown }
 }
 
 let inFlight = 0
@@ -95,7 +95,11 @@ function retryDelay(attempt: number, busy: boolean): number {
   return Math.min(1_400, 220 * attempt) + jitter
 }
 
-async function rpc<T>(
+/**
+ * One JSON-RPC call through the shared queue. Exported for the flow console,
+ * which makes the same kind of read against a contract address.
+ */
+export async function rpc<T>(
   url: string,
   method: string,
   params: readonly unknown[] = [],
@@ -162,7 +166,12 @@ async function rpc<T>(
   }
 
   if (payload.error) {
-    throw new Error(`${method}: ${payload.error.message ?? 'the call was rejected'}`)
+    // Keep the revert payload: a contract refusal is only readable through it.
+    const failure = new Error(
+      `${method}: ${payload.error.message ?? 'the call was rejected'}`,
+    ) as Error & { data?: unknown }
+    failure.data = payload.error.data
+    throw failure
   }
 
   if (!('result' in payload)) {

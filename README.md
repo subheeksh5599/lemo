@@ -26,8 +26,8 @@ LEMO is the design that gives an asset one revisioned title across the native re
 | Browser storage-proof verifier for the native state trie | Working, checked against a live proof |
 | Fastify proof service with typed RPC clients and offline fixtures | Working, 1,077 tests |
 | Solidity Substrate trie verifier | Working, checked against the same live proof |
-| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 88 Foundry tests |
-| Title commitment, RootFeed, threshold root feed and unbond guard | Working, 88 Foundry tests; 9 pallet tests |
+| ERC-20 and ERC-721 transfer gates with revision, root and replay checks | Working, 89 Foundry tests |
+| Title commitment, RootFeed, threshold root feed and unbond guard | Working, 89 Foundry tests; 9 pallet tests |
 | Native title registry (`pallets/lemo-title`) | Working in tests; runtime inclusion not deployed |
 | Deployment and tPOT funding | See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | Hasher and root feed on Portaldot V3 | Deployed: `0x15ae…7e22`, `0xc1c9…d5c0`; see [docs/EVIDENCE.md](docs/EVIDENCE.md) |

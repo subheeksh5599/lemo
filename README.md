@@ -33,12 +33,12 @@ The proof is not a server call and not a bridge message. It is a storage proof a
 | Root feed | **Live, root attested** | `0xc1c95be2f38f865438f684d269f340f5c505d5c0`; root `0x19ff…8b80` at #294515 |
 | ERC-20 gate | **Live on Portaldot V3** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f` |
 | Parallel two-contract deployment | **Live** | Registry `0xc887…88bB`, ERC-20 `0x61c3…8ff7`; [contracts/DEPLOYMENTS.md](contracts/DEPLOYMENTS.md) |
-| Native registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 9 tests |
+| Native registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 10 tests |
 | Contracts | **89 Foundry tests passing** | `forge test` |
 | Proof service | **1,077 tests passing** | `server/` |
-| Security audit | **Self-audit, criticals fixed** | [docs/AUDIT.md](docs/AUDIT.md); H-05/H-06/H-07 remain open |
+| Security audit | **Self-audit, criticals fixed** | [docs/AUDIT.md](docs/AUDIT.md); H-06/H-07 remain open |
 
-The honest line: this is a live site, a live proof surface and two live support contracts. It is not yet a live asset system.
+The honest line: this is a live site, a live proof surface and four live support contracts. The gate's title is still a deployment placeholder, so it is not yet a live asset system.
 
 ## Table of contents
 
@@ -272,7 +272,7 @@ Deployment and native tPOT funding are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.m
 | Root source | Trusted checkpoint, not a light client |
 | Statement Store | Transport available; signed publication not wired |
 | End-to-end native asset lifecycle | Not demonstrated |
-| Security audit | Self-audit; critical findings fixed, H-05/H-06/H-07 open |
+| Security audit | Self-audit; criticals and H-05 fixed; H-06/H-07 open |
 
 ## Evidence and audit
 

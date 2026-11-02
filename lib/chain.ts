@@ -31,11 +31,11 @@ export { toHex }
 
 /** Endpoint defaults. Override with NEXT_PUBLIC_NATIVE_RPC to read a fork. */
 export const NATIVE_RPC =
-  process.env.NEXT_PUBLIC_NATIVE_RPC ?? 'https://test-node-v3.portaldot.dev'
+  process.env.NEXT_PUBLIC_NATIVE_RPC ?? '/api/rpc/native'
 
 /** Endpoint defaults. Override with NEXT_PUBLIC_EVM_RPC to read a fork. */
 export const EVM_RPC =
-  process.env.NEXT_PUBLIC_EVM_RPC ?? 'https://test-evm-rpc-v3.portaldot.dev'
+  process.env.NEXT_PUBLIC_EVM_RPC ?? '/api/rpc/evm'
 
 /**
  * Constant: the genesis hash this build expects to be talking to. A live

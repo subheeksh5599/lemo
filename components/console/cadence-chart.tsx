@@ -60,7 +60,7 @@ export function CadenceChart({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-[240px] flex-1">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minHeight={240}>
           <AreaChart data={data} margin={{ top: 12, right: 8, bottom: 0, left: -16 }}>
             <defs>
               <linearGradient id="cadence-fill" x1="0" y1="0" x2="0" y2="1">

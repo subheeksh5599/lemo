@@ -27,11 +27,12 @@ The proof is not a server call and not a bridge message. It is a storage proof a
 | Surface | State | Evidence |
 |---|---|---|
 | Marketing site and console | **Live** | [lemo-ebon.vercel.app](https://lemo-ebon.vercel.app) |
-| Transaction console | **Live route, waiting for a gate** | [/console/flow](https://lemo-ebon.vercel.app/console/flow); names `NEXT_PUBLIC_LEMO_GATE` and `_VERIFIER` until they exist |
-| Blake2b adapter | **Live on Portaldot V3** | [`0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22`](https://node-console.portaldot.dev/) |
-| Root feed | **Live, empty** | [`0xc1c95be2f38f865438f684d269f340f5c505d5c0`](https://node-console.portaldot.dev/); `currentRoot = 0`, `live = false` |
-| Parallel two-contract deployment | **Live** | Registry [`0xc887…88bB`](contracts/DEPLOYMENTS.md), ERC-20 [`0x61c3…8ff7`](contracts/DEPLOYMENTS.md) |
-| Gate and trie verifier | **Not deployed** | ~600 and ~675 tPOT; the wallet has 320.51 left |
+| Transaction console | **Live, gate wired** | [/console/flow](https://lemo-ebon.vercel.app/console/flow); reads the three deployed addresses |
+| Blake2b adapter | **Live on Portaldot V3** | `0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22` |
+| Trie verifier | **Live on Portaldot V3** | `0xe5ca668667d3e2c8a0272ee4e446d6aa88a86bac` |
+| Root feed | **Live, root attested** | `0xc1c95be2f38f865438f684d269f340f5c505d5c0`; root `0x19ff…8b80` at #294515 |
+| ERC-20 gate | **Live on Portaldot V3** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f` |
+| Parallel two-contract deployment | **Live** | Registry `0xc887…88bB`, ERC-20 `0x61c3…8ff7`; [contracts/DEPLOYMENTS.md](contracts/DEPLOYMENTS.md) |
 | Native registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 9 tests |
 | Contracts | **89 Foundry tests passing** | `forge test` |
 | Proof service | **1,077 tests passing** | `server/` |
@@ -259,9 +260,11 @@ Deployment and native tPOT funding are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.m
 |---|---|
 | Marketing site and console | **Live** at [lemo-ebon.vercel.app](https://lemo-ebon.vercel.app) |
 | Blake2b adapter on Portaldot V3 | **Live** at `0x15ae…7e22` |
-| Root feed on Portaldot V3 | **Live but empty** at `0xc1c9…d5c0`; no root attested |
+| Trie verifier on Portaldot V3 | **Live** at `0xe5ca…6bAc` |
+| Root feed on Portaldot V3 | **Live** at `0xc1c9…d5c0`; root `0x19ff…8b80` attested at #294515 |
+| ERC-20 gate on Portaldot V3 | **Live** at `0xfbef…741f` |
 | Parallel two-contract deployment | **Live** at `0xc887…88bB` and `0x61c3…8ff7` |
-| ERC-20 gate and trie verifier | **Not deployed**; ~1,275 tPOT remaining cost, 320.51 available |
+| Mint and transfer against the gate | **Wired, not proven end to end**; the gate's commitment is a deployment placeholder, not a native title record |
 | Native registry | **Pallet source and tests**; runtime upgrade required |
 | Native-to-EVM proof verification | Tested in TypeScript and Solidity |
 | EVM-to-native proof verification | Blocked by the absent WASM contract API |
@@ -282,9 +285,9 @@ Deployment and native tPOT funding are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.m
 
 ## Demo
 
-The demo script is [docs/demo-script.md](docs/demo-script.md). The console can read, verify and simulate; the mint/transfer buttons stay disabled until `NEXT_PUBLIC_LEMO_GATE` and `NEXT_PUBLIC_LEMO_VERIFIER` point at deployed contracts.
+The demo script is [docs/demo-script.md](docs/demo-script.md). The console can read, verify and simulate; the gate and verifier are wired. A mint or transfer still needs a valid native title proof, which the current deployment placeholder commitment does not have.
 
-The site is live. The proof surface is live. The two support contracts are live. The gate is the remaining deployment, not a missing page.
+The site is live. The proof surface is live. All four support contracts are live. The gate's commitment is a deployment placeholder; minting still needs a real native title record and proof.
 
 ---
 

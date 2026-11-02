@@ -2,7 +2,7 @@
 
 This file maps every claim in the README to a file, a command and an observed result. A claim without an artifact is not a claim.
 
-Snapshot: 2026-11-02. Two support contracts are deployed on Portaldot V3; the gate and verifier are not.
+Snapshot: 2026-11-02. Four support contracts are deployed on Portaldot V3; the native registry is not.
 
 ## Live deployments
 
@@ -10,8 +10,10 @@ Snapshot: 2026-11-02. Two support contracts are deployed on Portaldot V3; the ga
 |---|---|---|---|
 | `ReviveBlake2b256` | `0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22` | `0x49d84833987b685ef1ab449920ee126e101f9e85945fb9a05ee444097af93c8d` | 71.78 tPOT |
 | `RootFeed` (attester `0x884f…aBf7`) | `0xc1c95be2f38f865438f684d269f340f5c505d5c0` | `0x4cc848b73cca15788b6cb3d843526978c80fc02fb1e523bed921a71cc9d2328b` | 139.16 tPOT |
+| `SubstrateTrieVerifier` | `0xe5ca668667d3e2c8a0272ee4e446d6aa88a86bac` | `0x2e85d6e87ea52a55cd7053faa26a76984a07c9f961ff3287b00bc46a616d323c` | 666.15 tPOT |
+| `TitleGateERC20` | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f` | `0x3117d6f64dbf4ce2f160c2e61fdb8dd0f926d4b32bf2e75c629f1c547c784f07` | 500.98 tPOT |
 
-Both were deployed through `revive.instantiateWithCode` from the native SS58 account `5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx`; `0xc1c9…d5c0` reads `attester() = 0x884fe7b4Df96D257c23c2DB2077a511C4db2aBf7`, `currentRoot() = 0`, `live() = false`. The remaining native balance is 320.51 tPOT. The verifier (~675 tPOT) and ERC-20 gate (~600 tPOT) do not fit.
+All four were deployed through `revive.instantiateWithCode` from the native SS58 account `5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx`. `0xc1c9…d5c0` reads `attester() = 0x884fe7b4Df96D257c23c2DB2077a511C4db2aBf7`, `currentRoot() = 0x19ff4a2de31211f1fc6d508ba7ddbd23477ed289bc804dc826f0fa2b99898b80`, `live() = true`; the root was attested at finalized block 294515. The gate reads `owner = 0x884f…aBf7`, `verifier = 0xe5ca…6bAc`, `feed = 0xc1c9…d5c0`, `titleId = 0x1c6d…1db7`, `titleCommitment = 0x3a22…6cda`. The remaining native balance is 153.39 tPOT.
 
 ## Gates
 

@@ -2,7 +2,16 @@
 
 This file maps every claim in the README to a file, a command and an observed result. A claim without an artifact is not a claim.
 
-Snapshot: 2026-11-02. Nothing in this repository is deployed on any network.
+Snapshot: 2026-11-02. Two support contracts are deployed on Portaldot V3; the gate and verifier are not.
+
+## Live deployments
+
+| Contract | Address | Transaction | Cost |
+|---|---|---|---|
+| `ReviveBlake2b256` | `0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22` | `0x49d84833987b685ef1ab449920ee126e101f9e85945fb9a05ee444097af93c8d` | 71.78 tPOT |
+| `RootFeed` (attester `0x884f…aBf7`) | `0xc1c95be2f38f865438f684d269f340f5c505d5c0` | `0x4cc848b73cca15788b6cb3d843526978c80fc02fb1e523bed921a71cc9d2328b` | 139.16 tPOT |
+
+Both were deployed through `revive.instantiateWithCode` from the native SS58 account `5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx`; `0xc1c9…d5c0` reads `attester() = 0x884fe7b4Df96D257c23c2DB2077a511C4db2aBf7`, `currentRoot() = 0`, `live() = false`. The remaining native balance is 320.51 tPOT. The verifier (~675 tPOT) and ERC-20 gate (~600 tPOT) do not fit.
 
 ## Gates
 
@@ -13,7 +22,7 @@ Snapshot: 2026-11-02. Nothing in this repository is deployed on any network.
 | Lint | `npx oxlint` | 0 errors, warnings listed in the audit |
 | Proof service | `cd server && npx tsc --noEmit && npm test` | Pass, 1,077 tests |
 | Stress suite | inside `npm test` | 1,019 deterministic cases, seed 20261102 |
-| Contracts | `export PATH=$PATH:$HOME/.foundry/bin && forge test` | 83 passed, 0 failed |
+| Contracts | `export PATH=$PATH:$HOME/.foundry/bin && forge test` | 86 passed, 0 failed |
 | Live chain reads | `curl` / console | PortaldotV3 Test, chain id 420420777 |
 | Statement Store | WebSocket `statement_subscribeStatement ["any"]` | Accepted, subscription id returned |
 
@@ -39,7 +48,7 @@ The service fixture is committed at `server/test/fixtures/portaldot-v3.json`; th
 | # | Criterion | State | Evidence | What is missing |
 |---|---|---|---|---|
 | 1 | Create a title with real native backing on Portaldot V3 | Not done | No deployment artifact | A deployed native registry and a backing escrow |
-| 2 | Establish its ERC-20 or ERC-721 representation | Tested, not deployed | `contracts/TitleGateERC20.sol`, `TitleGateERC721.sol`, `test/TitleGate.t.sol` | A deployment to the V3 testnet |
+| 2 | Establish its ERC-20 or ERC-721 representation | Tested, not deployed | `contracts/TitleGateERC20.sol`, `TitleGateERC721.sol`, `test/TitleGate.t.sol` | A gate deployment; the hasher and root feed are live, the gate is not |
 | 3 | Verify native state from EVM with a real finalized proof | Tested | `contracts/SubstrateTrieVerifier.sol`, live fixture test | Deployment and a production root feed |
 | 4 | Verify EVM state from native with a real finalized proof | Blocked | No native contract runtime on V3 testnet | The WASM contracts module and a native EVM proof verifier |
 | 5 | Reject transfers after native identity is cleared | Tested | `test_RevertOnClearedIdentity` | On-chain title state |
@@ -54,10 +63,10 @@ The service fixture is committed at `server/test/fixtures/portaldot-v3.json`; th
 
 ## What the tests do not prove
 
-- They do not prove a deployed system. There is no registry, token or verifier address.
+- They do not prove a deployed system. The hasher and root feed are live, but there is no gate or verifier address.
 - They do not prove the native side can enforce Rule 2. The WASM contract module is not live.
 - They do not prove the root came from the canonical chain. `RootFeed` is an attested checkpoint, not a light client.
-- They do not cover an audit. No external review has been performed.
+- They do not cover an independent external audit. `docs/AUDIT.md` is a self-audit, not a third-party sign-off.
 - The EVM endpoint's `eth_getProof` refusal is a fact about this public node, not a proof that no Revive node can ever serve account proofs.
 
 ## Reproduction

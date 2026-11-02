@@ -384,8 +384,9 @@ LEMO should not be considered complete until these checks pass.
 | Discovery | Statement Store, subject to Portaldot support |
 | Network | Portaldot V3 |
 
-The EVM face is live on Portaldot V3 Test: `LemoTitle` at
-`0xc88763FA361669fC5d95c2BDD924b0E2872488bB` (transactions and costs in
+The EVM face is live on Portaldot V3 Test: the title registry at
+`0xc88763FA361669fC5d95c2BDD924b0E2872488bB` and the ERC-20 representation at
+`0x61c35d5e811b99f2641b43e9ef97e50d52de8ff7` (transactions, gate checks and measured costs in
 [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md)).
 
 The proof-servicing half of this design is implemented in `backend/`: it reads a title's declared

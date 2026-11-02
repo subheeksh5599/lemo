@@ -106,10 +106,12 @@ call — refuses, because "could not check" is not "nothing outstanding".
 
 ## The EVM face
 
-`contracts/` holds the market side: `LemoTitleRegistry` (title commitments, monotonic revisions,
-per-title eligibility) and `LemoERC20` (supply capped by the backing recorded at deployment, no
-transfer while the title is ineligible). Both compile with `solc`; `npm run deploy` in `contracts/`
-ships them with viem using legacy EIP-155 transactions.
+`contracts/` holds the market side, deployed on Portaldot V3 Test:
+`LemoTitle` at `0xc88763FA361669fC5d95c2BDD924b0E2872488bB` (title commitments, forward-only
+revisions, per-title eligibility) and `LemoERC20Lite` at
+`0x61c35d5e811b99f2641b43e9ef97e50d52de8ff7` (supply capped by the backing recorded at deployment,
+no transfer while the title is ineligible). Addresses, transactions and measured costs are in
+`contracts/DEPLOYMENTS.md`.
 
 Measured on Portaldot V3 Test: the revive JSON-RPC pool rejects any transaction whose gas limit is
 below `eth_estimateGas` (gas is weight-scaled — a plain transfer estimates around 5.1e11), and a

@@ -384,6 +384,10 @@ LEMO should not be considered complete until these checks pass.
 | Discovery | Statement Store, subject to Portaldot support |
 | Network | Portaldot V3 |
 
+The EVM face is live on Portaldot V3 Test: `LemoTitle` at
+`0xc88763FA361669fC5d95c2BDD924b0E2872488bB` (transactions and costs in
+[`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md)).
+
 The proof-servicing half of this design is implemented in `backend/`: it reads a title's declared
 storage records at the finalized head, verifies the returned read proof against the block's own
 `stateRoot`, and only then hands out a package. See `backend/README.md` for the routes, the layout

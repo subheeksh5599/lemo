@@ -384,6 +384,11 @@ LEMO should not be considered complete until these checks pass.
 | Discovery | Statement Store, subject to Portaldot support |
 | Network | Portaldot V3 |
 
+The proof-servicing half of this design is implemented in `backend/`: it reads a title's declared
+storage records at the finalized head, verifies the returned read proof against the block's own
+`stateRoot`, and only then hands out a package. See `backend/README.md` for the routes, the layout
+declaration format, and the limits of what the service can claim.
+
 ## Why Portaldot?
 
 LEMO depends on the existence of both execution environments.

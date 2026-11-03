@@ -18,12 +18,21 @@ import { TitleGateERC20 } from "lemo/TitleGateERC20.sol";
 ///
 /// Environment:
 ///   DEPLOY_CONFIRM      must be exactly "yes". Anything else aborts.
-///   RPC_URL             the JSON-RPC endpoint (used by --rpc-url, recorded here)
+///   RPC_URL             the JSON-RPC endpoint, passed to --rpc-url only. Never
+///                       read or logged here: provider URLs often embed API keys.
 ///   PRIVATE_KEY         the EVM deployer key. Read through vm.envUint into a local,
 ///                       never printed, never logged. tPOT is native: fund the
 ///                       mapped SS58 account (node scripts/evm-native-address.mjs
 ///                       <0x address>), not the 0x address itself.
-///   ATTESTER            the address allowed to publish state roots
+///   FEED_MODE           required, exactly "threshold" or "single". No default:
+///                       a missing value refuses instead of silently deploying
+///                       the single key feed.
+///     threshold         ATTESTER_1..3 and THRESHOLD (2 or 3). THRESHOLD=1 is
+///                       refused: one of three is a single key with a quorum name.
+///     single            ATTESTER, the one address allowed to publish roots.
+///   GATE_OWNER          required, the token owner (pause, commitment changes).
+///                       Use a multisig or timelock; it is immutable on the gate.
+///                       Also proposed as owner of the feed (it must accept).
 ///   TITLE_ID            bytes32
 ///   NATIVE_ASSET        bytes32
 ///   BACKING             bytes32
@@ -55,32 +64,22 @@ contract Deploy is Script {
     TitleRecord memory record = _record(deployer);
     bytes32 commitment = vm.envBytes32("TITLE_COMMITMENT");
 
+    bool thresholdMode = _feedMode();
+    address gateOwner = vm.envAddress("GATE_OWNER");
+    require(gateOwner != address(0), "GATE_OWNER must be set");
+
+    // Chain id, not the RPC URL: the URL may carry a provider API key (M-05).
     console2.log("chain id", block.chainid);
-    console2.log("rpc", _envOr("RPC_URL", "(not set)"));
     console2.log("deployer", deployer);
-    console2.log("attester", vm.envOr("ATTESTER", address(0)));
-    console2.log("threshold", vm.envOr("THRESHOLD", uint256(0)));
+    console2.log("gate owner", gateOwner);
+    console2.log("feed mode", thresholdMode ? "threshold" : "single");
 
     vm.startBroadcast(deployerKey);
 
     ReviveBlake2b256 reviveHash = new ReviveBlake2b256();
     SubstrateTrieVerifier trieVerifier = new SubstrateTrieVerifier(IBlake2b256(address(reviveHash)));
 
-    // A threshold set is the independent root source. Without THRESHOLD, the
-    // deploy falls back to the single attested feed; with it, the feed needs
-    // ATTESTER_1..3 to agree before any root is accepted.
-    uint256 threshold = vm.envOr("THRESHOLD", uint256(0));
-    if (threshold != 0 && threshold < 2) revert("THRESHOLD must be 0 or at least 2");
-    IRootFeed rootFeed;
-    if (threshold == 0) {
-      rootFeed = new RootFeed(vm.envAddress("ATTESTER"));
-    } else {
-      address[] memory attesters = new address[](3);
-      attesters[0] = vm.envAddress("ATTESTER_1");
-      attesters[1] = vm.envAddress("ATTESTER_2");
-      attesters[2] = vm.envAddress("ATTESTER_3");
-      rootFeed = new ThresholdRootFeed(attesters, threshold);
-    }
+    IRootFeed rootFeed = thresholdMode ? _thresholdFeed(gateOwner, deployer) : _singleFeed(gateOwner, deployer);
 
     // The record names the token, so the token address has to be predicted
     // before the record can be hashed. Predict, verify the commitment against
@@ -97,7 +96,7 @@ contract Deploy is Script {
       rootFeed,
       record.titleId,
       commitment,
-      deployer,
+      gateOwner,
       _envOr("TOKEN_NAME", "LEMO Title 1"),
       _envOr("TOKEN_SYMBOL", "LT1"),
       vm.envOr("MAX_SUPPLY", uint256(1_000_000e18))
@@ -110,15 +109,54 @@ contract Deploy is Script {
     verifier = address(trieVerifier);
     feed = address(rootFeed);
     token = address(gate);
+    _logResult(hasher, verifier, rootFeed, token, commitment);
+  }
 
+  function _logResult(
+    address hasher,
+    address verifier,
+    IRootFeed rootFeed,
+    address token,
+    bytes32 commitment
+  ) private view {
     console2.log("revive blake2b", hasher);
     console2.log("trie verifier", verifier);
-    console2.log("root feed", feed);
+    console2.log("root feed", address(rootFeed));
+    console2.log("feed quorum", rootFeed.quorum());
     console2.log("token", token);
     console2.log("commitment", vm.toString(commitment));
     // The feed is left empty on purpose: only the attester's own wallet can
     // put a root in it, never this script.
     console2.log("next step: the attester must attest a finalized state root");
+  }
+
+  /// @dev FEED_MODE is required and must be one of the two literal values.
+  function _feedMode() private view returns (bool thresholdMode) {
+    bytes32 mode = keccak256(bytes(_envOr("FEED_MODE", "")));
+    if (mode == keccak256("threshold")) return true;
+    if (mode == keccak256("single")) return false;
+    revert("FEED_MODE must be exactly \"threshold\" or \"single\"");
+  }
+
+  /// @dev 2-of-3 or 3-of-3 over three distinct attesters (the constructor
+  /// rejects duplicates and zero addresses).
+  function _thresholdFeed(address gateOwner, address deployer) private returns (IRootFeed) {
+    uint256 threshold = vm.envUint("THRESHOLD");
+    require(threshold >= 2 && threshold <= 3, "THRESHOLD must be 2 or 3 with three attesters");
+    address[] memory attesters = new address[](3);
+    attesters[0] = vm.envAddress("ATTESTER_1");
+    attesters[1] = vm.envAddress("ATTESTER_2");
+    attesters[2] = vm.envAddress("ATTESTER_3");
+    ThresholdRootFeed f = new ThresholdRootFeed(attesters, threshold);
+    require(f.quorum() == threshold, "feed quorum mismatch");
+    if (gateOwner != deployer) f.proposeOwner(gateOwner);
+    return f;
+  }
+
+  function _singleFeed(address gateOwner, address deployer) private returns (IRootFeed) {
+    RootFeed f = new RootFeed(vm.envAddress("ATTESTER"));
+    if (gateOwner != deployer) f.proposeOwner(gateOwner);
+    return f;
   }
 
   function _record(address deployer) private view returns (TitleRecord memory record) {

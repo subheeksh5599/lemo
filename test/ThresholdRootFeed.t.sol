@@ -167,4 +167,136 @@ contract ThresholdRootFeedTest is Test {
     assertEq(feed.currentRoot(), second);
     assertEq(feed.currentBlockNumber(), 51);
   }
+
+  // ------------------------------------------------------------------ M-02
+
+  function test_QuorumIsTheThreshold() public view {
+    assertEq(feed.quorum(), 2);
+  }
+
+  function test_RevokeWithdrawsAnApproval() public {
+    bytes32 root = keccak256("mistake");
+    bytes32 proposal = keccak256(abi.encode(root, uint256(60)));
+    vm.prank(A);
+    feed.attest(root, 60);
+    assertTrue(feed.approved(proposal, A));
+
+    vm.prank(A);
+    feed.revoke(root, 60);
+    assertEq(feed.approvals(proposal), 0);
+    assertFalse(feed.approved(proposal, A));
+
+    // The next single approval no longer finalizes the mistake.
+    vm.prank(B);
+    feed.attest(root, 60);
+    assertFalse(feed.live(), "a revoked approval still counted");
+
+    vm.expectRevert(ThresholdRootFeed.NotApproved.selector);
+    vm.prank(C);
+    feed.revoke(root, 60);
+  }
+
+  function test_CannotRevokeAfterFinalization() public {
+    bytes32 root = keccak256("root");
+    vm.prank(A);
+    feed.attest(root, 70);
+    vm.prank(B);
+    feed.attest(root, 70);
+    vm.expectRevert(abi.encodeWithSelector(ThresholdRootFeed.BlockNotNewer.selector, 70, 70));
+    vm.prank(A);
+    feed.revoke(root, 70);
+  }
+
+  function test_ProposalExpires() public {
+    bytes32 root = keccak256("slow");
+    bytes32 proposal = keccak256(abi.encode(root, uint256(80)));
+    vm.prank(A);
+    feed.attest(root, 80);
+
+    vm.roll(block.number + feed.PROPOSAL_TTL_BLOCKS() + 1);
+    assertEq(feed.approvals(proposal), 0, "expired approvals read as zero");
+
+    vm.prank(B);
+    feed.attest(root, 80);
+    assertFalse(feed.live(), "an expired approval combined into a quorum");
+    assertEq(feed.approvals(proposal), 1);
+
+    // A re-approval in the fresh round is allowed and does finalize.
+    vm.prank(A);
+    feed.attest(root, 80);
+    assertTrue(feed.live());
+  }
+
+  function test_FarFutureBlockIsRefusedOnceLive() public {
+    bytes32 root = keccak256("root");
+    vm.prank(A);
+    feed.attest(root, 100);
+    vm.prank(B);
+    feed.attest(root, 100);
+
+    uint256 maxAllowed = 100 + feed.MAX_FUTURE_BLOCKS();
+    vm.expectRevert(
+      abi.encodeWithSelector(ThresholdRootFeed.BlockTooFarAhead.selector, maxAllowed + 1, maxAllowed)
+    );
+    vm.prank(A);
+    feed.attest(keccak256("far"), maxAllowed + 1);
+
+    vm.prank(A);
+    feed.attest(keccak256("edge"), maxAllowed);
+  }
+
+  function test_AttesterReplacementIsTimelockedAndVoidsInflightApprovals() public {
+    address D = address(0xD00D);
+    bytes32 root = keccak256("inflight");
+    bytes32 proposal = keccak256(abi.encode(root, uint256(90)));
+    vm.prank(C);
+    feed.attest(root, 90);
+
+    vm.expectRevert(ThresholdRootFeed.OnlyOwner.selector);
+    vm.prank(OUTSIDER);
+    feed.scheduleAttesterReplacement(C, D);
+
+    feed.scheduleAttesterReplacement(C, D);
+    (,, uint256 eta) = feed.pendingReplacement();
+    assertEq(eta, block.timestamp + feed.ATTESTER_CHANGE_DELAY());
+
+    vm.expectRevert(ThresholdRootFeed.ReplacementPending.selector);
+    feed.scheduleAttesterReplacement(B, D);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(ThresholdRootFeed.ReplacementTimelocked.selector, eta, block.timestamp)
+    );
+    feed.executeAttesterReplacement();
+
+    vm.warp(eta);
+    feed.executeAttesterReplacement();
+    assertFalse(feed.isAttester(C));
+    assertTrue(feed.isAttester(D));
+    assertEq(feed.attesterCount(), 3);
+    assertEq(feed.approvals(proposal), 0, "removed attester's approval voided");
+
+    vm.expectRevert(abi.encodeWithSelector(ThresholdRootFeed.NotAttester.selector, C));
+    vm.prank(C);
+    feed.attest(root, 90);
+
+    vm.prank(A);
+    feed.attest(root, 90);
+    assertFalse(feed.live(), "C's pre-rotation approval must not count");
+    vm.prank(D);
+    feed.attest(root, 90);
+    assertTrue(feed.live());
+  }
+
+  function test_ReplacementCanBeCancelledAndOwnerIsTwoStep() public {
+    feed.scheduleAttesterReplacement(C, address(0xD00D));
+    feed.cancelAttesterReplacement();
+    vm.expectRevert(ThresholdRootFeed.NoPendingReplacement.selector);
+    feed.executeAttesterReplacement();
+
+    feed.proposeOwner(OUTSIDER);
+    assertEq(feed.owner(), address(this));
+    vm.prank(OUTSIDER);
+    feed.acceptOwner();
+    assertEq(feed.owner(), OUTSIDER);
+  }
 }

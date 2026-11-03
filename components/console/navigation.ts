@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Gauge,
+  HardDrive,
   History,
   KeyRound,
   Network,
@@ -46,6 +47,12 @@ export const NAV_READ: readonly NavItem[] = [
     label: 'Earlier deployment',
     detail: 'EVM-only title and token; settled receipts',
     icon: History,
+  },
+  {
+    href: '/console/local',
+    label: 'Local capture',
+    detail: 'Offline proof from a local devnet fixture',
+    icon: HardDrive,
   },
 ]
 

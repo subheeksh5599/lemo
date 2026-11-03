@@ -47,6 +47,7 @@ The honest demo is read-only: live heads, a real Substrate proof, `eth_getProof`
 | `UnbondGuard` | **Not deployed** | Rule 2 logic tested; no live address |
 | Earlier EVM-only deployment | **Live, settled receipts** | [`/console/legacy`](https://lemo-ebon.vercel.app/console/legacy); registry `0xc887…88bB`, token `0x61c3…8ff7` |
 | Transaction receipt view | **Live** | `/tx/<hash>`; reads the receipt from the Portaldot V3 EVM RPC |
+| Local native capture | **Live, fixture view** | [`/console/local`](https://lemo-ebon.vercel.app/console/local); verifies a real local Substrate proof offline |
 | Native title registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 10 tests |
 | Four-contract mint / transfer | **Wired, cannot settle** | placeholder commitment; no native title record |
 | Proof service | **1,077 tests passing** | `server/` |
@@ -177,7 +178,8 @@ Wrapping an asset moves it. It does not enforce the relationship between the ori
 - **Unbond guard**: Rule 2 in Solidity, with a release recheck and one open request per title.
 - **Native pallet**: `pallets/lemo-title`, with create, edit, representation, fail-closed liveness and unbond calls; 10 tests.
 - **Proof service**: a Fastify service with typed RPC clients, trie verification, fixtures and 1,077 tests.
-- **Console**: landing, overview, proof walk, key verifier, network checks, a transaction surface and a read-only page for the earlier deployment.
+- **Console**: landing, overview, proof walk, key verifier, network checks, a transaction surface, a read-only page for the earlier deployment, and a local-capture proof page.
+- **Local proof work**: a solochain runtime with `pallets/lemo-title` (10 tests), a 320-byte canonical record, and a Foundry EVM test that mints and transfers from the captured proof (6 tests).
 - **Deployment tooling**: `revive.instantiateWithCode` from the native SS58 wallet, plus the Foundry path and cost measurement.
 
 ## Architecture
@@ -402,7 +404,7 @@ The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723d
 - The live gate is **paused** and its bytecode predates the holder-only burn fix. The source is fixed and tested; the deployed gate must be redeployed before any live use.
 - The live gate's commitment is a placeholder. It is a real contract with a real verifier, but there is no real title to prove.
 - The root feed is one attester. `ThresholdRootFeed` exists and is tested but is not deployed.
-- The pallet now stores a 320-byte `CanonicalTitles` blob, but the owner is derived from `AccountId32` rather than an explicit EVM beneficiary field. H-06 is partly closed, not fully.
+- The pallet now stores a 320-byte `CanonicalTitles` blob and the EVM proof carries the full 80-byte storage key. The canonical owner is still derived from `AccountId32`, not an explicit EVM beneficiary field; H-06 is partly closed.
 - A distinct action at the same revision gets a distinct nullifier; the audit's H-01 notes that a true per-revision spend counter is still the stronger design.
 - No external audit. The self-audit is in [`docs/AUDIT.md`](docs/AUDIT.md).
 
@@ -480,6 +482,7 @@ ATTESTER_PRIVATE_KEY=... FEED_ADDRESS=0xc1c9…d5c0 \
 
 ```text
 forge test                         90 passed, 0 failed
+local-evm forge test                6 passed, 0 failed
 cargo test (pallet)                10 passed, 0 failed
 server npm test                 1,077 passed, 0 failed
 ```

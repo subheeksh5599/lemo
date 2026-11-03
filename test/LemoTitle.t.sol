@@ -202,6 +202,38 @@ contract LemoTitleTest is Test {
     book.commit(record);
   }
 
+  /// @notice L-04: the writer handover is two step; the old writer keeps
+  /// the role until the proposed one accepts, and nobody else can accept.
+  function test_WriterHandoverIsTwoStep() public {
+    address next = address(0xBEEF);
+    vm.expectRevert(LemoTitle.OnlyWriterIsZeroAddress.selector);
+    book.proposeWriter(address(0));
+
+    book.proposeWriter(next);
+    assertEq(book.writer(), address(this), "proposal alone moves nothing");
+    assertEq(book.pendingWriter(), next);
+
+    vm.expectRevert(LemoTitle.OnlyPendingWriter.selector);
+    vm.prank(address(0xCAFE));
+    book.acceptWriter();
+
+    vm.prank(next);
+    book.acceptWriter();
+    assertEq(book.writer(), next);
+    assertEq(book.pendingWriter(), address(0));
+
+    vm.expectRevert(LemoTitle.OnlyWriter.selector);
+    book.commit(_recordAt2(1));
+  }
+
+  /// @notice L-04: a record must name an owner.
+  function test_ZeroOwnerIsRefused() public {
+    TitleRecord memory record = _recordAt2(1);
+    record.owner = address(0);
+    vm.expectRevert(LemoTitle.OwnerIsZeroAddress.selector);
+    book.commit(record);
+  }
+
   function test_CommitmentTracksTheLatestRevision() public {
     TitleRecord memory rev1 = _recordAt2(1);
     book.commit(rev1);

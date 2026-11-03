@@ -130,8 +130,12 @@ library TitleLib {
 /// This contract is a reference implementation and is not deployed. The native
 /// face is the authority on the real chain; this book exists so the revision
 /// rule and the vector set have an executable definition.
+///
+/// The writer is a single key with a two step handover (`proposeWriter`, then
+/// `acceptWriter` by the new writer), and a record must name a non-zero owner.
 contract LemoTitle {
   address public writer;
+  address public pendingWriter;
   uint16 public constant TITLE_VERSION = TitleLib.VERSION;
 
   mapping(bytes32 => TitleRecord) private _records;
@@ -141,9 +145,10 @@ contract LemoTitle {
   error OnlyWriter();
   error RevisionMustStartAtOne(uint64 provided);
   error RevisionNotNext(uint64 provided, uint64 expected);
-  error TitleIdIsImmutable();
   error ChainIdIsImmutable();
   error OnlyWriterIsZeroAddress();
+  error OnlyPendingWriter();
+  error OwnerIsZeroAddress();
 
   event TitleCommitted(
     bytes32 indexed titleId,
@@ -160,16 +165,27 @@ contract LemoTitle {
   }
 
   event WriterChanged(address indexed previous, address indexed next);
+  event WriterProposed(address indexed current, address indexed next);
 
   modifier onlyWriter() {
     if (msg.sender != writer) revert OnlyWriter();
     _;
   }
 
-  function setWriter(address next) external onlyWriter {
+  /// @notice Step one of a writer change; the current writer stays in charge
+  /// until the proposed one accepts.
+  function proposeWriter(address next) external onlyWriter {
     if (next == address(0)) revert OnlyWriterIsZeroAddress();
-    emit WriterChanged(writer, next);
-    writer = next;
+    pendingWriter = next;
+    emit WriterProposed(writer, next);
+  }
+
+  /// @notice Step two: the proposed writer takes the role itself.
+  function acceptWriter() external {
+    if (msg.sender != pendingWriter) revert OnlyPendingWriter();
+    emit WriterChanged(writer, msg.sender);
+    writer = msg.sender;
+    delete pendingWriter;
   }
 
   /// @notice Commit a new revision of a title.
@@ -177,6 +193,7 @@ contract LemoTitle {
   /// previous + 1, under the same title id and chain id. There is no path
   /// that skips, repeats or rewinds a revision.
   function commit(TitleRecord calldata record) external onlyWriter returns (bytes32 commitment) {
+    if (record.owner == address(0)) revert OwnerIsZeroAddress();
     if (_known[record.titleId]) {
       TitleRecord memory previous = _records[record.titleId];
       if (previous.chainId != record.chainId) revert ChainIdIsImmutable();

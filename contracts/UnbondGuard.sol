@@ -13,20 +13,32 @@ import { IRepresentation } from "./IRepresentation.sol";
 /// An unbond is a two step handshake and the second step is the one that would
 /// release value, so they are separated on purpose:
 ///
-///   requestUnbond   needs the native proof of the title (operation 4, the burn
-///                   operation is what authorises a release) and refuses while
-///                   the representation still exists. Records a pending request
-///                   and spends the proof's nullifier.
-///   completeUnbond  the unlock. Attester only, and only for a pending request.
+///   requestUnbond   needs a native proof of the title with the burn operation
+///                   (OP_BURN: the burn is what authorises a release) and
+///                   refuses while the representation still exists. Opens the
+///                   title's single pending request.
+///   completeUnbond  the unlock. Attester only, only for the open request, only
+///                   while it has not expired, and only if the representation
+///                   is STILL absent at release time.
+///   cancelUnbond    the requester or the attester closes a pending request,
+///                   which frees the title for a fresh request.
 ///
-/// The failure worth designing for is an interruption between the two: a
-/// pending request whose unlock never lands. It cannot be re-requested with the
-/// same proof (the nullifier is spent), it cannot be completed by anyone else,
-/// and the representation cannot be re-minted with the proof the burn consumed.
-/// Nothing doubles and nothing is released early; the request waits.
+/// Invariants:
+///   - at most one open request per title (one title per guard);
+///   - a title is released at most once, ever (`released`);
+///   - a request older than UNBOND_EXPIRY_BLOCKS cannot be released, only
+///     cancelled, so an unlock cannot land against a long stale check.
+///
+/// The failure worth designing for is an interruption between the two steps: a
+/// pending request whose unlock never lands. It blocks a second request, it
+/// cannot be completed by anyone but the attester, it expires, and either side
+/// can cancel it. Nothing doubles and nothing is released early.
 contract UnbondGuard {
-  uint8 public constant OP_UNBOND = 4;
-  uint8 public constant REQUIRED_PROOF_OPERATION = 3; // burn
+  /// @notice The proof operation that authorises an unbond: the burn.
+  uint8 public constant OP_BURN = 3;
+
+  /// @notice How many EVM blocks a request stays releasable.
+  uint256 public constant UNBOND_EXPIRY_BLOCKS = 100_800;
 
   ITitleVerifier public immutable verifier;
   IRootFeed public immutable feed;
@@ -37,30 +49,47 @@ contract UnbondGuard {
   enum State {
     NONE,
     PENDING,
-    RELEASED
+    RELEASED,
+    CANCELLED
   }
 
-  mapping(bytes32 => State) public requestState;
-  mapping(bytes32 => bool) public nullifierUsed;
-  mapping(bytes32 => uint256) public requestBlock;
-  mapping(bytes32 => bytes32) public openRequest;
+  struct Request {
+    State state;
+    uint64 revision;
+    address requester;
+    uint256 requestBlock;
+    bytes32 stateRoot;
+  }
+
+  mapping(bytes32 => Request) public requests;
+  bytes32 public openRequest;
+  bool public released;
+  uint256 public requestCount;
 
   event UnbondRequested(
-    bytes32 indexed id, bytes32 stateRoot, uint64 revision, uint256 blockNumber
+    bytes32 indexed id,
+    address indexed requester,
+    bytes32 stateRoot,
+    uint64 revision,
+    uint256 blockNumber
   );
   event UnbondReleased(bytes32 indexed id);
+  event UnbondCancelled(bytes32 indexed id, address indexed by);
 
   error RepresentationOutstanding();
   error NotAttester();
+  error NotRequesterOrAttester();
   error ProofRejected(uint8 status);
+  error FeedHasNoRoot();
   error FeedRootMismatch(bytes32 proven, bytes32 accepted);
   error OperationMismatch(uint8 claimed);
   error TokenMismatch(address claimed);
   error TitleMismatch(bytes32 claimed);
   error ChainMismatch(uint256 claimed);
-  error ProofReplayed(bytes32 nullifier);
   error RequestNotPending(bytes32 id);
   error RequestAlreadyOpen(bytes32 titleId, bytes32 id);
+  error RequestExpired(bytes32 id, uint256 expiredAt);
+  error AlreadyReleased();
   error RecordNotBacked();
   error ZeroAddress();
 
@@ -83,14 +112,17 @@ contract UnbondGuard {
   }
 
   /// @notice Ask to unbond the native backing. Refused while the EVM side
-  /// still holds anything.
+  /// still holds anything, while another request is open, or once released.
   function requestUnbond(ITitleVerifier.TitleProof calldata proof) external returns (bytes32 id) {
+    if (released) revert AlreadyReleased();
+    if (openRequest != bytes32(0)) revert RequestAlreadyOpen(titleId, openRequest);
     if (representation.representationOutstanding()) revert RepresentationOutstanding();
 
     bytes32 accepted = feed.currentRoot();
+    if (accepted == bytes32(0)) revert FeedHasNoRoot();
     if (proof.stateRoot != accepted) revert FeedRootMismatch(proof.stateRoot, accepted);
     if (proof.chainId != block.chainid) revert ChainMismatch(proof.chainId);
-    if (proof.operation != REQUIRED_PROOF_OPERATION) revert OperationMismatch(proof.operation);
+    if (proof.operation != OP_BURN) revert OperationMismatch(proof.operation);
     if (proof.token != address(representation)) revert TokenMismatch(proof.token);
     if (proof.titleId != titleId) revert TitleMismatch(proof.titleId);
 
@@ -99,28 +131,53 @@ contract UnbondGuard {
     if (status != ITitleVerifier.Status.PROVEN) revert ProofRejected(uint8(status));
     if (record.backing == bytes32(0)) revert RecordNotBacked();
 
-    bytes32 nullifier = keccak256(
-      abi.encode(titleId, proof.revision, OP_UNBOND, proof.stateRoot, address(representation))
-    );
-    if (nullifierUsed[nullifier]) revert ProofReplayed(nullifier);
-    nullifierUsed[nullifier] = true;
+    requestCount += 1;
+    id = keccak256(abi.encode(titleId, proof.revision, proof.stateRoot, requestCount));
+    openRequest = id;
+    requests[id] = Request({
+      state: State.PENDING,
+      revision: proof.revision,
+      requester: msg.sender,
+      requestBlock: block.number,
+      stateRoot: proof.stateRoot
+    });
 
-    id = keccak256(abi.encode(titleId, proof.revision, OP_UNBOND, proof.stateRoot));
-    if (openRequest[titleId] != bytes32(0)) revert RequestAlreadyOpen(titleId, openRequest[titleId]);
-    openRequest[titleId] = id;
-    requestState[id] = State.PENDING;
-    requestBlock[id] = block.number;
-
-    emit UnbondRequested(id, proof.stateRoot, proof.revision, block.number);
+    emit UnbondRequested(id, msg.sender, proof.stateRoot, proof.revision, block.number);
   }
 
-  /// @notice The unlock. Only the attester, and only for a pending request.
+  /// @notice The unlock. Only the attester, only for the open request, only
+  /// before it expires, and only while Rule 2 still holds.
   function completeUnbond(bytes32 id) external {
     if (msg.sender != attester) revert NotAttester();
-    if (requestState[id] != State.PENDING) revert RequestNotPending(id);
+    Request storage r = requests[id];
+    if (r.state != State.PENDING) revert RequestNotPending(id);
+    uint256 expiresAt = r.requestBlock + UNBOND_EXPIRY_BLOCKS;
+    if (block.number > expiresAt) revert RequestExpired(id, expiresAt);
     if (representation.representationOutstanding()) revert RepresentationOutstanding();
-    requestState[id] = State.RELEASED;
-    if (openRequest[titleId] == id) delete openRequest[titleId];
+    r.state = State.RELEASED;
+    released = true;
+    delete openRequest;
     emit UnbondReleased(id);
+  }
+
+  /// @notice Close a pending request (expired or not). The requester or the
+  /// attester only.
+  function cancelUnbond(bytes32 id) external {
+    Request storage r = requests[id];
+    if (r.state != State.PENDING) revert RequestNotPending(id);
+    if (msg.sender != r.requester && msg.sender != attester) revert NotRequesterOrAttester();
+    r.state = State.CANCELLED;
+    delete openRequest;
+    emit UnbondCancelled(id, msg.sender);
+  }
+
+  /// @notice A request's lifecycle state.
+  function requestState(bytes32 id) external view returns (State) {
+    return requests[id].state;
+  }
+
+  /// @notice The EVM block a request was opened at (its expiry anchor).
+  function requestBlock(bytes32 id) external view returns (uint256) {
+    return requests[id].requestBlock;
   }
 }

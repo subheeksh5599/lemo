@@ -9,10 +9,13 @@ import { CopyButton } from '@/components/console/copy-button'
 import { Notice, PageHeader, Panel, Row, Skeleton, State } from '@/components/console/primitives'
 import { EVM_RPC, rpc } from '@/lib/chain'
 import { formatInt, hashShort } from '@/lib/format'
+import { scannerAccount, scannerBlock } from '@/lib/scanner'
+import { ScannerLink } from '@/components/console/scanner-link'
 
 type Receipt = {
   status?: string
   blockNumber?: string
+  transactionIndex?: string
   from?: string
   to?: string | null
   gasUsed?: string
@@ -23,6 +26,10 @@ type Receipt = {
 }
 
 const HASH = /^0x[0-9a-fA-F]{64}$/
+
+function int(hex: string | undefined): number | null {
+  return hex === undefined ? null : Number(BigInt(hex))
+}
 
 function number(hex: string | undefined): string {
   return hex === undefined ? '-' : formatInt(Number(BigInt(hex)))
@@ -89,7 +96,9 @@ export default function TransactionPage() {
         <p>
           This page asks the Portaldot V3 EVM RPC for one receipt by hash. It proves the
           transaction was mined and shows its status and block; it does not browse history or
-          claim to be the chain&apos;s official explorer.
+          claim to be the chain&apos;s official explorer. On Portaldot V3 the transaction is an
+          unsigned <code>revive.ethTransact</code> extrinsic. The scanner lists signed extrinsics only, so
+          the links below open its block and the contract&apos;s mapped account there.
         </p>
       </Notice>
 
@@ -116,11 +125,36 @@ export default function TransactionPage() {
               </State>
             }
           />
-          <Row label="Block" value={receipt.blockNumber ? `#${number(receipt.blockNumber)}` : '-'} />
+          <Row
+            label="Block"
+            value={
+              <span className="inline-flex items-center gap-2">
+                {receipt.blockNumber ? `#${number(receipt.blockNumber)}` : '-'}
+                <ScannerLink href={scannerBlock(int(receipt.blockNumber))} label="block" />
+              </span>
+            }
+          />
+          <Row
+            label="Extrinsic"
+            value={
+              receipt.blockNumber && receipt.transactionIndex
+                ? `${int(receipt.blockNumber)}-${int(receipt.transactionIndex)}, revive.ethTransact`
+                : '-'
+            }
+          />
           <Row label="From" value={hashShort(receipt.from, 10, 8)} title={receipt.from} />
           <Row
             label="To"
-            value={receipt.to === null || receipt.to === undefined ? 'contract creation' : hashShort(receipt.to, 10, 8)}
+            value={
+              receipt.to === null || receipt.to === undefined ? (
+                'contract creation'
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  {hashShort(receipt.to, 10, 8)}
+                  <ScannerLink href={scannerAccount(receipt.to)} label="account" />
+                </span>
+              )
+            }
             title={receipt.to ?? undefined}
           />
           <Row label="Gas used" value={number(receipt.gasUsed)} />

@@ -1,11 +1,13 @@
 'use client'
 
 import { CopyButton } from '@/components/console/copy-button'
+import { ScannerLink } from '@/components/console/scanner-link'
 import { Panel, State } from '@/components/console/primitives'
 import { CONTRACTS, type ContractSlot } from '@/lib/flow/config'
 import type { FlowSnapshot } from '@/lib/flow/snapshot'
 import type { Probe } from '@/lib/flow/state'
 import { formatInt, ms } from '@/lib/format'
+import { scannerAccount } from '@/lib/scanner'
 import { cn } from '@/lib/utils'
 
 function probeFor(
@@ -32,6 +34,7 @@ function Slot({ slot, probe }: { slot: ContractSlot; probe: Probe<unknown> | nul
               {slot.address}
             </span>
             <CopyButton value={slot.address} label={`the ${slot.label} address`} className="size-6" />
+            <ScannerLink href={scannerAccount(slot.address)} label="account" className="ml-1.5" />
           </span>
         ) : (
           <State tone="warn">

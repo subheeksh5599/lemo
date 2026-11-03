@@ -75,6 +75,8 @@ export type Receipt = {
   note: string
   status: 'success' | 'reverted' | 'missing'
   block: number | null
+  /** Extrinsic index in the block: an EVM receipt's transactionIndex. */
+  index: number | null
   problem: string | null
 }
 
@@ -137,22 +139,26 @@ async function receipt(tx: HistoricalTx): Promise<Receipt> {
     const result = await rpc<{
       status?: string
       blockNumber?: string
+      transactionIndex?: string
     } | null>(EVM_RPC, 'eth_getTransactionReceipt', [tx.hash])
 
     if (result === null) {
-      return { ...tx, status: 'missing', block: null, problem: 'no receipt returned' }
+      return { ...tx, status: 'missing', block: null, index: null, problem: 'no receipt returned' }
     }
 
     const block =
       result.blockNumber === undefined ? null : Number(BigInt(result.blockNumber))
+    const index =
+      result.transactionIndex === undefined ? null : Number(BigInt(result.transactionIndex))
     const status = result.status === '0x1' ? 'success' : 'reverted'
 
-    return { ...tx, status, block, problem: null }
+    return { ...tx, status, block, index, problem: null }
   } catch (error) {
     return {
       ...tx,
       status: 'missing',
       block: null,
+      index: null,
       problem: error instanceof Error ? error.message : 'receipt read failed',
     }
   }

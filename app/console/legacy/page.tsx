@@ -17,6 +17,8 @@ import {
   State,
 } from '@/components/console/primitives'
 import { explorerTxUrl } from '@/lib/flow/config'
+import { scannerAccount, scannerBlock } from '@/lib/scanner'
+import { ScannerLink } from '@/components/console/scanner-link'
 import { formatInt, hashShort, ms, relativeTime } from '@/lib/format'
 import {
   LEGACY_TITLE,
@@ -148,7 +150,16 @@ export default function LegacyPage() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <Panel title="Title record" hint="EVM storage, not native">
-            <Row label="Registry" value={hashShort(LEGACY_TITLE, 8, 6)} title={LEGACY_TITLE} />
+            <Row
+              label="Registry"
+              value={
+                <span className="inline-flex items-center gap-2">
+                  {hashShort(LEGACY_TITLE, 8, 6)}
+                  <ScannerLink href={scannerAccount(LEGACY_TITLE)} label="account" />
+                </span>
+              }
+              title={LEGACY_TITLE}
+            />
             <Row label="Title id" value={hashShort(LEGACY_TITLE_ID, 8, 6)} title={LEGACY_TITLE_ID} />
             <Row label="Asset" value={hashShort(data.title.asset, 8, 6)} title={data.title.asset} />
             <Row label="Backing" value={formatInt(Number(data.title.backing))} />
@@ -162,7 +173,16 @@ export default function LegacyPage() {
           </Panel>
 
           <Panel title="Representation token" hint="ERC-20, 18 decimals">
-            <Row label="Token" value={hashShort(LEGACY_TOKEN, 8, 6)} title={LEGACY_TOKEN} />
+            <Row
+              label="Token"
+              value={
+                <span className="inline-flex items-center gap-2">
+                  {hashShort(LEGACY_TOKEN, 8, 6)}
+                  <ScannerLink href={scannerAccount(LEGACY_TOKEN)} label="account" />
+                </span>
+              }
+              title={LEGACY_TOKEN}
+            />
             <Row label="Registry" value={hashShort(data.token.registry, 8, 6)} title={data.token.registry} />
             <Row label="Issuer" value={hashShort(data.token.issuer, 8, 6)} title={data.token.issuer} />
             <Row label="Total supply" value={raw(data.token.supply)} />
@@ -228,13 +248,26 @@ export default function LegacyPage() {
                               rel="noreferrer noopener"
                               className="ml-2 font-mono text-[11px] text-muted transition-colors duration-150 hover:text-ink"
                             >
-                              explorer
+                              receipt
                             </a>
                           )}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-[12px] tabular-nums text-ink-2">
-                        {item.block === null ? '-' : `#${formatInt(item.block)}`}
+                        {item.block === null ? (
+                          '-'
+                        ) : scannerBlock(item.block) === null ? (
+                          `#${formatInt(item.block)}`
+                        ) : (
+                          <a
+                            href={scannerBlock(item.block) ?? undefined}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="underline decoration-line underline-offset-4 hover:text-ink"
+                          >
+                            #{formatInt(item.block)}
+                          </a>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {txStatus(item.status)}

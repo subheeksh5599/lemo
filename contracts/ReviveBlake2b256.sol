@@ -28,14 +28,18 @@ import { IBlake2b256 } from "./IBlake2b256.sol";
 contract ReviveBlake2b256 is IBlake2b256 {
   address public constant SYSTEM_PRECOMPILE = 0x0000000000000000000000000000000000000900;
   bytes4 public constant HASH_BLAKE_256_SELECTOR = 0xc7dff686;
-  uint256 private constant STATIC_CALL_GAS = 100_000;
+  /// @notice Gas forwarded to the precompile per hash (audit L-03). A broken
+  /// or hostile precompile can burn at most this much, not the whole call
+  /// budget; running out reads as a failed call and reverts below.
+  uint256 public constant STATIC_CALL_GAS = 100_000;
 
   error HashCallFailed();
 
   /// @inheritdoc IBlake2b256
   function hash(bytes memory data) external view returns (bytes32 out) {
-    (bool ok, bytes memory ret) =
-      SYSTEM_PRECOMPILE.staticcall(abi.encodeWithSelector(HASH_BLAKE_256_SELECTOR, data));
+    (bool ok, bytes memory ret) = SYSTEM_PRECOMPILE.staticcall{ gas: STATIC_CALL_GAS }(
+      abi.encodeWithSelector(HASH_BLAKE_256_SELECTOR, data)
+    );
     // Fail closed: a precompile that is absent (a local EVM, a fork, a
     // chain that has not enabled Revive) must revert, never return zero.
     if (!ok || ret.length != 32) revert HashCallFailed();

@@ -18,4 +18,9 @@ contract TestBlake2b is IBlake2b256 {
   function hashMemory(bytes memory data) external pure returns (bytes32) {
     return Blake2b256.hash(data);
   }
+
+  /// @notice Substrate's blake2_128, for building canonical map keys.
+  function hash128(bytes memory data) external pure returns (bytes16) {
+    return Blake2b256.hash128(data);
+  }
 }

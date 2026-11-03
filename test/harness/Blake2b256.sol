@@ -28,10 +28,6 @@ library Blake2b256 {
   uint64 private constant IV6 = 0x1f83d9abfb41bd6b;
   uint64 private constant IV7 = 0x5be0cd19137e2179;
 
-  // Parameter block folded into h[0]: digest length 32, key length 0,
-  // fanout 1, depth 1, little endian.
-  uint64 private constant PARAM = 0x01010020;
-
   // The 12 round permutations, 16 bytes per round, flattened.
   bytes private constant SIGMA = hex"000102030405060708090a0b0c0d0e0f"
     hex"0e0a0408090f0d06010c00020b070503" hex"0b080c0005020f0d0a0e030607010904"
@@ -43,8 +39,29 @@ library Blake2b256 {
 
   /// @notice BLAKE2b-256 of `data`.
   function hash(bytes memory data) internal pure returns (bytes32) {
-    uint64[8] memory h;
-    h[0] = IV0 ^ PARAM;
+    uint64[8] memory h = _digest(data, 32);
+    uint256 acc;
+    // A 32 byte digest is the little-endian encoding of h[0..3]; h[4..7]
+    // are dropped by the truncation BLAKE2b specifies for dkLen = 32.
+    for (uint256 i = 0; i < 4; i += 1) {
+      acc |= uint256(_bswap64(h[i])) << (192 - 64 * i);
+    }
+    return bytes32(acc);
+  }
+
+  /// @notice BLAKE2b-128 of `data` (Substrate's blake2_128, the hash inside a
+  /// Blake2_128Concat map key). The digest length is part of the parameter
+  /// block, so this is not a truncation of `hash`.
+  function hash128(bytes memory data) internal pure returns (bytes16) {
+    uint64[8] memory h = _digest(data, 16);
+    uint128 acc = (uint128(_bswap64(h[0])) << 64) | uint128(_bswap64(h[1]));
+    return bytes16(acc);
+  }
+
+  function _digest(bytes memory data, uint64 outLen) private pure returns (uint64[8] memory h) {
+    // Parameter block folded into h[0]: digest length, key length 0, fanout 1,
+    // depth 1.
+    h[0] = IV0 ^ (0x01010000 | outLen);
     h[1] = IV1;
     h[2] = IV2;
     h[3] = IV3;
@@ -71,14 +88,6 @@ library Blake2b256 {
         }
       }
     }
-
-    uint256 acc;
-    // A 32 byte digest is the little-endian encoding of h[0..3]; h[4..7]
-    // are dropped by the truncation BLAKE2b specifies for dkLen = 32.
-    for (uint256 i = 0; i < 4; i += 1) {
-      acc |= uint256(_bswap64(h[i])) << (192 - 64 * i);
-    }
-    return bytes32(acc);
   }
 
   function _zeroBlock() private pure returns (bytes memory) {

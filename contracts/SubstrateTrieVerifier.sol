@@ -56,9 +56,10 @@ import { ITitleVerifier } from "./ITitleVerifier.sol";
 ///                   that ends before the key does. Absence is a positive proof.
 ///   INCOMPLETE      a node the parent references is not in the proof set, and
 ///                   every supplied node was reachable. The proof is truncated.
-///   INVALID         a node does not decode, or the proof contains a node that no
-///                   reference reaches (a substituted node that no longer hashes
-///                   to its parent reference).
+///   INVALID         a node does not decode, the set carries the same node
+///                   twice, a hashed reference revisits a node (a cycle), or a
+///                   walk that reached a value left a supplied node unreached
+///                   (an extra node no reference on the path names).
 ///   ROOT_MISMATCH   no supplied node hashes to the state root.
 ///   VALUE_MISMATCH  a value was proven but it is not the value the caller claimed.
 ///
@@ -81,6 +82,21 @@ contract SubstrateTrieVerifier is ITitleVerifier {
   uint256 private constant MAX_STEPS = 96;
   uint256 private constant MAX_NODES = 512;
   uint256 private constant NONE_INDEX = type(uint256).max;
+
+  /// @notice The frozen location of title records on the native chain:
+  /// twox128("LemoTitle") ++ twox128("CanonicalTitles"). A title's key is this
+  /// prefix ++ blake2_128(titleId) ++ titleId (a Blake2_128Concat map), 80 bytes.
+  /// Taken from the captured local runtime key in
+  /// fixtures/lemo-local-capture.json (canonicalStorageKey). A storage layout
+  /// migration that moves the map changes this constant, which is the point.
+  bytes32 public constant CANONICAL_TITLES_PREFIX =
+    0x4f03c24a87564f16d6105c855e7a6d375ec2a7664a464914b341c4ef2eeb96a0;
+  uint256 public constant CANONICAL_TITLE_KEY_BYTES = 80;
+
+  /// @dev _valueOf outcomes.
+  uint8 private constant VALUE_OK = 0;
+  uint8 private constant VALUE_MISSING = 1;
+  uint8 private constant VALUE_INVALID = 2;
 
   IBlake2b256 public immutable hasher;
 
@@ -124,6 +140,16 @@ contract SubstrateTrieVerifier is ITitleVerifier {
   /// decoded record must hash to the commitment the caller expects, which is
   /// what makes the individual fields non-substitutable).
   ///
+  /// It also binds the storage key to the title id (audit M-01): the key must
+  /// be 80 bytes, start with the frozen CanonicalTitles prefix and end with the
+  /// title id, which is the Blake2_128Concat layout. The 16 bytes in between
+  /// are blake2_128(titleId); they are NOT recomputed here, because the only
+  /// hash the chain exposes to the EVM is blake2b-256 and a 128 bit digest is a
+  /// different parameter block, not a truncation. Skipping them cannot move the
+  /// proof to another title (the id is the key's own suffix and the decoded
+  /// record must carry the same id), and a forged middle names a key whose
+  /// value the root does not commit unless the chain wrote one there.
+  ///
   /// It does not decide freshness (the root feed does) and it does not decide
   /// policy (the gate does: identity present, backing bound, operation match).
   function verifyTitle(TitleProof calldata proof, bytes32 expectedCommitment)
@@ -132,6 +158,10 @@ contract SubstrateTrieVerifier is ITitleVerifier {
     override
     returns (Status status, TitleRecord memory record)
   {
+    if (!_isCanonicalTitleKey(proof.storageKey, proof.titleId)) {
+      return (Status.INVALID, record);
+    }
+
     (Status walk, bytes memory blob) =
       _verify(proof.stateRoot, proof.storageKey, _copy(proof.nodes), false, "");
     if (walk != Status.PROVEN) return (walk, record);
@@ -147,6 +177,18 @@ contract SubstrateTrieVerifier is ITitleVerifier {
     if (TitleLib.hash(r) != expectedCommitment) return (Status.VALUE_MISMATCH, record);
 
     return (Status.PROVEN, r);
+  }
+
+  /// @notice True when `key` is the canonical CanonicalTitles key for `id`,
+  /// apart from the blake2_128 middle (see verifyTitle).
+  function isCanonicalTitleKey(bytes calldata key, bytes32 id) external pure returns (bool) {
+    return _isCanonicalTitleKey(key, id);
+  }
+
+  function _isCanonicalTitleKey(bytes calldata key, bytes32 id) private pure returns (bool) {
+    if (key.length != CANONICAL_TITLE_KEY_BYTES) return false;
+    if (bytes32(key[0:32]) != CANONICAL_TITLES_PREFIX) return false;
+    return bytes32(key[48:80]) == id;
   }
 
   /// @notice The versioned commitment a record hashes to.
@@ -216,6 +258,11 @@ contract SubstrateTrieVerifier is ITitleVerifier {
       // Every node must be hashed exactly once; the loop is bounded by MAX_NODES.
       // forge-lint: disable-next-line(calls-loop)
       hashes[i] = hasher.hash(nodes[i]);
+      // The same node twice makes the set ambiguous (_indexOf would silently
+      // pick the first copy), so it is a malformed proof, not slack.
+      for (uint256 j = 0; j < i; j += 1) {
+        if (hashes[j] == hashes[i]) return (Status.INVALID, "");
+      }
       if (hashes[i] == stateRoot && rootIndex == NONE_INDEX) rootIndex = i;
     }
     if (rootIndex == NONE_INDEX) return (Status.ROOT_MISMATCH, "");
@@ -233,6 +280,14 @@ contract SubstrateTrieVerifier is ITitleVerifier {
       (Status status, bytes memory value, bool done) = _step(w, key, checkValue, expected);
       if (!done) continue;
 
+      if (status == Status.PROVEN) {
+        // Every supplied node must have been consumed by the walk. A node no
+        // reference on the path names is a substitution attempt or a padded
+        // set; neither is a proof of this key (audit L-09).
+        for (uint256 i = 0; i < w.reached.length; i += 1) {
+          if (!w.reached[i]) return (Status.INVALID, "");
+        }
+      }
       if (status != Status.NONE) return (status, value);
 
       // A referenced node is not in the set: the proof does not carry
@@ -268,8 +323,9 @@ contract SubstrateTrieVerifier is ITitleVerifier {
 
     if (d.kind == KIND_LEAF || d.kind == KIND_HASHED_LEAF) {
       if (w.pos != w.total) return (Status.ABSENT, "", true);
-      (bool have, bytes memory leafValue) = _valueOf(w.node, d, w.hashes, w.nodes, w.reached);
-      if (!have) return (Status.NONE, "", true);
+      (uint8 got, bytes memory leafValue) = _valueOf(w.node, d, w.hashes, w.nodes, w.reached);
+      if (got == VALUE_INVALID) return (Status.INVALID, "", true);
+      if (got == VALUE_MISSING) return (Status.NONE, "", true);
       (Status status, bytes memory value) = _finish(leafValue, checkValue, expected);
       return (status, value, true);
     }
@@ -278,8 +334,9 @@ contract SubstrateTrieVerifier is ITitleVerifier {
     // this node; otherwise the value is skipped and the walk descends.
     if (w.pos == w.total) {
       if (!d.hasValue) return (Status.ABSENT, "", true);
-      (bool have, bytes memory branchValue) = _valueOf(w.node, d, w.hashes, w.nodes, w.reached);
-      if (!have) return (Status.NONE, "", true);
+      (uint8 got, bytes memory branchValue) = _valueOf(w.node, d, w.hashes, w.nodes, w.reached);
+      if (got == VALUE_INVALID) return (Status.INVALID, "", true);
+      if (got == VALUE_MISSING) return (Status.NONE, "", true);
       (Status status, bytes memory value) = _finish(branchValue, checkValue, expected);
       return (status, value, true);
     }
@@ -338,13 +395,16 @@ contract SubstrateTrieVerifier is ITitleVerifier {
     bytes32[] memory hashes,
     bytes[] memory nodes,
     bool[] memory reached
-  ) private pure returns (bool, bytes memory) {
-    if (!d.valueIsHash) return (true, _slice(node, d.valueAt, d.valueLen));
+  ) private pure returns (uint8, bytes memory) {
+    if (!d.valueIsHash) return (VALUE_OK, _slice(node, d.valueAt, d.valueLen));
 
     uint256 index = _indexOf(hashes, _wordAt(node, d.valueAt));
-    if (index == NONE_INDEX) return (false, "");
+    if (index == NONE_INDEX) return (VALUE_MISSING, "");
+    // Same rule as _descend: a node already on the path cannot also be the
+    // value node (audit L-05).
+    if (reached[index]) return (VALUE_INVALID, "");
     reached[index] = true;
-    return (true, nodes[index]);
+    return (VALUE_OK, nodes[index]);
   }
 
   // ---------------------------------------------------------------- reading

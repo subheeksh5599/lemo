@@ -5,6 +5,8 @@ import { Test } from "forge-std/Test.sol";
 import { SubstrateTrieVerifier } from "lemo/SubstrateTrieVerifier.sol";
 import { ITitleVerifier } from "lemo/ITitleVerifier.sol";
 import { TestBlake2b } from "./harness/TestBlake2b.sol";
+import { TitleProofBuilder } from "./harness/TitleProofBuilder.sol";
+import { TitleLib, TitleRecord } from "lemo/LemoTitle.sol";
 
 /// @title SubstrateTrieVerifierTest
 /// @notice The verifier against a real Portaldot V3 proof, then against the node
@@ -150,17 +152,94 @@ contract SubstrateTrieVerifierTest is Test {
     assertEq(uint256(status), uint256(ITitleVerifier.Status.INCOMPLETE));
   }
 
-  function test_LiveProofDuplicateNodeDoesNotChangeVerdict() public view {
+  /// @notice L-05: the same node twice is an ambiguous set and is refused,
+  /// rather than one copy being silently picked.
+  function test_LiveProofDuplicateNodeIsInvalid() public view {
     bytes[] memory nodes = new bytes[](5);
     for (uint256 i = 0; i < 4; i += 1) {
       nodes[i] = liveNodes[i];
     }
     nodes[4] = liveNodes[3];
 
-    (ITitleVerifier.Status status, bytes memory value) =
-      verifier.verify(liveRoot, _toBytes(liveKey), nodes);
+    (ITitleVerifier.Status status,) = verifier.verify(liveRoot, _toBytes(liveKey), nodes);
+    assertEq(uint256(status), uint256(ITitleVerifier.Status.INVALID));
+  }
+
+  /// @notice L-09: every node of the real proof is on the walked path, and
+  /// an extra node no reference reaches turns PROVEN into INVALID.
+  function test_LiveProofWithExtraUnreachableNodeIsInvalid() public view {
+    bytes[] memory nodes = new bytes[](5);
+    for (uint256 i = 0; i < 4; i += 1) {
+      nodes[i] = liveNodes[i];
+    }
+    // A well formed leaf that nothing on the path references.
+    nodes[4] = abi.encodePacked(bytes1(0x42), hex"12", bytes1(0x04), hex"aa");
+
+    (ITitleVerifier.Status status,) = verifier.verify(liveRoot, _toBytes(liveKey), nodes);
+    assertEq(uint256(status), uint256(ITitleVerifier.Status.INVALID), "extra node accepted");
+
+    // Placement does not matter: first position as well.
+    bytes[] memory front = new bytes[](5);
+    front[0] = nodes[4];
+    for (uint256 i = 0; i < 4; i += 1) {
+      front[i + 1] = liveNodes[i];
+    }
+    (status,) = verifier.verify(liveRoot, _toBytes(liveKey), front);
+    assertEq(uint256(status), uint256(ITitleVerifier.Status.INVALID), "extra node accepted (front)");
+  }
+
+  // --------------------------------------------- M-01: canonical title key
+
+  /// @notice The harness blake2_128 reproduces the middle of the captured
+  /// local chain key for title 0xee00..00, so builder keys are real keys.
+  function test_Blake2_128MatchesTheCapturedKey() public view {
+    assertEq(
+      hasher.hash128(abi.encodePacked(bytes32(0xee00000000000000000000000000000000000000000000000000000000000000))),
+      bytes16(0x1e4c69860deb8e19eebeb0fee78577c3)
+    );
+    assertEq(
+      verifier.CANONICAL_TITLES_PREFIX(),
+      bytes32(0x4f03c24a87564f16d6105c855e7a6d375ec2a7664a464914b341c4ef2eeb96a0)
+    );
+  }
+
+  function test_VerifyTitleAcceptsTheCanonicalKey() public {
+    (ITitleVerifier.TitleProof memory proof, bytes32 commitment) = _titleProof();
+    (ITitleVerifier.Status status,) = verifier.verifyTitle(proof, commitment);
     assertEq(uint256(status), uint256(ITitleVerifier.Status.PROVEN));
-    assertEq(value, hex"cf770400");
+  }
+
+  /// @notice A proof of the right record at a key outside the CanonicalTitles
+  /// prefix is refused, even though the root really commits that value there.
+  function test_VerifyTitleRejectsKeyOutsideThePrefix() public {
+    (ITitleVerifier.TitleProof memory proof, bytes32 commitment) = _titleProof();
+    bytes memory key = proof.storageKey;
+    key[0] = bytes1(uint8(key[0]) ^ 0x01);
+    _rebuildAt(proof, key);
+    // The walk itself proves the value at that key...
+    (ITitleVerifier.Status walk,) = verifier.verify(proof.stateRoot, key, proof.nodes);
+    assertEq(uint256(walk), uint256(ITitleVerifier.Status.PROVEN));
+    // ...but it is not the title's canonical location.
+    (ITitleVerifier.Status status,) = verifier.verifyTitle(proof, commitment);
+    assertEq(uint256(status), uint256(ITitleVerifier.Status.INVALID));
+  }
+
+  function test_VerifyTitleRejectsKeyForAnotherTitleId() public {
+    (ITitleVerifier.TitleProof memory proof, bytes32 commitment) = _titleProof();
+    bytes memory key = proof.storageKey;
+    key[79] = bytes1(uint8(key[79]) ^ 0x01);
+    _rebuildAt(proof, key);
+    (ITitleVerifier.Status status,) = verifier.verifyTitle(proof, commitment);
+    assertEq(uint256(status), uint256(ITitleVerifier.Status.INVALID));
+  }
+
+  function test_VerifyTitleRejectsShortKey() public {
+    (ITitleVerifier.TitleProof memory proof, bytes32 commitment) = _titleProof();
+    bytes memory key = abi.encodePacked(keccak256(abi.encode("LEMO.NATIVE.TITLE", proof.titleId)));
+    proof.storageKey = key;
+    (ITitleVerifier.Status status,) = verifier.verifyTitle(proof, commitment);
+    assertEq(uint256(status), uint256(ITitleVerifier.Status.INVALID));
+    assertFalse(verifier.isCanonicalTitleKey(key, proof.titleId));
   }
 
   // ------------------------------------------------- the synthetic case table
@@ -191,7 +270,19 @@ contract SubstrateTrieVerifierTest is Test {
       (ITitleVerifier.Status status, bytes memory value) =
         verifier.verify(_b32(vm.parseBytes(roots[i])), vm.parseBytes(keys[i]), nodes);
 
-      if (_startsWith(expects[i], "0x")) {
+      if (_startsWith(expects[i], "0x") && _paddedSet(names[i])) {
+        // These two rows carry the branch's INLINE children a second time as
+        // standalone set entries. No hash reference names them, so after L-09
+        // the padded set is INVALID; the same proof without the padding (the
+        // root node alone, which embeds the children) still proves the value.
+        assertEq(uint256(status), uint256(ITitleVerifier.Status.INVALID), names[i]);
+        bytes[] memory minimal = new bytes[](1);
+        minimal[0] = nodes[0];
+        (status, value) =
+          verifier.verify(_b32(vm.parseBytes(roots[i])), vm.parseBytes(keys[i]), minimal);
+        assertEq(uint256(status), uint256(ITitleVerifier.Status.PROVEN), names[i]);
+        assertEq(keccak256(value), keccak256(vm.parseBytes(expects[i])), names[i]);
+      } else if (_startsWith(expects[i], "0x")) {
         assertEq(uint256(status), uint256(ITitleVerifier.Status.PROVEN), names[i]);
         assertEq(keccak256(value), keccak256(vm.parseBytes(expects[i])), names[i]);
       } else if (_eq(expects[i], "ABSENT")) {
@@ -293,6 +384,37 @@ contract SubstrateTrieVerifierTest is Test {
 
   // ------------------------------------------------------------------ helpers
 
+  function _titleProof()
+    internal
+    returns (ITitleVerifier.TitleProof memory proof, bytes32 commitment)
+  {
+    TitleProofBuilder builder = new TitleProofBuilder(hasher);
+    TitleRecord memory r = TitleRecord({
+      titleId: keccak256("LEMO.TITLE.KEY.1"),
+      chainId: block.chainid,
+      nativeAsset: keccak256("asset"),
+      backing: keccak256("backing"),
+      owner: address(0xA11CE),
+      identityHash: keccak256("id"),
+      vestingHash: keccak256("vest"),
+      permissionsHash: keccak256("perm"),
+      evmContract: address(0x7011E4),
+      revision: 1
+    });
+    (proof,, commitment) = builder.proofFor(r, 2, address(0x7011E4));
+    assertEq(commitment, TitleLib.hash(r));
+  }
+
+  /// @dev Re-root the proof's value under another 80 byte key, so the root
+  /// genuinely commits the record at that key.
+  function _rebuildAt(ITitleVerifier.TitleProof memory proof, bytes memory key) internal view {
+    bytes memory leaf =
+      abi.encodePacked(bytes1(0x3f), bytes1(0x81), key, hasher.hash(proof.nodes[1]));
+    proof.nodes[0] = leaf;
+    proof.stateRoot = hasher.hash(leaf);
+    proof.storageKey = key;
+  }
+
   function blake2b(bytes memory data) internal view returns (bytes32) {
     return hasher.hash(data);
   }
@@ -343,6 +465,10 @@ contract SubstrateTrieVerifierTest is Test {
       if (h[i] != p[i]) return false;
     }
     return true;
+  }
+
+  function _paddedSet(string memory name) internal pure returns (bool) {
+    return _eq(name, "branch-with-value") || _eq(name, "branch-with-value-descend");
   }
 
   function _eq(string memory a, string memory b) internal pure returns (bool) {

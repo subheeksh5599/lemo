@@ -402,7 +402,7 @@ The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723d
 - The live gate is **paused** and its bytecode predates the holder-only burn fix. The source is fixed and tested; the deployed gate must be redeployed before any live use.
 - The live gate's commitment is a placeholder. It is a real contract with a real verifier, but there is no real title to prove.
 - The root feed is one attester. `ThresholdRootFeed` exists and is tested but is not deployed.
-- The pallet's SCALE record is 260 bytes, while the EVM decoder expects 320 with a 160-bit owner. H-06 is open and fail-closed.
+- The pallet now stores a 320-byte `CanonicalTitles` blob, but the owner is derived from `AccountId32` rather than an explicit EVM beneficiary field. H-06 is partly closed, not fully.
 - A distinct action at the same revision gets a distinct nullifier; the audit's H-01 notes that a true per-revision spend counter is still the stronger design.
 - No external audit. The self-audit is in [`docs/AUDIT.md`](docs/AUDIT.md).
 

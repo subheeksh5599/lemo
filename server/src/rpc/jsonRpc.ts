@@ -1,3 +1,5 @@
+import { redactedOrigin } from "../util/redact.ts";
+
 export class RpcError extends Error {
   readonly code: number;
   readonly data: unknown;
@@ -160,7 +162,7 @@ export class JsonRpcClient {
       if (!response.ok) {
         throw new RpcError(
           -32000,
-          `${method}: HTTP ${response.status} from ${this.#url}`,
+          `${method}: HTTP ${response.status} from ${redactedOrigin(this.#url)}`,
           null,
           response.status,
         );

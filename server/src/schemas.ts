@@ -11,6 +11,35 @@ export const hexSchema = z
   .regex(/^0x[0-9a-fA-F]*$/u, "expected 0x-prefixed hex")
   .refine((value) => value.length % 2 === 0, "hex must have an even number of characters");
 
+/**
+ * Request-side limits on caller-supplied bytes. A Substrate trie node is a
+ * header, a partial key, up to 16 child hashes and at most an inline value
+ * (inline values are capped at 32 bytes under state version 1), so real nodes
+ * are well under 1 KiB; larger values live in separate hashed value nodes and
+ * a proof for such a record is fetched, not supplied.
+ */
+export const MAX_PROOF_NODE_BYTES = 2048;
+export const MAX_PROOF_NODES = 512;
+export const MAX_VALUE_CLAIM_BYTES = 64 * 1024;
+/** Ceiling on decoded bytes across all supplied nodes plus the value claim. */
+export const MAX_VERIFY_DECODED_BYTES = 256 * 1024;
+
+/** Decoded byte length of a 0x-prefixed hex string. */
+export function hexByteLength(value: string): number {
+  return Math.max(0, (value.length - 2) / 2);
+}
+
+export function boundedHexSchema(maxBytes: number, label: string) {
+  return z
+    .string()
+    .max(2 + maxBytes * 2, `${label} is longer than ${maxBytes} bytes`)
+    .regex(/^0x[0-9a-fA-F]*$/u, "expected 0x-prefixed hex")
+    .refine((value) => value.length % 2 === 0, "hex must have an even number of characters");
+}
+
+export const proofNodeSchema = boundedHexSchema(MAX_PROOF_NODE_BYTES, "proof node");
+export const valueClaimSchema = boundedHexSchema(MAX_VALUE_CLAIM_BYTES, "value claim");
+
 export const storageKeySchema = z
   .string()
   .regex(/^0x(?:[0-9a-fA-F]{2})+$/u, "storage key must be 0x-prefixed, even-length, non-empty hex")
@@ -122,11 +151,24 @@ export const verifyNativeBodySchema = z
     key: storageKeySchema,
     at: atSchema.optional(),
     /** Supplied proof nodes. Optional: when omitted the service fetches one. */
-    proof: z.array(hexSchema).min(1).max(512).optional(),
+    proof: z.array(proofNodeSchema).min(1).max(MAX_PROOF_NODES).optional(),
     /** A claim about the value. `null` claims the key is absent. */
-    value: hexSchema.nullable().optional(),
+    value: valueClaimSchema.nullable().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((body, ctx) => {
+    const nodeBytes = (body.proof ?? []).reduce((sum, node) => sum + hexByteLength(node), 0);
+    const valueBytes =
+      body.value === undefined || body.value === null ? 0 : hexByteLength(body.value);
+
+    if (nodeBytes + valueBytes > MAX_VERIFY_DECODED_BYTES) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["proof"],
+        message: `proof and value exceed ${MAX_VERIFY_DECODED_BYTES} decoded bytes in total`,
+      });
+    }
+  });
 
 export const witnessEvmQuerySchema = z
   .object({
@@ -147,7 +189,9 @@ export const healthDataSchema = z.object({
 
 export const networkDataSchema = z.object({
   substrate: z.object({
+    /** Origin only; path, query and userinfo are never published. */
     url: z.string(),
+    hasCredentials: z.boolean(),
     chain: z.string(),
     chainType: z.string(),
     version: z.string(),
@@ -166,6 +210,7 @@ export const networkDataSchema = z.object({
   }),
   evm: z.object({
     url: z.string(),
+    hasCredentials: z.boolean(),
     chainId: z.number().int(),
     configuredChainId: z.number().int(),
     chainIdMatches: z.boolean(),
@@ -216,6 +261,7 @@ export const evmWitnessDataSchema = z.object({
     .nullable(),
   evm: z.object({
     url: z.string(),
+    hasCredentials: z.boolean(),
     chainId: z.number().int(),
     blockNumber: z.number().int().min(0),
   }),

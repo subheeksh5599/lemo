@@ -46,7 +46,59 @@ const envSchema = z.object({
   LEMO_PROOF_MAX_KEYS: z.coerce.number().int().positive().max(256).default(64),
 
   LEMO_RPC_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
+
+  /** Comma-separated browser origins allowed to call the API cross-origin. */
+  CORS_ORIGINS: z.string().optional(),
+  /** Requests per window, per client IP, on `/v1/verify/*`. */
+  LEMO_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+  LEMO_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  /** Trust `x-forwarded-for` (only behind a proxy you control). */
+  LEMO_TRUST_PROXY: z
+    .enum(["true", "false", "1", "0"])
+    .default("false")
+    .transform((value) => value === "true" || value === "1"),
 });
+
+export const DEFAULT_CORS_ORIGINS = [
+  "https://lemo-ebon.vercel.app",
+  "http://localhost:3000",
+] as const;
+
+/**
+ * Parse `CORS_ORIGINS`. Each entry must be a bare origin (scheme, host,
+ * optional port); `*` is refused so the allowlist cannot silently become open.
+ */
+export function parseCorsOrigins(raw: string | undefined): readonly string[] {
+  if (raw === undefined || raw.trim() === "") {
+    return [...DEFAULT_CORS_ORIGINS];
+  }
+
+  const origins = raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "");
+
+  for (const origin of origins) {
+    let parsed: URL;
+
+    try {
+      parsed = new URL(origin);
+    } catch {
+      throw new Error(`invalid configuration: CORS_ORIGINS entry "${origin}" is not an origin`);
+    }
+
+    if (
+      (parsed.protocol !== "https:" && parsed.protocol !== "http:") ||
+      `${parsed.protocol}//${parsed.host}` !== origin.replace(/\/$/u, "")
+    ) {
+      throw new Error(
+        `invalid configuration: CORS_ORIGINS entry "${origin}" must be scheme://host[:port]`,
+      );
+    }
+  }
+
+  return [...new Set(origins.map((origin) => origin.replace(/\/$/u, "")))];
+}
 
 export type Config = {
   readonly host: string;
@@ -70,6 +122,14 @@ export type Config = {
     readonly maxKeys: number;
   };
   readonly rpcTimeoutMs: number;
+  readonly cors: {
+    readonly origins: readonly string[];
+  };
+  readonly rateLimit: {
+    readonly max: number;
+    readonly windowMs: number;
+  };
+  readonly trustProxy: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -106,5 +166,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       maxKeys: value.LEMO_PROOF_MAX_KEYS,
     },
     rpcTimeoutMs: value.LEMO_RPC_TIMEOUT_MS,
+    cors: {
+      origins: parseCorsOrigins(value.CORS_ORIGINS),
+    },
+    rateLimit: {
+      max: value.LEMO_RATE_LIMIT_MAX,
+      windowMs: value.LEMO_RATE_LIMIT_WINDOW_MS,
+    },
+    trustProxy: value.LEMO_TRUST_PROXY,
   };
 }

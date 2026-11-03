@@ -1,3 +1,4 @@
+import { redactUrl } from "./util/redact.ts";
 import type { Config } from "./config.ts";
 import { AppError, messageOf } from "./errors.ts";
 import { verifyStorageProof, type ProofResult } from "./proofs/trie.ts";
@@ -250,7 +251,7 @@ export class ProofService {
         address: input.address,
         supported: true,
         reason: null,
-        evm: { url: this.#evm.url, chainId, blockNumber },
+        evm: { ...redactUrl(this.#evm.url), chainId, blockNumber },
         witness: {
           blockNumber,
           accountProofNodes: proof.accountProof.length,
@@ -277,7 +278,7 @@ export class ProofService {
           message: rpc?.message ?? messageOf(error),
           method: "eth_getProof",
         },
-        evm: { url: this.#evm.url, chainId, blockNumber },
+        evm: { ...redactUrl(this.#evm.url), chainId, blockNumber },
         witness: null,
         note: "the node does not implement eth_getProof, so no EVM account witness exists on this endpoint",
       };
@@ -344,7 +345,7 @@ export class ProofService {
 
     return {
       substrate: {
-        url: this.#substrate.url,
+        ...redactUrl(this.#substrate.url),
         chain,
         chainType,
         version,
@@ -363,7 +364,7 @@ export class ProofService {
         finalityLagBlocks: Math.max(0, best.number - finalized.number),
       },
       evm: {
-        url: this.#evm.url,
+        ...redactUrl(this.#evm.url),
         chainId: evmChainId,
         configuredChainId: this.#config.evm.chainId,
         chainIdMatches: evmChainId === this.#config.evm.chainId,

@@ -20,12 +20,18 @@ import {
   witnessNativeQuerySchema,
 } from "./schemas.ts";
 import { asHex } from "./util/bytes.ts";
+import { FixedWindowRateLimiter } from "./util/rateLimit.ts";
 
 export type BuildAppOptions = {
   readonly config: Config;
   readonly service: ProofService;
   readonly logger?: FastifyServerOptions["logger"];
+  /** Injectable clock for the rate limiter (tests). */
+  readonly now?: () => number;
 };
+
+/** Routes that do per-request hashing and upstream fan-out. */
+const RATE_LIMITED_PREFIX = "/v1/verify/";
 
 /**
  * The HTTP surface.
@@ -40,19 +46,62 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     logger: options.logger ?? { level: options.config.logLevel },
     genReqId: () => randomUUID(),
     bodyLimit: 2 * 1024 * 1024,
+    trustProxy: options.config.trustProxy,
   });
 
   const service = options.service;
+  const allowedOrigins = new Set(options.config.cors.origins);
+  const limiter = new FixedWindowRateLimiter({
+    max: options.config.rateLimit.max,
+    windowMs: options.config.rateLimit.windowMs,
+    ...(options.now === undefined ? {} : { now: options.now }),
+  });
 
   app.addHook("onSend", async (request, reply, payload) => {
     reply.header("x-request-id", String(request.id));
-    // Read-only public data. The console and the proof service are different
-    // origins, so the API states its CORS contract explicitly.
-    reply.header("access-control-allow-origin", "*");
-    reply.header("access-control-allow-methods", "GET, POST, OPTIONS");
-    reply.header("access-control-allow-headers", "content-type");
-    reply.header("access-control-max-age", "600");
+    // The console and the proof service are different origins. Only origins on
+    // the configured allowlist are echoed; any other page gets no CORS grant,
+    // so a browser will not let it read responses or drive the API.
+    const origin = request.headers.origin;
+    reply.header("vary", "origin");
+    if (typeof origin === "string" && allowedOrigins.has(origin)) {
+      reply.header("access-control-allow-origin", origin);
+      reply.header("access-control-allow-methods", "GET, POST, OPTIONS");
+      reply.header("access-control-allow-headers", "content-type");
+      reply.header("access-control-max-age", "600");
+    }
     return payload;
+  });
+
+  app.addHook("onRequest", async (request, reply) => {
+    if (request.method === "OPTIONS") {
+      return;
+    }
+
+    const path = request.url.split("?")[0] ?? request.url;
+    if (!path.startsWith(RATE_LIMITED_PREFIX)) {
+      return;
+    }
+
+    const decision = limiter.hit(request.ip);
+    const resetSeconds = Math.ceil(decision.resetMs / 1000);
+    reply.header("x-ratelimit-limit", String(decision.limit));
+    reply.header("x-ratelimit-remaining", String(decision.remaining));
+    reply.header("x-ratelimit-reset", String(resetSeconds));
+
+    if (!decision.allowed) {
+      request.log.warn({ requestId: String(request.id), ip: request.ip }, "rate limited");
+      reply.header("retry-after", String(Math.max(1, resetSeconds)));
+      return reply.status(429).send({
+        error: {
+          code: "RATE_LIMITED",
+          message: `too many requests: at most ${decision.limit} per ${Math.round(
+            options.config.rateLimit.windowMs / 1000,
+          )}s on ${RATE_LIMITED_PREFIX}*`,
+        },
+        requestId: String(request.id),
+      });
+    }
   });
 
   app.options("/*", async (_request, reply) => {

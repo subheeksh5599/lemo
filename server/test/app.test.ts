@@ -27,7 +27,11 @@ type Harness = {
  * A real Fastify app, a real HTTP hop to a stand-in node, and the real captured
  * proof. Only the node's transport is faked.
  */
-async function harness(overrides: Partial<FakeNodeOptions> = {}): Promise<Harness> {
+async function harness(
+  overrides: Partial<FakeNodeOptions> = {},
+  env: Record<string, string> = {},
+  now?: () => number,
+): Promise<Harness> {
   const fake = await startFakeNode({ fixture, ...overrides });
   const config = loadConfig({
     LEMO_SUBSTRATE_RPC: fake.substrateUrl,
@@ -35,6 +39,7 @@ async function harness(overrides: Partial<FakeNodeOptions> = {}): Promise<Harnes
     LEMO_GENESIS_HASH: fixture.network.genesisHash,
     LEMO_CHAIN_ID: String(fixture.network.evmChainId),
     LEMO_LOG_LEVEL: "error",
+    ...env,
   } as NodeJS.ProcessEnv);
 
   const substrate = new SubstrateClient(
@@ -42,7 +47,12 @@ async function harness(overrides: Partial<FakeNodeOptions> = {}): Promise<Harnes
   );
   const evm = new EvmClient(new JsonRpcClient({ url: config.evm.url, timeoutMs: 5_000 }));
   const service = new ProofService({ config, substrate, evm });
-  const app = await buildApp({ config, service, logger: false });
+  const app = await buildApp({
+    config,
+    service,
+    logger: false,
+    ...(now === undefined ? {} : { now }),
+  });
 
   return {
     app,
@@ -510,12 +520,22 @@ test("CORS is explicit and a known path rejects the wrong method", async () => {
   const h = await harness();
 
   try {
-    const network = await h.app.inject({ method: "GET", url: "/v1/network" });
+    const network = await h.app.inject({
+      method: "GET",
+      url: "/v1/network",
+      headers: { origin: "https://lemo-ebon.vercel.app" },
+    });
     assert.equal(network.statusCode, 200);
-    assert.equal(network.headers["access-control-allow-origin"], "*");
+    assert.equal(network.headers["access-control-allow-origin"], "https://lemo-ebon.vercel.app");
+    assert.match(String(network.headers.vary), /origin/i);
 
-    const preflight = await h.app.inject({ method: "OPTIONS", url: "/v1/network" });
+    const preflight = await h.app.inject({
+      method: "OPTIONS",
+      url: "/v1/network",
+      headers: { origin: "http://localhost:3000" },
+    });
     assert.equal(preflight.statusCode, 204);
+    assert.equal(preflight.headers["access-control-allow-origin"], "http://localhost:3000");
     assert.equal(preflight.headers["access-control-allow-methods"], "GET, POST, OPTIONS");
 
     const wrongMethod = await h.app.inject({ method: "POST", url: "/v1/network" });
@@ -542,5 +562,193 @@ test("the app binds a real port and closes cleanly", async () => {
     assert.equal(body.data?.status, "ok");
   } finally {
     await h.close();
+  }
+});
+
+/* --------------------------------------------------------- M-04 / M-05 hardening */
+
+test("CORS never sends a wildcard and refuses origins off the allowlist", async () => {
+  const h = await harness();
+
+  try {
+    const foreign = await h.app.inject({
+      method: "GET",
+      url: "/v1/network",
+      headers: { origin: "https://evil.example" },
+    });
+    assert.equal(foreign.statusCode, 200);
+    assert.equal(foreign.headers["access-control-allow-origin"], undefined);
+    assert.equal(foreign.headers["access-control-allow-methods"], undefined);
+
+    const preflight = await h.app.inject({
+      method: "OPTIONS",
+      url: "/v1/verify/native",
+      headers: { origin: "https://evil.example" },
+    });
+    assert.equal(preflight.statusCode, 204);
+    assert.equal(preflight.headers["access-control-allow-origin"], undefined);
+
+    const noOrigin = await h.app.inject({ method: "GET", url: "/healthz" });
+    assert.equal(noOrigin.headers["access-control-allow-origin"], undefined);
+  } finally {
+    await h.close();
+  }
+});
+
+test("CORS_ORIGINS replaces the default allowlist", async () => {
+  const h = await harness({}, { CORS_ORIGINS: "https://a.example, https://b.example:8443" });
+
+  try {
+    for (const origin of ["https://a.example", "https://b.example:8443"]) {
+      const response = await h.app.inject({
+        method: "GET",
+        url: "/healthz",
+        headers: { origin },
+      });
+      assert.equal(response.headers["access-control-allow-origin"], origin);
+    }
+
+    const defaulted = await h.app.inject({
+      method: "GET",
+      url: "/healthz",
+      headers: { origin: "https://lemo-ebon.vercel.app" },
+    });
+    assert.equal(defaulted.headers["access-control-allow-origin"], undefined);
+  } finally {
+    await h.close();
+  }
+});
+
+test("POST /v1/verify/* is rate limited per IP with a 429 and retry-after", async () => {
+  let clock = 1_000_000;
+  const h = await harness(
+    {},
+    { LEMO_RATE_LIMIT_MAX: "2", LEMO_RATE_LIMIT_WINDOW_MS: "60000" },
+    () => clock,
+  );
+  const payload = { key: fixture.proofs.systemNumber.key, proof: fixture.proofs.systemNumber.proof };
+
+  try {
+    const first = await h.app.inject({ method: "POST", url: "/v1/verify/native", payload });
+    assert.equal(first.statusCode, 200);
+    assert.equal(first.headers["x-ratelimit-limit"], "2");
+    assert.equal(first.headers["x-ratelimit-remaining"], "1");
+
+    const second = await h.app.inject({ method: "POST", url: "/v1/verify/native", payload });
+    assert.equal(second.statusCode, 200);
+
+    const third = await h.app.inject({ method: "POST", url: "/v1/verify/native", payload });
+    assert.equal(third.statusCode, 429);
+    assert.equal(third.headers["retry-after"], "60");
+    assert.equal(envelope(third.body).error?.code, "RATE_LIMITED");
+    assert.ok(third.headers["x-request-id"]);
+
+    // A different client is not affected.
+    const other = await h.app.inject({
+      method: "POST",
+      url: "/v1/verify/native",
+      payload,
+      remoteAddress: "10.9.8.7",
+    });
+    assert.equal(other.statusCode, 200);
+
+    // Non-verify routes are not counted.
+    const network = await h.app.inject({ method: "GET", url: "/healthz" });
+    assert.equal(network.statusCode, 200);
+    assert.equal(network.headers["x-ratelimit-limit"], undefined);
+
+    // The window resets.
+    clock += 60_000;
+    const afterReset = await h.app.inject({ method: "POST", url: "/v1/verify/native", payload });
+    assert.equal(afterReset.statusCode, 200);
+  } finally {
+    await h.close();
+  }
+});
+
+test("POST /v1/verify/native refuses an oversized proof node before any work", async () => {
+  const h = await harness();
+
+  try {
+    const huge = `0x${"ab".repeat(2049)}`;
+    const response = await h.app.inject({
+      method: "POST",
+      url: "/v1/verify/native",
+      payload: { key: fixture.proofs.systemNumber.key, proof: [huge] },
+    });
+    assert.equal(response.statusCode, 400);
+    const error = envelope(response.body).error;
+    assert.equal(error?.code, "INVALID_REQUEST");
+    assert.match(JSON.stringify(error?.details), /longer than 2048 bytes/);
+  } finally {
+    await h.close();
+  }
+});
+
+test("POST /v1/verify/native refuses proofs whose total decoded size is too large", async () => {
+  const h = await harness();
+
+  try {
+    // 200 nodes x 2048 bytes = 400 KiB, each node individually within the cap.
+    const node = `0x${"cd".repeat(2048)}`;
+    const response = await h.app.inject({
+      method: "POST",
+      url: "/v1/verify/native",
+      payload: { key: fixture.proofs.systemNumber.key, proof: Array(200).fill(node) },
+    });
+    assert.equal(response.statusCode, 400);
+    assert.match(JSON.stringify(envelope(response.body).error?.details), /decoded bytes in total/);
+  } finally {
+    await h.close();
+  }
+});
+
+test("GET /v1/network publishes RPC origins only, flagging stripped credentials", async () => {
+  const fake = await startFakeNode({ fixture });
+  const substrateUrl = new URL(fake.substrateUrl);
+  substrateUrl.searchParams.set("apikey", "s3cr3t-substrate");
+  const evmUrl = new URL(fake.evmUrl);
+
+  const config = loadConfig({
+    LEMO_SUBSTRATE_RPC: substrateUrl.toString(),
+    LEMO_EVM_RPC: evmUrl.toString(),
+    LEMO_GENESIS_HASH: fixture.network.genesisHash,
+    LEMO_CHAIN_ID: String(fixture.network.evmChainId),
+    LEMO_LOG_LEVEL: "error",
+  } as NodeJS.ProcessEnv);
+  const substrate = new SubstrateClient(
+    new JsonRpcClient({ url: config.substrate.url, timeoutMs: 5_000 }),
+  );
+  const evm = new EvmClient(new JsonRpcClient({ url: config.evm.url, timeoutMs: 5_000 }));
+  const service = new ProofService({ config, substrate, evm });
+  const app = await buildApp({ config, service, logger: false });
+
+  try {
+    const response = await app.inject({ method: "GET", url: "/v1/network" });
+    assert.equal(response.statusCode, 200);
+    assert.doesNotMatch(response.body, /s3cr3t/);
+
+    const data = envelope(response.body).data as {
+      substrate: { url: string; hasCredentials: boolean };
+      evm: { url: string; hasCredentials: boolean };
+    };
+    assert.equal(data.substrate.url, substrateUrl.origin);
+    assert.equal(data.substrate.hasCredentials, true);
+    assert.equal(data.evm.url, evmUrl.origin);
+    assert.equal(data.evm.hasCredentials, new URL(fake.evmUrl).pathname !== "/");
+
+    const witness = await app.inject({
+      method: "GET",
+      url: "/v1/witness/evm?address=0x0000000000000000000000000000000000000000",
+    });
+    const evmBlock = (envelope(witness.body).data as { evm?: { url: string; hasCredentials: boolean } })
+      .evm;
+    if (evmBlock !== undefined) {
+      assert.equal(evmBlock.url, evmUrl.origin);
+      assert.equal(typeof evmBlock.hasCredentials, "boolean");
+    }
+  } finally {
+    await app.close();
+    await fake.close();
   }
 });

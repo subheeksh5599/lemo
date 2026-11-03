@@ -12,17 +12,23 @@
 
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import { Keyring } from '@polkadot/keyring'
-import { cryptoWaitReady, decodeAddress } from '@polkadot/util-crypto'
-import { u8aToHex } from '@polkadot/util'
+import { blake2AsU8a, cryptoWaitReady, decodeAddress } from '@polkadot/util-crypto'
+import { u8aConcat, u8aToHex } from '@polkadot/util'
 import { writeFileSync } from 'node:fs'
 
 const endpoint = process.argv[2] ?? 'ws://127.0.0.1:9944'
 const outfile = process.argv[3] ?? 'local-capture.json'
 
-function titleIdBytes() {
+// The pallet derives the title id from the caller: blake2_256(SCALE(owner, salt)).
+// For an AccountId32 owner and a [u8; 32] salt, SCALE is plain concatenation.
+function titleSalt() {
   const raw = new Uint8Array(32)
   raw[0] = 0xee
   return raw
+}
+
+function titleIdBytes(ownerAddress, salt) {
+  return blake2AsU8a(u8aConcat(decodeAddress(ownerAddress), salt), 256)
 }
 
 async function main() {
@@ -32,7 +38,8 @@ async function main() {
   const alice = keyring.addFromUri('//Alice')
   const beneficiary =
     process.env.LEMO_EVM_BENEFICIARY ?? u8aToHex(decodeAddress(alice.address).slice(-20))
-  const titleId = api.createType('H256', titleIdBytes())
+  const salt = titleSalt()
+  const titleId = api.createType('H256', titleIdBytes(alice.address, salt))
 
   const chain = await api.rpc.system.chain()
   const genesis = await api.rpc.chain.getBlockHash(0)
@@ -42,8 +49,9 @@ async function main() {
   if (existing.isSome) {
     console.log('title already exists at', titleId.toHex())
   } else {
+    // Reserves `TitleDeposit` (1 UNIT on the dev runtime) from Alice.
     const create = api.tx.lemoTitle.createTitle(
-      titleId,
+      api.createType('[u8;32]', salt),
       420420777,
       api.createType('H256', new Uint8Array(32).fill(0xab)),
       api.createType('H256', new Uint8Array(32).fill(0xcd)),
@@ -59,7 +67,7 @@ async function main() {
         if (status.isInBlock) resolve(status.asInBlock.toHex())
       }).catch(reject)
     })
-    console.log('created title')
+    console.log('created title', titleId.toHex())
   }
 
   // Rule 2: the flag must be explicit before an unbond. Set it true, then false

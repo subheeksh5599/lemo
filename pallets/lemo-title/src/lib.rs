@@ -46,6 +46,17 @@ pub mod pallet {
   pub type Titles<T: Config> =
     StorageMap<_, Blake2_128Concat, T::Hash, TitleRecord<T::AccountId, T::Hash>, OptionQuery>;
 
+  /// The fixed-width record the EVM decoder reads: ten 32-byte words, 320 bytes.
+  ///
+  /// `Titles` keeps the native struct (SCALE encodes it at 260 bytes with a
+  /// 32-byte AccountId). EVM cannot decode that shape, so every write also
+  /// stores this canonical blob under its own key. The blob is the value a
+  /// storage proof for `CanonicalTitles` returns.
+  #[pallet::storage]
+  #[pallet::unbounded]
+  pub type CanonicalTitles<T: Config> =
+    StorageMap<_, Blake2_128Concat, T::Hash, [u8; 320], OptionQuery>;
+
   /// Mirrors whether an EVM representation currently has supply. The native
   /// chain cannot read EVM storage, so the bridge/runtime API writes this flag.
   ///
@@ -121,7 +132,8 @@ pub mod pallet {
         revision: 1,
       };
 
-      Titles::<T>::insert(title_id, record);
+      Titles::<T>::insert(title_id, &record);
+      CanonicalTitles::<T>::insert(title_id, Self::canonical(&record));
       Self::deposit_event(Event::TitleCreated { title_id, owner, revision: 1 });
       Ok(())
     }
@@ -157,6 +169,7 @@ pub mod pallet {
         .checked_add(1)
         .ok_or(Error::<T>::RevisionOverflow)?;
       Titles::<T>::insert(title_id, &record);
+      CanonicalTitles::<T>::insert(title_id, Self::canonical(&record));
       Self::deposit_event(Event::RepresentationChanged {
         title_id,
         contract: evm_contract,
@@ -194,6 +207,7 @@ pub mod pallet {
       );
 
       Titles::<T>::remove(title_id);
+      CanonicalTitles::<T>::remove(title_id);
       RepresentationLive::<T>::remove(title_id);
       Self::deposit_event(Event::Unbonded { title_id });
       Ok(())
@@ -228,11 +242,29 @@ pub mod pallet {
         .checked_add(1)
         .ok_or(Error::<T>::RevisionOverflow)?;
       Titles::<T>::insert(title_id, &record);
+      CanonicalTitles::<T>::insert(title_id, Self::canonical(&record));
       Self::deposit_event(Event::TitleUpdated {
         title_id,
         revision: record.revision,
       });
       Ok(())
+    }
+
+    fn canonical(record: &TitleRecord<T::AccountId, T::Hash>) -> [u8; 320] {
+      let mut out = [0u8; 320];
+      out[..32].copy_from_slice(&record.title_id.encode());
+      out[56..64].copy_from_slice(&record.chain_id.to_be_bytes());
+      out[64..96].copy_from_slice(&record.native_asset.encode());
+      out[96..128].copy_from_slice(&record.backing.encode());
+      let owner = record.owner.encode();
+      let take = core::cmp::min(owner.len(), 20);
+      out[160 - take..160].copy_from_slice(&owner[owner.len() - take..]);
+      out[160..192].copy_from_slice(&record.identity_hash.encode());
+      out[192..224].copy_from_slice(&record.vesting_hash.encode());
+      out[224..256].copy_from_slice(&record.permissions_hash.encode());
+      out[268..288].copy_from_slice(&record.evm_contract);
+      out[312..320].copy_from_slice(&record.revision.to_be_bytes());
+      out
     }
   }
 }
@@ -293,6 +325,9 @@ mod tests {
       assert_eq!(record.owner, 1);
       assert_eq!(record.revision, 1);
       assert_eq!(record.evm_contract, [0u8; 20]);
+      let canonical = crate::CanonicalTitles::<Test>::get(h(1)).expect("canonical record");
+      assert_eq!(canonical.len(), 320);
+      assert_eq!(&canonical[312..320], &1u64.to_be_bytes());
     });
   }
 

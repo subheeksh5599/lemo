@@ -18,23 +18,23 @@ function Connected({
   onDisconnect: () => void
 }) {
   return (
-    <div className="mt-2 rounded-[8px] border border-line bg-canvas px-3 py-2">
+    <div className="mt-2 rounded-sm border border-line bg-canvas px-3 py-2">
       <div className="flex items-baseline justify-between gap-3">
         <span className="truncate text-[12px] text-ink-2">{account.walletName}</span>
-        <button type="button" onClick={onDisconnect} className="btn btn--quiet btn--sm h-6 px-2">
+        <button type="button" onClick={onDisconnect} className="btn btn--quiet btn--sm">
           Disconnect
         </button>
       </div>
       <div className="mt-1 flex items-center gap-1">
         <span
           title={account.address}
-          className="min-w-0 truncate font-mono text-[11.5px] tabular-nums text-ink"
+          className="min-w-0 truncate font-mono text-[12px] tabular-nums text-ink"
         >
           {account.address}
         </span>
         <CopyButton value={account.address} label="the connected address" className="size-6" />
       </div>
-      <p className="mt-0.5 font-mono text-[10.5px] tabular-nums text-muted">{chainLabel}</p>
+      <p className="mt-0.5 font-mono text-[11px] tabular-nums text-muted">{chainLabel}</p>
     </div>
   )
 }
@@ -53,7 +53,7 @@ function ConnectList({
   onConnect: (walletId: string) => void
 }) {
   if (wallets.length === 0) {
-    return <p className="mt-2 max-w-[46ch] text-[11.5px] leading-4 text-muted">{empty}</p>
+    return <p className="mt-2 max-w-[46ch] text-[12px] leading-4 text-muted">{empty}</p>
   }
 
   return (
@@ -64,7 +64,7 @@ function ConnectList({
           type="button"
           disabled={disabled}
           onClick={() => onConnect(wallet.id)}
-          className="btn btn--sm h-8"
+          className="btn btn--sm"
         >
           {pendingId === wallet.id ? (
             <Loader2 className="size-3.5 animate-spin" strokeWidth={2} aria-hidden="true" />
@@ -119,10 +119,10 @@ export function WalletDock() {
     >
       <section aria-label="EVM signer">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-[12.5px] text-ink">EVM signer</p>
+          <p className="text-[13px] text-ink">EVM signer</p>
           <span className="meta">signs mint and transfer</span>
         </div>
-        <p className="mt-1 max-w-[52ch] text-[11.5px] leading-4 text-muted">
+        <p className="mt-1 max-w-[52ch] text-[12px] leading-4 text-muted">
           The call is built here and signed in your extension. No key reaches this page.
         </p>
 
@@ -147,10 +147,10 @@ export function WalletDock() {
 
       <section aria-label="Substrate identity" className="mt-4 border-t border-line pt-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-[12.5px] text-ink">Substrate identity</p>
+          <p className="text-[13px] text-ink">Substrate identity</p>
           <span className="meta">names the native owner</span>
         </div>
-        <p className="mt-1 max-w-[52ch] text-[11.5px] leading-4 text-muted">
+        <p className="mt-1 max-w-[52ch] text-[12px] leading-4 text-muted">
           Read only: the address is shown and compared with the account this EVM address maps to.
           Nothing is signed with it.
         </p>
@@ -178,7 +178,7 @@ export function WalletDock() {
       {error === null ? null : (
         <p
           role="alert"
-          className={cn('mt-3 border-t border-line pt-3 text-[11.5px] leading-4 text-bad')}
+          className={cn('mt-3 border-t border-line pt-3 text-[12px] leading-4 text-bad')}
         >
           {error}
         </p>

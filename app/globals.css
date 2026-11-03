@@ -74,7 +74,7 @@
 }
 
 @layer components {
-  /* Labels are mono, uppercase, sparse. Data figures are mono and tabular. */
+  /* Labels are mono, sentence case, muted. Data figures are mono and tabular. */
   .meta {
     font-family: var(--font-mono);
     font-size: var(--text-meta);
@@ -123,12 +123,11 @@
   .btn:disabled, .btn[aria-disabled='true'] { opacity: 0.48; cursor: not-allowed; transform: none; }
   .btn--solid {
     background: var(--color-accent); border-color: var(--color-accent); color: #fff;
-    box-shadow: 0 8px 28px -14px rgba(47, 107, 255, 0.9);
   }
   .btn--solid:hover { background: #3f78ff; border-color: #3f78ff; }
   .btn--quiet { border-color: transparent; background: transparent; color: var(--color-ink-2); }
   .btn--quiet:hover { background: var(--color-raised); color: var(--color-ink); }
-  .btn--sm { height: 32px; padding-inline: 11px; font-size: 12px; gap: 6px; }
+  .btn--sm { height: 32px; padding-inline: 12px; font-size: 12px; gap: 6px; }
 
   .badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -136,8 +135,7 @@
     border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-xs);
     font-family: var(--font-mono);
-    font-size: 10px; font-weight: 500;
-    letter-spacing: 0.01em;
+    font-size: 11px; font-weight: 500;
     color: var(--color-ink-2); white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
@@ -151,30 +149,26 @@
   .panel, .sheet, .card {
     border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 42%),
-      var(--color-surface);
-    box-shadow: var(--shadow-inset);
+    background: var(--color-surface);
     min-width: 0;
   }
   .sheet, .card { overflow: hidden; }
   .panel--flat { background: transparent; box-shadow: none; }
   .panel__head {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 14px 18px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--color-line);
   }
-  .panel__body { padding: 18px; }
+  .panel__body { padding: 16px; }
 
   table.grid { width: 100%; border-collapse: collapse; }
   table.grid th {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.01em;
     color: var(--color-muted);
     text-align: left;
-    padding: 9px 0;
+    padding: 8px 0;
     border-bottom: 1px solid var(--color-line);
   }
   table.grid td {

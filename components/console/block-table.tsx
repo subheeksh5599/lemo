@@ -10,7 +10,7 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
   if (rows.length === 0) {
     return (
       <div className="flex h-[220px] items-center justify-center px-6">
-        <p className="max-w-[36ch] text-center text-[12.5px] leading-5 text-muted">
+        <p className="max-w-[36ch] text-center text-[13px] leading-5 text-muted">
           No block has been read yet. The table fills from the finalized head backwards.
         </p>
       </div>
@@ -29,8 +29,8 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
             <th scope="col" className="meta hidden px-3 py-2 text-left font-medium text-muted sm:table-cell">
               Hash
             </th>
-            <th scope="col" className="meta py-2 text-right font-medium text-muted">
-              Finalized
+            <th scope="col" className="meta px-3 py-2 text-right font-medium text-muted">
+              Time
             </th>
             <th scope="col" className="meta py-2 pr-4 text-right font-medium text-muted">
               Slot
@@ -47,14 +47,14 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
               className="border-b border-line/60 last:border-b-0 hover:bg-raised"
             >
               <td className="py-2 pl-4 pr-2">
-                <span className="font-mono text-[12.5px] tabular-nums text-ink">
+                <span className="font-mono text-[13px] tabular-nums text-ink">
                   #{formatInt(row.number)}
                 </span>
               </td>
               <td className="hidden max-w-0 px-3 py-2 sm:table-cell">
                 <span className="flex items-center gap-2">
                   <span
-                    className="truncate font-mono text-[11.5px] text-ink-2"
+                    className="truncate font-mono text-[12px] text-ink-2"
                     title={row.hash}
                   >
                     {hashShort(row.hash, 10, 6)}
@@ -79,7 +79,7 @@ export function BlockTable({ blocks, limit = 10 }: { blocks: NativeBlock[]; limi
           ))}
         </tbody>
       </table>
-      <p className="mt-2 px-4 font-mono text-[10.5px] text-muted">
+      <p className="mt-2 px-4 font-mono text-[11px] text-muted">
         Times in UTC. Slot is the time between neighbours.
       </p>
     </div>

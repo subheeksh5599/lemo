@@ -18,7 +18,7 @@ const KIND_LABEL: Record<string, string> = {
 export function ProofWalk({ nodes }: { nodes: ProofNodeReading[] }) {
   if (nodes.length === 0) {
     return (
-      <p className="py-2 text-[11.5px] leading-4 text-muted">
+      <p className="py-2 text-[12px] leading-4 text-muted">
         No node was walked. The proof did not start at the state root.
       </p>
     )
@@ -32,29 +32,29 @@ export function ProofWalk({ nodes }: { nodes: ProofNodeReading[] }) {
       />
       {nodes.map((node, index) => (
         <li key={`${node.hash}-${index}`} className="relative border-b border-line/60 py-2.5 last:border-b-0">
-          <span className="absolute -left-7 top-2.5 flex size-4 items-center justify-center rounded-full border border-line bg-canvas font-mono text-[9px] tabular-nums text-muted">
+          <span className="absolute -left-7 top-2.5 flex size-4 items-center justify-center rounded-full border border-line bg-canvas font-mono text-[10px] tabular-nums text-muted">
             {index + 1}
           </span>
           <div className="flex items-baseline gap-2.5">
-            <span className="shrink-0 font-mono text-[10.5px] text-ink-2">
+            <span className="shrink-0 font-mono text-[11px] text-ink-2">
               {KIND_LABEL[node.kind] ?? node.kind}
             </span>
-            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+            <span className="shrink-0 font-mono text-[11px] text-muted">
               {node.via}
             </span>
-            <span className="ml-auto shrink-0 font-mono text-[10.5px] tabular-nums text-muted">
+            <span className="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-muted">
               {node.bytes} B
             </span>
-            <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-muted">
+            <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted">
               depth {node.depth}
             </span>
           </div>
           <div className="mt-1 flex items-center gap-1.5">
-            <span className="truncate font-mono text-[10.5px] text-ink-2" title={node.hash}>
+            <span className="truncate font-mono text-[11px] text-ink-2" title={node.hash}>
               {hashShort(node.hash, 12, 8)}
             </span>
             <CopyButton value={node.hash} label="node hash" />
-            <span className="ml-auto shrink-0 truncate pl-3 font-mono text-[10.5px] text-muted">
+            <span className="ml-auto shrink-0 truncate pl-3 font-mono text-[11px] text-muted">
               {node.nibbles === '' ? 'no prefix' : node.nibbles}
             </span>
           </div>

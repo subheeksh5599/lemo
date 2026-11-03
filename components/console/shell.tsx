@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowUpRight } from 'lucide-react'
 
 import { LemoMark } from '@/components/brand'
 import { useConsole } from '@/components/console/console-provider'
@@ -13,20 +12,6 @@ import { TopBar } from '@/components/console/top-bar'
 import { WalletMenu } from '@/components/wallet/wallet-menu'
 import { formatInt } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-const STATUS_WORD = {
-  reading: 'reading',
-  live: 'live',
-  stale: 'stale',
-  down: 'unreachable',
-} as const
-
-const STATUS_DOT = {
-  reading: 'bg-faint',
-  live: 'bg-ok',
-  stale: 'bg-warn',
-  down: 'bg-bad',
-} as const
 
 function NavLinks({ items }: { items: readonly NavItem[] }) {
   const pathname = usePathname()
@@ -43,7 +28,7 @@ function NavLinks({ items }: { items: readonly NavItem[] }) {
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'group flex h-10 items-center gap-3 rounded-[8px] px-2.5 text-[13.5px] transition-colors duration-150',
+              'group flex h-10 items-center gap-3 rounded-sm px-2.5 text-[14px] transition-colors duration-150',
               active
                 ? 'bg-raised text-ink'
                 : 'text-ink-2 hover:bg-surface hover:text-ink',
@@ -97,7 +82,7 @@ function MobileNav() {
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex h-9 shrink-0 items-center rounded-[8px] px-2.5 text-[13px] transition-colors duration-150',
+              'flex h-9 shrink-0 items-center rounded-sm px-2.5 text-[13px] transition-colors duration-150',
               active ? 'bg-raised text-ink' : 'text-ink-2 hover:text-ink',
             )}
           >
@@ -110,35 +95,26 @@ function MobileNav() {
 }
 
 function SidebarFooter() {
-  const { native, status } = useConsole()
+  const { native } = useConsole()
 
+  // Liveness lives in the top bar; the footer carries the chain the console is
+  // pinned to and the height every read on the page is taken at.
   return (
     <div className="mt-auto border-t border-line px-4 py-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-baseline justify-between gap-3">
         <span className="meta">Finalized</span>
-        <span className="font-mono text-[12.5px] tabular-nums text-ink">
+        <span className="font-mono text-[13px] tabular-nums text-ink">
           {native === null ? '-' : `#${formatInt(native.finalized.number)}`}
         </span>
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2">
-          <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', STATUS_DOT[status])} />
-          <span className="truncate text-[12px] text-ink-2">{STATUS_WORD[status]}</span>
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <span className="min-w-0 truncate font-mono text-[11px] text-muted">
+          {native?.chain ?? 'connecting'}
         </span>
         <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted">
           {native === null ? '' : `${formatInt(native.latencyMs)} ms`}
         </span>
       </div>
-      <p className="mt-2 truncate font-mono text-[11px] text-muted">
-        {native?.chain ?? 'connecting'}
-      </p>
-      <Link
-        href="/"
-        className="mt-4 flex items-center justify-between gap-2 rounded-[8px] border border-line px-3 py-2 text-[12.5px] text-ink-2 transition-colors duration-150 hover:border-line-strong hover:text-ink"
-      >
-        Protocol page
-        <ArrowUpRight className="size-4 text-muted" strokeWidth={1.6} aria-hidden="true" />
-      </Link>
     </div>
   )
 }
@@ -157,7 +133,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
         >
           <LemoMark className="size-[18px] shrink-0 text-accent" />
           <span className="text-[15px] font-medium tracking-[-0.01em] text-ink">LEMO</span>
-          <span className="ml-auto font-mono text-[10px] text-muted">
+          <span className="ml-auto font-mono text-[11px] text-muted">
             console
           </span>
         </Link>

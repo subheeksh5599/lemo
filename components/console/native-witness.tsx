@@ -59,7 +59,7 @@ function CheckLine({ ok, children }: { ok: boolean; children: React.ReactNode })
       ) : (
         <X className="mt-0.5 size-4 shrink-0 text-warn" strokeWidth={1.6} aria-hidden="true" />
       )}
-      <span className={cn('text-[12.5px] leading-5', ok ? 'text-ink-2' : 'text-warn')}>
+      <span className={cn('text-[13px] leading-5', ok ? 'text-ink-2' : 'text-warn')}>
         {children}
       </span>
     </li>
@@ -76,7 +76,7 @@ function WitnessBody({ witness, full }: { witness: NativeWitness; full: boolean 
     <>
       <div
         className={cn(
-          'rounded-[10px] border px-4 py-3.5',
+          'rounded-sm border px-4 py-3.5',
           state.tone === 'ok'
             ? 'border-ok/30 bg-ok/[0.06]'
             : state.tone === 'bad'
@@ -90,7 +90,7 @@ function WitnessBody({ witness, full }: { witness: NativeWitness; full: boolean 
             <p className="mt-2 font-mono text-[34px] leading-none tracking-[-0.04em] tabular-nums text-ink">
               {value}
             </p>
-            <p className="mt-2 font-mono text-[11.5px] text-muted">
+            <p className="mt-2 font-mono text-[12px] text-muted">
               {witness.decoded === null
                 ? 'no value at this key'
                 : `${witness.decoded.reading}, ${witness.decoded.note}`}
@@ -110,7 +110,7 @@ function WitnessBody({ witness, full }: { witness: NativeWitness; full: boolean 
           ].map(([label, figure]) => (
             <div key={label}>
               <p className="meta text-muted">{label}</p>
-              <p className="mt-1 font-mono text-[12.5px] tabular-nums text-ink-2">{figure}</p>
+              <p className="mt-1 font-mono text-[13px] tabular-nums text-ink-2">{figure}</p>
             </div>
           ))}
         </div>
@@ -159,7 +159,7 @@ function WitnessBody({ witness, full }: { witness: NativeWitness; full: boolean 
         <div className="mt-4 border-t border-line pt-3">
           <div className="flex items-baseline justify-between gap-3">
             <p className="meta">Proof walk</p>
-            <p className="font-mono text-[10.5px] text-muted">node, prefix, depth, hash</p>
+            <p className="font-mono text-[11px] text-muted">node, prefix, depth, hash</p>
           </div>
           <ProofWalk nodes={witness.nodes} />
         </div>
@@ -190,7 +190,7 @@ export function NativeWitnessPanel({
             onClick={() => void read()}
             disabled={reading}
             aria-label="Read the proof again"
-            className="inline-flex size-11 items-center justify-center rounded-[8px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50"
+            className="inline-flex size-11 items-center justify-center rounded-sm border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50"
           >
             <RefreshCw
               className={cn('size-4', reading && 'animate-spin')}
@@ -203,12 +203,12 @@ export function NativeWitnessPanel({
       }
     >
       {error !== null ? (
-        <p className="flex items-start gap-2.5 text-[12.5px] leading-5 text-bad">
+        <p className="flex items-start gap-2.5 text-[13px] leading-5 text-bad">
           <X className="mt-0.5 size-4 shrink-0" strokeWidth={1.6} aria-hidden="true" />
           {error}
         </p>
       ) : data === null ? (
-        <div className="flex items-center gap-2.5 text-[12.5px] text-muted">
+        <div className="flex items-center gap-2.5 text-[13px] text-muted">
           <ShieldCheck className="size-4 text-muted" strokeWidth={1.6} aria-hidden="true" />
           Reading a read proof and the storage value at the finalized head.
         </div>
@@ -219,7 +219,7 @@ export function NativeWitnessPanel({
       {!full && data !== null ? (
         <Link
           href="/console/proofs"
-          className="mt-4 flex items-center justify-between gap-2 border-t border-line pt-3 text-[12.5px] text-ink-2 transition-colors duration-150 hover:text-ink"
+          className="mt-4 flex items-center justify-between gap-2 border-t border-line pt-3 text-[13px] text-ink-2 transition-colors duration-150 hover:text-ink"
         >
           Open the proof walk
           <ArrowRight className="size-4 text-muted" strokeWidth={1.6} aria-hidden="true" />

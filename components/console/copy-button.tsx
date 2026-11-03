@@ -41,7 +41,7 @@ export function CopyButton({
           }
         }}
         className={cn(
-          'relative inline-flex size-8 items-center justify-center rounded-[4px] text-muted transition-colors duration-150 after:absolute after:-inset-1.5 hover:bg-raised hover:text-ink',
+          'relative inline-flex size-8 items-center justify-center rounded-xs text-muted transition-colors duration-150 after:absolute after:-inset-1.5 hover:bg-raised hover:text-ink',
           className,
         )}
       >

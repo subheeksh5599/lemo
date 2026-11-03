@@ -9,7 +9,7 @@ import { FundingPanel } from '@/components/console/flow/funding-panel'
 import { GatePanel } from '@/components/console/flow/gate-panel'
 import { VerifyPanel } from '@/components/console/flow/verify-panel'
 import { WalletDock } from '@/components/console/flow/wallet-dock'
-import { Notice } from '@/components/console/primitives'
+import { Notice, PageHeader } from '@/components/console/primitives'
 import { useWallet } from '@/components/wallet/wallet-provider'
 import { useFlowSnapshot } from '@/hooks/use-flow'
 import { parseProof, type ParsedProof, type ProofBinding } from '@/lib/flow/proof'
@@ -19,7 +19,7 @@ import { formatInt, ms, relativeTime } from '@/lib/format'
 function RefreshIcon({ reading }: { reading: boolean }) {
   return (
     <RefreshCw
-      className={reading ? 'size-3 animate-spin' : 'size-3'}
+      className={reading ? 'size-3.5 animate-spin' : 'size-3.5'}
       strokeWidth={1.8}
       aria-hidden="true"
     />
@@ -75,6 +75,7 @@ export default function FlowPage() {
 
   const unset = missingContracts()
   const data = snapshot.data
+  const paused = data?.gate?.state?.paused ?? null
   const chainLine =
     data === null
       ? 'reading the endpoint'
@@ -82,69 +83,73 @@ export default function FlowPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[26px] font-medium tracking-[-0.03em] text-ink">Transactions</h1>
-          <p className="mt-1.5 max-w-[76ch] font-mono text-[11.5px] leading-5 tabular-nums text-muted">
+      <PageHeader
+        title="Transactions"
+        meta={
+          <>
             {chainLine}
             {data === null ? '' : `, ${ms(data.latencyMs)} to read`}
-            {' · '}
+            {', '}
             {snapshot.reading
               ? 'refreshing'
               : snapshot.readAt === null
                 ? 'not read yet'
                 : `read ${relativeTime(snapshot.readAt)}`}
-          </p>
-        </div>
-
-        <div className="flex max-w-[52ch] flex-wrap items-center gap-3">
-          <p className="font-mono text-[10.5px] leading-4 text-muted">
+            {', '}
             {EXPLORER_BASE === null
-              ? `no explorer: ${EXPLORER_ENV} is not set, so hashes are shown without links`
-              : `explorer: ${EXPLORER_BASE.replace(/^https?:\/\//, '')}`}
-          </p>
+              ? `no explorer (${EXPLORER_ENV} not set), hashes shown without links`
+              : `explorer ${EXPLORER_BASE.replace(/^https?:\/\//, '')}`}
+          </>
+        }
+        action={
           <button
             type="button"
             onClick={() => void snapshot.read()}
             disabled={snapshot.reading}
-            className="btn btn--quiet btn--sm h-7 px-2"
+            className="btn btn--sm"
           >
             <RefreshIcon reading={snapshot.reading} />
             {snapshot.reading ? 'Reading' : 'Re-read'}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {unset.length === 0 ? (
-        <Notice tone="warn" title="Gate deployed and paused">
-          <p className="max-w-[86ch]">
-            The ERC-20 gate and verifier are live, but the gate is paused after a burn
-            authority fix in source. The deployed bytecode predates that fix; a redeploy is
-            required before live use. Its title commitment is also a deployment placeholder,
-            so a mint or transfer has no real native title proof. The page keeps the real
-            address and the real revert path; it does not fake a successful transaction.
+        <Notice
+          tone="warn"
+          title={
+            paused === false
+              ? 'Gate deployed; the chain reports it unpaused'
+              : 'Gate deployed and paused'
+          }
+        >
+          <p>
+            {paused === false
+              ? 'The ERC-20 gate and verifier are live and the latest read shows the gate not paused. '
+              : 'The ERC-20 gate and verifier are live, but the gate is paused after a burn authority fix in source. '}
+            The deployed bytecode predates that fix; a redeploy is required before live use. Its
+            title commitment is also a deployment placeholder, so a mint or transfer has no real
+            native title proof. The page keeps the real address and the real revert path; it does
+            not fake a successful transaction.
           </p>
         </Notice>
-      ) : null}
-
-      {unset.length === 0 ? null : (
-        <Notice tone="warn" title="Nothing is deployed yet">
-          <p className="max-w-[82ch]">
+      ) : (
+        <Notice tone="warn" title="Contract addresses not set">
+          <p>
             This build has no address for{' '}
-            <span className="font-mono text-[11.5px] text-ink-2">
+            <span className="font-mono text-[12px] text-ink-2">
               {unset.map((slot) => slot.env).join(', ')}
             </span>
-            . The panels below stay disabled and name the variable they need, because a flow page
-            that invents an address is worse than one that waits. These are build time values: set
-            them and run the build again.
+            . The panels below stay disabled and name the variable they need. These are build time
+            values: set them and run the build again.
           </p>
         </Notice>
       )}
 
       {snapshot.error === null ? null : (
         <Notice tone="bad" title="The EVM endpoint did not answer">
-          <p className="font-mono text-[11.5px]">{snapshot.error}</p>
-          <button type="button" className="btn btn--sm mt-2 h-7" onClick={() => void snapshot.read()}>
+          <p className="font-mono text-[12px]">{snapshot.error}</p>
+          <button type="button" className="btn btn--sm mt-2" onClick={() => void snapshot.read()}>
             Read again
           </button>
         </Notice>

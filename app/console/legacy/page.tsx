@@ -4,7 +4,18 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Check, RefreshCw, X } from 'lucide-react'
 
-import { Figure, Notice, Panel, Row, Skeleton, State } from '@/components/console/primitives'
+import { CopyButton } from '@/components/console/copy-button'
+
+import {
+  Figure,
+  FigureBand,
+  Notice,
+  PageHeader,
+  Panel,
+  Row,
+  Skeleton,
+  State,
+} from '@/components/console/primitives'
 import { explorerTxUrl } from '@/lib/flow/config'
 import { formatInt, hashShort, ms, relativeTime } from '@/lib/format'
 import {
@@ -64,42 +75,40 @@ export default function LegacyPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[26px] font-medium tracking-[-0.03em] text-ink">Earlier deployment</h1>
-          <p className="mt-1.5 max-w-[82ch] font-mono text-[11.5px] leading-5 tabular-nums text-muted">
-            {data === null
-              ? 'reading the two contracts'
-              : `EVM-only registry and token, read at ${relativeTime(data.readAt)}, ${ms(data.latencyMs)}`}
-            {' · '}
-            <Link href="/console/flow" className="text-accent-bright underline underline-offset-2">
-              four-contract surface
-            </Link>
-          </p>
-        </div>
+      <PageHeader
+        title="Earlier deployment"
+        meta={
+          data === null
+            ? 'reading the two contracts'
+            : `EVM-only registry and token, read ${relativeTime(data.readAt)}, ${ms(data.latencyMs)}`
+        }
+        action={
+          <button type="button" onClick={() => void read()} disabled={reading} className="btn btn--sm">
+            <RefreshCw
+              className={reading ? 'size-3.5 animate-spin' : 'size-3.5'}
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
+            {reading ? 'Reading' : 'Re-read'}
+          </button>
+        }
+      />
 
-        <button
-          type="button"
-          onClick={() => void read()}
-          disabled={reading}
-          className="btn btn--quiet btn--sm h-7 px-2"
-        >
-          <RefreshCw
-            className={reading ? 'size-3 animate-spin' : 'size-3'}
-            strokeWidth={1.8}
-            aria-hidden="true"
-          />
-          {reading ? 'Reading' : 'Re-read'}
-        </button>
-      </div>
-
-      <Notice tone="warn" title="This is a predecessor, not the native-proof gate">
-        <p className="max-w-[90ch]">
+      <Notice tone="warn" title="A predecessor, EVM-only, not the native-proof gate">
+        <p>
           The earlier registry holds the title record in EVM storage, and the token checks that
           registry before a transfer. The mint and transfers below are real Portaldot V3
           transactions, but no native record is proven and the issuer key is not held by this
           console. Read it as evidence of an EVM-only lifecycle, not as the dual-runtime design.
+          The four-contract gate that replaces it is paused.
         </p>
+        <Link
+          href="/console/flow"
+          className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-ink-2 transition-colors duration-150 hover:text-ink"
+        >
+          Open the four-contract gate
+          <ArrowRight className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
+        </Link>
       </Notice>
 
       {problem !== null ? (
@@ -108,13 +117,11 @@ export default function LegacyPage() {
         </Notice>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <FigureBand>
         <Figure
           label="Representation supply"
           value={data === null ? '-' : raw(data.token.supply)}
           note="raw base units; 18 decimals declared"
-          tone="accent"
-          size="lg"
         />
         <Figure
           label="Supply cap"
@@ -132,7 +139,7 @@ export default function LegacyPage() {
           value={data === null ? '-' : raw(data.token.issuerBalance)}
           note="the old key still holds the rest"
         />
-      </div>
+      </FigureBand>
 
       {data === null ? (
         <Panel title="Reading the predecessor" hint="waiting for the node">
@@ -172,7 +179,7 @@ export default function LegacyPage() {
         bodyClassName="p-0"
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse">
+          <table className="w-full min-w-[640px] border-collapse">
             <thead>
               <tr className="border-b border-line">
                 <th scope="col" className="meta px-4 py-2.5 text-left font-medium text-muted">
@@ -201,34 +208,38 @@ export default function LegacyPage() {
                 : data.receipts.map((item) => (
                     <tr key={item.hash} className="border-b border-line/60 last:border-b-0">
                       <td className="px-4 py-3">
-                        <p className="text-[12.5px] text-ink">{item.label}</p>
-                        <p className="mt-0.5 text-[11.5px] leading-4 text-muted">{item.note}</p>
+                        <p className="text-[13px] text-ink">{item.label}</p>
+                        <p className="mt-0.5 text-[12px] leading-4 text-muted">{item.note}</p>
                       </td>
                       <td className="px-4 py-3">
-                        {explorerTxUrl(item.hash) === null ? (
-                          <code
-                            className="block max-w-[34ch] break-all font-mono text-[10.5px] leading-4 text-muted"
+                        <span className="flex items-center gap-1">
+                          <Link
+                            href={`/tx/${item.hash}`}
                             title={item.hash}
+                            className="font-mono text-[12px] tabular-nums text-ink-2 underline decoration-line-strong underline-offset-4 transition-colors duration-150 hover:text-ink"
                           >
-                            {item.hash}
-                          </code>
-                        ) : (
-                          <a
-                            href={explorerTxUrl(item.hash) ?? undefined}
-                            className="block max-w-[34ch] break-all font-mono text-[10.5px] leading-4 text-accent-bright underline underline-offset-2"
-                            title={item.hash}
-                          >
-                            {item.hash}
-                          </a>
-                        )}
+                            {hashShort(item.hash, 10, 8)}
+                          </Link>
+                          <CopyButton value={item.hash} label="the transaction hash" />
+                          {explorerTxUrl(item.hash) === null ? null : (
+                            <a
+                              href={explorerTxUrl(item.hash) ?? undefined}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="ml-2 font-mono text-[11px] text-muted transition-colors duration-150 hover:text-ink"
+                            >
+                              explorer
+                            </a>
+                          )}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-[11.5px] tabular-nums text-muted">
+                      <td className="px-4 py-3 text-right font-mono text-[12px] tabular-nums text-ink-2">
                         {item.block === null ? '-' : `#${formatInt(item.block)}`}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {txStatus(item.status)}
                         {item.problem === null ? null : (
-                          <p className="mt-1 max-w-[24ch] text-[10.5px] leading-4 text-bad">
+                          <p className="mt-1 max-w-[24ch] text-[11px] leading-4 text-bad">
                             {item.problem}
                           </p>
                         )}
@@ -241,15 +252,15 @@ export default function LegacyPage() {
       </Panel>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Panel title="What the predecessor proves" hint="without qualification">
-          <ul className="space-y-2 text-[12.5px] leading-5 text-muted">
+        <Panel title="What the predecessor proves">
+          <ul className="list-disc space-y-2 pl-4 text-[13px] leading-5 text-muted marker:text-faint">
             <li>An ERC-20 can be minted to a cap and moved while a registry says the title is eligible.</li>
             <li>A transfer is refused when the same registry marks the title ineligible, and works again after it is restored.</li>
             <li>Every one of those transitions has a settled transaction and a receipt on Portaldot V3.</li>
           </ul>
         </Panel>
         <Panel title="What it does not prove" hint="the gap the four-contract gate fills">
-          <ul className="space-y-2 text-[12.5px] leading-5 text-muted">
+          <ul className="list-disc space-y-2 pl-4 text-[13px] leading-5 text-muted marker:text-faint">
             <li>No native title record, no Substrate storage proof and no finalized state root.</li>
             <li>No Rule 2: the registry cannot block native backing from leaving while the token exists.</li>
             <li>No native unbond, identity, vesting or permissions. This is an EVM-only title, not the dual-runtime one.</li>
@@ -257,15 +268,6 @@ export default function LegacyPage() {
         </Panel>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
-        <Link href="/console/flow" className="btn btn--quiet btn--sm h-7 px-2">
-          Open the four-contract surface
-          <ArrowRight className="size-3" strokeWidth={1.8} aria-hidden="true" />
-        </Link>
-        <p className="font-mono text-[10.5px] text-muted">
-          The four-contract gate is paused; this page is the settled predecessor.
-        </p>
-      </div>
     </div>
   )
 }

@@ -1,11 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { AlertTriangle, Check, HardDrive, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, Check, ShieldCheck, X } from 'lucide-react'
 
 import { CopyButton } from '@/components/console/copy-button'
-import { Figure, Notice, Panel, Row, Skeleton, State } from '@/components/console/primitives'
+import {
+  Figure,
+  FigureBand,
+  Notice,
+  PageHeader,
+  Panel,
+  Row,
+  Skeleton,
+  State,
+} from '@/components/console/primitives'
 import { ProofWalk } from '@/components/console/proof-walk'
 import { formatInt, hashShort } from '@/lib/format'
 import {
@@ -48,9 +56,9 @@ function CheckLine({ check }: { check: CaptureCheck }) {
 
   return (
     <li className="flex items-start gap-2 border-b border-line/60 py-2 last:border-b-0">
-      <Icon className={cn('mt-[3px] size-3 shrink-0', color)} strokeWidth={2.1} aria-hidden="true" />
+      <Icon className={cn('mt-[3px] size-3.5 shrink-0', color)} strokeWidth={2.1} aria-hidden="true" />
       <div className="min-w-0">
-        <p className={cn('text-[12px] leading-4', check.tone === 'ok' ? 'text-ink-2' : color)}>
+        <p className={cn('text-[13px] leading-5', check.tone === 'ok' ? 'text-ink-2' : color)}>
           {check.label}
         </p>
         <p className="mt-0.5 break-words font-mono text-[11px] leading-4 text-muted">
@@ -67,12 +75,11 @@ function Report({ report }: { report: LocalCaptureReport }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <FigureBand>
         <Figure
           label="Source"
           value="local-lemo-runtime"
           note={`fixture source field; ${fixture.chain}`}
-          tone="accent"
         />
         <Figure
           label="Finalized block"
@@ -82,7 +89,7 @@ function Report({ report }: { report: LocalCaptureReport }) {
         <Figure
           label="Canonical value"
           value={`${formatInt(report.valueBytes)} B`}
-          note={`ten words, measured from the hex`}
+          note="ten words, measured from the hex"
           tone={report.valueBytes === CANONICAL_RECORD_BYTES ? 'ok' : 'warn'}
         />
         <Figure
@@ -91,7 +98,7 @@ function Report({ report }: { report: LocalCaptureReport }) {
           note={`${formatInt(proof.totalNodes)} nodes, ${formatInt(proof.unusedNodes)} unused`}
           tone={verdict.tone}
         />
-      </div>
+      </FigureBand>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Finalized header" hint="local devnet">
@@ -133,7 +140,6 @@ function Report({ report }: { report: LocalCaptureReport }) {
         <Panel
           title="Canonical record"
           hint="decoded from the proven bytes"
-          aside={<State tone="accent">read-only</State>}
         >
           <Row
             label="Title id"
@@ -160,7 +166,7 @@ function Report({ report }: { report: LocalCaptureReport }) {
             title={record.evmContract}
             tone="muted"
           />
-          <p className="mt-3 text-[11.5px] leading-5 text-muted">
+          <p className="mt-3 text-[12px] leading-5 text-muted">
             Word 4 is the explicit EVM beneficiary {record.ownerLow20}. The native
             account is {fixture.record.owner}; the record keeps both namespaces
             instead of truncating the account id.
@@ -178,7 +184,7 @@ function Report({ report }: { report: LocalCaptureReport }) {
           </State>
         }
       >
-        <p className="max-w-[92ch] text-[12.5px] leading-5 text-ink-2">
+        <p className="max-w-[92ch] text-[13px] leading-5 text-ink-2">
           {proof.message}. The walk reads the canonical storage key against the state root in the
           finalized header, re-hashing every node it is handed, so the order the capture stored the
           nodes in does not matter.
@@ -207,7 +213,7 @@ function Report({ report }: { report: LocalCaptureReport }) {
 
         <div className="mt-3 border-t border-line pt-3">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="meta">the path</p>
+            <p className="meta">Proof path</p>
             <p className="font-mono text-[11px] tabular-nums text-muted">
               {proof.valueHashed ? 'value node hashed into the walk' : 'value inline in the leaf'}
             </p>
@@ -221,14 +227,14 @@ function Report({ report }: { report: LocalCaptureReport }) {
         hint={`${formatInt(report.valueBytes)} bytes, ten 32 byte words`}
         aside={
           <span className="flex items-center gap-1">
-            <State tone="idle">{`uint8[${report.valueBytes}]`}</State>
+            <span className="meta">{`uint8[${report.valueBytes}]`}</span>
             <CopyButton value={fixture.canonicalValue} label="canonical value" />
           </span>
         }
       >
         <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
           <div className="min-w-0">
-            <pre className="overflow-x-auto rounded-[8px] border border-line bg-canvas px-3 py-2.5 font-mono text-[10.5px] leading-[1.55] text-ink-2">
+            <pre className="overflow-x-auto rounded-sm border border-line bg-canvas px-3 py-2.5 font-mono text-[11px] leading-[1.55] text-ink-2">
               {hexLines(fixture.canonicalValue).join('\n')}
             </pre>
             <p className="mt-2 font-mono text-[11px] tabular-nums text-muted">
@@ -271,7 +277,7 @@ function Report({ report }: { report: LocalCaptureReport }) {
               value={fixture.representationLive ? 'yes' : 'no'}
               tone={fixture.representationLive ? 'ok' : 'muted'}
             />
-            <p className="mt-3 text-[11.5px] leading-5 text-muted">
+            <p className="mt-3 text-[12px] leading-5 text-muted">
               The record was read once, at the block above. There is no second read of{' '}
               <span className="font-mono">state_getStorage</span> to compare against, because no node
               is running: the proof is the whole of the evidence here.
@@ -297,33 +303,17 @@ export default function LocalCapturePage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[26px] font-medium tracking-[-0.03em] text-ink">Local capture</h1>
-            <State tone="accent" className="rounded-[4px] border border-accent/35 px-1.5 py-0.5">
-              <HardDrive className="size-3" strokeWidth={1.8} aria-hidden="true" />
-              LOCAL DEVNET / CAPTURE
-            </State>
-          </div>
-          <p className="mt-1.5 max-w-[82ch] font-mono text-[11.5px] leading-5 tabular-nums text-muted">
-            {report === null
-              ? 'loading the committed fixture'
-              : `local-lemo-runtime · block #${formatInt(report.fixture.finalized.number)} · captured ${utc(report.fixture.capturedAt)} · read-only`}
-            {' · '}
-            <Link href="/console/proofs" className="text-accent-bright underline underline-offset-2">
-              live proof
-            </Link>
-            {' · '}
-            <Link href="/console/legacy" className="text-accent-bright underline underline-offset-2">
-              earlier deployment
-            </Link>
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Local capture"
+        meta={
+          report === null
+            ? 'loading the committed fixture'
+            : `local-lemo-runtime, block #${formatInt(report.fixture.finalized.number)}, captured ${utc(report.fixture.capturedAt)}`
+        }
+      />
 
       <Notice tone="warn" title="A local devnet capture, not public Portaldot">
-        <p className="max-w-[92ch]">
+        <p>
           <span className="font-mono">fixtures/lemo-local-capture.json</span> was read from a
           solochain template node at <span className="font-mono">ws://127.0.0.1:9944</span>, running
           development mode. This page reads no node and no wallet: the proof is recomputed in the

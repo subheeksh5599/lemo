@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, Check, X } from 'lucide-react'
 
-import { Notice, Panel, Row, Skeleton, State } from '@/components/console/primitives'
+import { CopyButton } from '@/components/console/copy-button'
+import { Notice, PageHeader, Panel, Row, Skeleton, State } from '@/components/console/primitives'
 import { EVM_RPC, rpc } from '@/lib/chain'
 import { formatInt, hashShort } from '@/lib/format'
 
@@ -68,24 +69,27 @@ export default function TransactionPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="meta text-muted">Portaldot V3 / transaction</p>
-          <h1 className="mt-1 break-all font-mono text-[22px] leading-[1.25] tracking-[-0.02em] text-ink">
-            {hash ?? 'no hash'}
-          </h1>
-        </div>
-        <Link href="/console/legacy" className="btn btn--quiet btn--sm h-7 px-2">
-          <ArrowLeft className="size-3" strokeWidth={1.8} aria-hidden="true" />
-          Earlier deployment
-        </Link>
-      </div>
+      <PageHeader
+        title="Transaction receipt"
+        meta={
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="break-all">{hash ?? 'no hash in the address bar'}</span>
+            {hash === undefined ? null : <CopyButton value={hash} label="the transaction hash" />}
+          </span>
+        }
+        action={
+          <Link href="/console/legacy" className="btn btn--quiet btn--sm">
+            <ArrowLeft className="size-3.5" strokeWidth={1.8} aria-hidden="true" />
+            Earlier deployment
+          </Link>
+        }
+      />
 
       <Notice tone="idle" title="Receipt view, not an indexer">
-        <p className="max-w-[88ch]">
+        <p>
           This page asks the Portaldot V3 EVM RPC for one receipt by hash. It proves the
           transaction was mined and shows its status and block; it does not browse history or
-          claim to be the chain's official explorer.
+          claim to be the chain&apos;s official explorer.
         </p>
       </Notice>
 

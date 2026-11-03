@@ -55,7 +55,7 @@ const ADDRESS = /^0x[0-9a-fA-F]{40}$/
 
 function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (
-    <label htmlFor={htmlFor} className="meta block pb-1.5">
+    <label htmlFor={htmlFor} className="meta block pb-2">
       {children}
     </label>
   )
@@ -84,17 +84,17 @@ function OperationChoice({
       disabled={disabled}
       onClick={() => onSelect(value)}
       className={cn(
-        'flex-1 rounded-[7px] border px-3 py-2 text-left transition-colors duration-150',
+        'flex-1 rounded-sm border px-3 py-2 text-left transition-colors duration-150',
         active
           ? 'border-accent-line bg-accent-soft'
           : 'border-line bg-canvas hover:border-line-strong',
         disabled && 'opacity-50',
       )}
     >
-      <span className={cn('block text-[12.5px]', active ? 'text-ink' : 'text-ink-2')}>
+      <span className={cn('block text-[13px]', active ? 'text-ink' : 'text-ink-2')}>
         {value === 'transfer' ? 'Transfer' : 'Mint'}
       </span>
-      <span className="mt-0.5 block font-mono text-[10.5px] leading-4 text-muted">{detail}</span>
+      <span className="mt-0.5 block font-mono text-[11px] leading-4 text-muted">{detail}</span>
     </button>
   )
 }
@@ -124,14 +124,14 @@ function TxResult({ stage }: { stage: Stage }) {
         : 'not sent'
 
   return (
-    <div className="mt-3 rounded-[8px] border border-line bg-canvas px-3 py-2.5">
+    <div className="mt-3 rounded-sm border border-line bg-canvas px-3 py-2.5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <State tone={tone}>{word}</State>
 
           {hash === null ? null : (
             <div className="mt-1.5 flex items-center gap-1">
-              <span className="min-w-0 truncate font-mono text-[11.5px] tabular-nums text-ink">
+              <span className="min-w-0 truncate font-mono text-[12px] tabular-nums text-ink">
                 {hash}
               </span>
               <CopyButton value={hash} label="the transaction hash" className="size-6" />
@@ -155,24 +155,24 @@ function TxResult({ stage }: { stage: Stage }) {
       {stage.kind === 'settled' ? (
         <div className="mt-1">
           <Row
-            label="block"
+            label="Block"
             value={`#${formatInt(stage.receipt.blockNumber)}`}
           />
-          <Row label="gas used" value={formatInt(Number(stage.receipt.gasUsed))} />
-          <Row label="logs" value={formatInt(stage.receipt.logs)} />
+          <Row label="Gas used" value={formatInt(Number(stage.receipt.gasUsed))} />
+          <Row label="Logs" value={formatInt(stage.receipt.logs)} />
         </div>
       ) : null}
 
       {stage.kind === 'unconfirmed' ? (
-        <p className="mt-1.5 font-mono text-[10.5px] leading-4 text-warn">{stage.message}</p>
+        <p className="mt-1.5 font-mono text-[11px] leading-4 text-warn">{stage.message}</p>
       ) : null}
 
       {stage.kind === 'failed' ? (
-        <p className="mt-1.5 max-w-[58ch] text-[11.5px] leading-4 text-bad">{stage.message}</p>
+        <p className="mt-1.5 max-w-[58ch] text-[12px] leading-4 text-bad">{stage.message}</p>
       ) : null}
 
       {hash !== null && link === null ? (
-        <p className="mt-1.5 font-mono text-[10px] leading-4 text-muted">
+        <p className="mt-1.5 font-mono text-[11px] leading-4 text-muted">
           No explorer link: NEXT_PUBLIC_EVM_EXPLORER is not set for this build. The hash above is
           the transaction as the wallet reported it.
         </p>
@@ -404,7 +404,7 @@ export function ActionPanel({
               )}
             </p>
             {noCode ? null : (
-              <p className="mt-1 font-mono text-[10.5px] text-muted">{gate.address}</p>
+              <p className="mt-1 font-mono text-[11px] text-muted">{gate.address}</p>
             )}
           </Notice>
         )}
@@ -416,17 +416,10 @@ export function ActionPanel({
     <Panel
       title="Mint or transfer"
       hint={gateState === null ? 'reading the gate' : `${gateState.symbol}, ${gateState.decimals} decimals`}
-      aside={
-        gateState === null ? null : (
-          <State tone={gateState.paused ? 'warn' : 'ok'}>
-            {gateState.paused ? 'paused' : 'accepting calls'}
-          </State>
-        )
-      }
     >
       <fieldset disabled={busy} className="min-w-0">
-        <legend className="meta pb-1.5">operation</legend>
-        <div role="radiogroup" aria-label="operation" className="flex gap-2">
+        <legend className="meta pb-2">Operation</legend>
+        <div role="radiogroup" aria-label="Operation" className="flex gap-2">
           <OperationChoice
             value="transfer"
             current={form.operation}
@@ -445,7 +438,7 @@ export function ActionPanel({
 
         <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
           <div className="min-w-0">
-            <Label htmlFor="flow-recipient">recipient</Label>
+            <Label htmlFor="flow-recipient">Recipient</Label>
             <input
               id="flow-recipient"
               value={form.recipient}
@@ -456,14 +449,14 @@ export function ActionPanel({
               autoComplete="off"
               placeholder="0x"
               className={cn(
-                'h-10 w-full rounded-md border bg-canvas px-3 font-mono text-[12px] text-ink outline-none transition-colors duration-150 focus:border-accent',
+                'h-10 w-full rounded-sm border bg-canvas px-3 font-mono text-[12px] text-ink outline-none transition-colors duration-150 focus:border-accent',
                 recipient.length > 0 && !ADDRESS.test(recipient) ? 'border-bad/60' : 'border-line',
               )}
             />
           </div>
 
           <div>
-            <Label htmlFor="flow-amount">amount</Label>
+            <Label htmlFor="flow-amount">Amount</Label>
             <input
               id="flow-amount"
               value={form.amount}
@@ -472,7 +465,7 @@ export function ActionPanel({
               autoComplete="off"
               placeholder="0.0"
               className={cn(
-                'h-10 w-full rounded-md border bg-canvas px-3 text-right font-mono text-[12px] tabular-nums text-ink outline-none transition-colors duration-150 focus:border-accent',
+                'h-10 w-full rounded-sm border bg-canvas px-3 text-right font-mono text-[12px] tabular-nums text-ink outline-none transition-colors duration-150 focus:border-accent',
                 form.amount.length > 0 && amount === null ? 'border-bad/60' : 'border-line',
               )}
             />
@@ -480,7 +473,7 @@ export function ActionPanel({
         </div>
 
         <div className="mt-3">
-          <Label htmlFor="flow-proof">proof</Label>
+          <Label htmlFor="flow-proof">Proof</Label>
           <textarea
             id="flow-proof"
             value={form.proofText}
@@ -491,7 +484,7 @@ export function ActionPanel({
             rows={6}
             placeholder={'{"stateRoot":"0x…","storageKey":"0x…","revision":1,"nodes":["0x…"]}'}
             className={cn(
-              'w-full resize-y rounded-md border bg-canvas px-3 py-2 font-mono text-[11px] leading-5 text-ink outline-none transition-colors duration-150 focus:border-accent',
+              'w-full resize-y rounded-sm border bg-canvas px-3 py-2 font-mono text-[11px] leading-5 text-ink outline-none transition-colors duration-150 focus:border-accent',
               proof.problem !== null && form.proofText.trim().length > 0
                 ? 'border-bad/60'
                 : 'border-line',
@@ -509,31 +502,31 @@ export function ActionPanel({
 
         <div className="mt-3 border-t border-line pt-2">
           <Row
-            label="chain the gate is bound to"
+            label="Chain the gate is bound to"
             value={boundChainId === null ? '-' : formatInt(boundChainId)}
           />
           <Row
-            label="operation id"
+            label="Operation id"
             value={operation === null ? '-' : String(operation)}
             title="read from the verifier's OP_TRANSFER / OP_MINT getters"
           />
           <Row
-            label="title id"
+            label="Title id"
             value={gateState === null ? '-' : hashShort(gateState.titleId, 8, 6)}
             title={gateState?.titleId}
           />
           <Row
-            label="revision already accepted"
+            label="Revision already accepted"
             value={gateState === null ? '-' : gateState.acceptedRevision.toString()}
           />
           <Row
-            label="root the feed holds"
+            label="Root the feed holds"
             value={feedState === null ? '-' : hashShort(feedState.root, 8, 6)}
             title={feedState?.root}
             tone={rootMismatch ? 'warn' : 'default'}
           />
           <Row
-            label="root in this proof"
+            label="Root in this proof"
             value={proof.parsed === null ? '-' : hashShort(proof.parsed.stateRoot, 8, 6)}
             title={proof.parsed?.stateRoot}
             tone={rootMismatch ? 'warn' : 'default'}
@@ -547,11 +540,11 @@ export function ActionPanel({
                 The transaction would be signed for the wrong chain. Switch the wallet, or change
                 the network in the extension.
               </p>
-              <button type="button" className="btn btn--sm mt-2 h-8" onClick={() => void handleSwitch()}>
+              <button type="button" className="btn btn--sm mt-2" onClick={() => void handleSwitch()}>
                 Switch to chain {boundChainId ?? '-'}
               </button>
               {switchError === null ? null : (
-                <p role="alert" className="mt-2 font-mono text-[10.5px] leading-4 text-bad">
+                <p role="alert" className="mt-2 font-mono text-[11px] leading-4 text-bad">
                   {switchError}
                 </p>
               )}
@@ -572,7 +565,7 @@ export function ActionPanel({
             {STAGE_WORD[stage.kind]}
           </button>
 
-          <span className="min-w-0 font-mono text-[10.5px] leading-4 text-muted">
+          <span className="min-w-0 font-mono text-[11px] leading-4 text-muted">
             {chainId === null ? 'chain not read' : `endpoint reports chain ${formatInt(chainId)}`}
             {amount === null || gateState === null
               ? ''

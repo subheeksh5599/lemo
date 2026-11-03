@@ -43,7 +43,7 @@ export function LiveStatus() {
 
   return (
     <span className="flex items-center gap-2" role="status" aria-live="polite" aria-atomic="true">
-      <span className={cn('font-mono text-[10.5px]', COLOR[status])}>
+      <span className={cn('font-mono text-[11px]', COLOR[status])}>
         {WORD[status]}
       </span>
       {ago === null ? null : (
@@ -72,7 +72,7 @@ export function RefreshButton({ className }: { className?: string }) {
         disabled={busy}
         aria-label={busy ? 'Refreshing readings' : 'Refresh every reading on this page'}
         className={cn(
-          'inline-flex size-11 items-center justify-center rounded-[6px] border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50',
+          'inline-flex size-11 items-center justify-center rounded-sm border border-transparent text-muted transition-colors duration-150 hover:border-line-strong hover:bg-raised hover:text-ink disabled:opacity-50',
           className,
         )}
       >

@@ -51,7 +51,7 @@ export function FundingPanel({
             type="button"
             onClick={() => void funding.read()}
             disabled={funding.reading}
-            className="btn btn--quiet btn--sm h-7 px-2"
+            className="btn btn--quiet btn--sm"
           >
             {funding.reading ? (
               <Loader2 className="size-3 animate-spin" strokeWidth={2} aria-hidden="true" />
@@ -70,14 +70,14 @@ export function FundingPanel({
         </Notice>
       ) : (
         <div>
-          <p className="max-w-[52ch] text-[11.5px] leading-4 text-muted">
+          <p className="max-w-[52ch] text-[12px] leading-4 text-muted">
             Send tPOT to this SS58 address on the native chain. Funding the 0x address does not
             credit the mapped account, and this is the account the contract call will be paid from.
           </p>
 
-          <div className="mt-3 rounded-[8px] border border-line bg-canvas px-3 py-2.5">
+          <div className="mt-3 rounded-sm border border-line bg-canvas px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="meta">mapped SS58 account</span>
+              <span className="meta">Mapped SS58 account</span>
               {reading?.mapped === null || reading?.mapped === undefined ? null : (
                 <CopyButton value={reading.mapped.ss58} label="the mapped SS58 address" />
               )}
@@ -89,15 +89,15 @@ export function FundingPanel({
                 Asking the runtime for the account id.
               </p>
             ) : reading?.mapped === null || reading?.mapped === undefined ? (
-              <p className="mt-1.5 text-[11.5px] leading-4 text-warn">
+              <p className="mt-1.5 text-[12px] leading-4 text-warn">
                 {reading?.mappedError ?? 'the runtime did not return an account id'}
               </p>
             ) : (
               <>
-                <p className="mt-1.5 break-all font-mono text-[12.5px] leading-5 text-ink">
+                <p className="mt-1.5 break-all font-mono text-[13px] leading-5 text-ink">
                   {reading.mapped.ss58}
                 </p>
-                <p className="mt-1 flex items-center gap-1 font-mono text-[10.5px] tabular-nums text-muted">
+                <p className="mt-1 flex items-center gap-1 font-mono text-[11px] tabular-nums text-muted">
                   account id {hashShort(reading.mapped.accountId, 10, 6)}
                   <CopyButton value={reading.mapped.accountId} label="the 32 byte account id" />
                 </p>
@@ -107,7 +107,7 @@ export function FundingPanel({
 
           <div className="mt-3">
             <Row
-              label="native balance"
+              label="Native balance"
               value={reading?.native === null || reading?.native === undefined ? '-' : tpot(reading.native)}
               title={reading?.native === null || reading?.native === undefined ? undefined : `${reading.native.toString()} planck`}
               tone={reading?.nativeError === null || reading?.nativeError === undefined ? 'default' : 'warn'}
@@ -121,7 +121,7 @@ export function FundingPanel({
               mono
             />
             <Row
-              label="two reads"
+              label="Two reads"
               value={
                 agrees === null ? (
                   'waiting'
@@ -135,7 +135,7 @@ export function FundingPanel({
             />
             {substrateAddress === null ? null : (
               <Row
-                label="connected identity"
+                label="Connected identity"
                 value={
                   identityMatches === null ? (
                     'no mapping'
@@ -158,17 +158,17 @@ export function FundingPanel({
           ) : null}
 
           {reading?.nativeError === null || reading?.nativeError === undefined ? null : (
-            <p className="mt-2 font-mono text-[10.5px] leading-4 text-warn">
+            <p className="mt-2 font-mono text-[11px] leading-4 text-warn">
               ReviveApi_balance: {reading.nativeError}
             </p>
           )}
           {reading?.evmError === null || reading?.evmError === undefined ? null : (
-            <p className="mt-1 font-mono text-[10.5px] leading-4 text-warn">
+            <p className="mt-1 font-mono text-[11px] leading-4 text-warn">
               eth_getBalance: {reading.evmError}
             </p>
           )}
 
-          <p className="mt-3 border-t border-line pt-2 font-mono text-[10px] leading-4 text-muted">
+          <p className="mt-3 border-t border-line pt-2 font-mono text-[11px] leading-4 text-muted">
             {NATIVE_DECIMALS} decimals · read at the latest state, not at a finalized root
           </p>
         </div>

@@ -5,7 +5,7 @@ import { AlertTriangle, Check, Loader2, X } from 'lucide-react'
 
 import { useConsole } from '@/components/console/console-provider'
 import { CopyButton } from '@/components/console/copy-button'
-import { Panel, Row } from '@/components/console/primitives'
+import { PageHeader, Panel, Row } from '@/components/console/primitives'
 import { useEvmProbe, useNativeModuleProbe, useNativeWitness } from '@/hooks/use-proof'
 import {
   EXPECTED_CHAIN_ID,
@@ -48,7 +48,7 @@ function CheckRow({ pass, label }: { pass: boolean | null; label: string }) {
       ) : (
         <X className="size-3.5 text-bad" strokeWidth={2.4} aria-hidden="true" />
       )}
-      <span className={cn('text-[12px]', pass === null ? 'text-muted' : 'text-ink-2')}>{label}</span>
+      <span className={cn('text-[13px]', pass === null ? 'text-muted' : 'text-ink-2')}>{label}</span>
     </span>
   )
 }
@@ -70,14 +70,14 @@ function EndpointPanel({
 }) {
   return (
     <Panel title={title} hint={hint}>
-      <div className="flex items-center justify-between gap-2 rounded-md border border-line bg-canvas px-2.5 py-2">
-        <p className="min-w-0 truncate font-mono text-[11px] text-ink-2" title={endpoint}>
+      <div className="flex items-center justify-between gap-2 rounded-sm border border-line bg-canvas px-2.5 py-2">
+        <p className="min-w-0 truncate font-mono text-[12px] text-ink-2" title={endpoint}>
           {endpoint}
         </p>
         <CopyButton value={endpoint} label={`the ${runtime} endpoint`} />
       </div>
 
-      <div className="mt-1.5">
+      <div className="mt-2">
         {latency === undefined ? (
           <Row label="Round trip" value="measuring" tone="muted" />
         ) : latency.error !== null ? (
@@ -97,7 +97,7 @@ function EndpointPanel({
         )}
       </div>
 
-      <div className="mt-1 border-t border-line pt-1">{children}</div>
+      <div className="border-t border-line">{children}</div>
     </Panel>
   )
 }
@@ -136,17 +136,10 @@ export default function ConsoleNetwork() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[19px] font-medium tracking-[-0.02em] text-ink">Network</h1>
-          <p className="mt-1 font-mono text-[11px] text-muted">
-            two endpoints, at most {formatInt(MAX_IN_FLIGHT)} calls in flight, every call listed
-          </p>
-        </div>
-        <p className="font-mono text-[10px] text-muted">
-          at most {formatInt(MAX_IN_FLIGHT)} calls in flight
-        </p>
-      </div>
+      <PageHeader
+        title="Network"
+        meta={`two endpoints, at most ${formatInt(MAX_IN_FLIGHT)} calls in flight`}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <EndpointPanel
@@ -242,22 +235,22 @@ export default function ConsoleNetwork() {
       </div>
 
       <Panel title="Checks" hint="each one is a call this page made">
-        <ul className="grid gap-2.5 sm:grid-cols-2">
+        <ul className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
           <li className="flex items-start justify-between gap-3 border-b border-line/60 pb-2 sm:border-b-0 sm:pb-0">
             <CheckRow pass={reachable} label="Native endpoint answers" />
-            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+            <span className="shrink-0 font-mono text-[12px] text-muted">
               {error === null ? 'ok' : 'failed'}
             </span>
           </li>
           <li className="flex items-start justify-between gap-3 border-b border-line/60 pb-2 sm:border-b-0 sm:pb-0">
             <CheckRow pass={genesisMatches} label="Genesis matches the configured network" />
-            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+            <span className="shrink-0 font-mono text-[12px] text-muted">
               {genesisMatches === null ? 'waiting' : genesisMatches ? 'match' : 'differs'}
             </span>
           </li>
           <li className="flex items-start justify-between gap-3 border-b border-line/60 pb-2 sm:border-b-0 sm:pb-0">
             <CheckRow pass={chainIdMatches} label="Revive chain ID matches the configured network" />
-            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+            <span className="shrink-0 font-mono text-[12px] text-muted">
               {evm === null ? 'waiting' : formatInt(evm.chainId)}
             </span>
           </li>
@@ -266,7 +259,7 @@ export default function ConsoleNetwork() {
               pass={finalizedAtOrBelowBest}
               label="Finalized head does not run past the best head"
             />
-            <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-muted">
+            <span className="shrink-0 font-mono text-[12px] tabular-nums text-muted">
               {native === null
                 ? 'waiting'
                 : `${formatInt(native.finalized.number)} / ${formatInt(native.best)}`}
@@ -274,7 +267,7 @@ export default function ConsoleNetwork() {
           </li>
           <li className="flex items-start justify-between gap-3">
             <CheckRow pass={witnessRead} label="A native read proof comes back and roots" />
-            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+            <span className="shrink-0 font-mono text-[12px] text-muted">
               {witness.data === null ? 'reading' : `${witness.data.proofNodes} nodes`}
             </span>
           </li>
@@ -283,7 +276,7 @@ export default function ConsoleNetwork() {
               pass={proofCallAnswered}
               label="The account proof call comes back, served or refused"
             />
-            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+            <span className="shrink-0 font-mono text-[12px] text-muted">
               {probe.data === null ? 'asking' : probe.data.supported ? 'served' : 'refused'}
             </span>
           </li>
@@ -292,7 +285,7 @@ export default function ConsoleNetwork() {
               pass={moduleProbeAnswered}
               label="The runtime answers whether it exports the contracts api"
             />
-            <span className="shrink-0 font-mono text-[10.5px] text-muted">
+            <span className="shrink-0 font-mono text-[12px] text-muted">
               {module.data === null
                 ? 'asking'
                 : module.data.present === true
@@ -304,7 +297,7 @@ export default function ConsoleNetwork() {
           </li>
         </ul>
         {error === null ? null : (
-          <p className="mt-2 flex items-start gap-2 border-t border-line pt-2 text-[11.5px] text-bad">
+          <p className="mt-3 flex items-start gap-2 border-t border-line pt-3 text-[13px] text-bad">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
             {error}
           </p>
@@ -313,19 +306,19 @@ export default function ConsoleNetwork() {
 
       <Panel
         title="Methods this console calls"
-        hint="constant: the calls this build is written to make, not a reading"
-        bodyClassName="px-3.5 py-1.5"
+        hint="what this build is written to call, not a reading"
+        bodyClassName="px-4 pt-1 pb-0"
       >
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-line">
-              <th scope="col" className="meta py-2 text-left font-medium text-ink-2/80">
+              <th scope="col" className="meta py-2 text-left font-medium text-muted">
                 Method
               </th>
-              <th scope="col" className="meta py-2 text-left font-medium text-ink-2/80">
+              <th scope="col" className="meta py-2 text-left font-medium text-muted">
                 Runtime
               </th>
-              <th scope="col" className="meta hidden py-2 text-left font-medium text-ink-2/80 sm:table-cell">
+              <th scope="col" className="meta hidden py-2 text-left font-medium text-muted sm:table-cell">
                 Reads
               </th>
             </tr>
@@ -333,26 +326,23 @@ export default function ConsoleNetwork() {
           <tbody>
             {METHODS.map((entry) => (
               <tr key={entry.method} className="border-b border-line/60 last:border-b-0">
-                <td className="py-1.5 pr-3 font-mono text-[11px] text-ink">{entry.method}</td>
-                <td className="py-1.5 pr-3 text-[11.5px] text-muted">
+                <td className="py-2 pr-4 font-mono text-[12px] text-ink">{entry.method}</td>
+                <td className="py-2 pr-4 text-[13px] text-muted">
                   {entry.runtime === 'native' ? 'native records' : 'revive'}
                 </td>
-                <td className="hidden py-1.5 text-[11.5px] text-muted sm:table-cell">
+                <td className="hidden py-2 text-[13px] text-muted sm:table-cell">
                   {entry.purpose}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="border-t border-line py-2 text-[11px] leading-4 text-muted">
+        <p className="border-t border-line py-3 text-[12px] leading-5 text-muted">
           Every call goes through one queue holding at most {formatInt(MAX_IN_FLIGHT)} calls,
           with retries on network errors and 429/503, because these public endpoints drop
-          connections above about two concurrent requests. This console makes no cross-VM
-          calls, so it reports none.
-        </p>
-        <p className="border-t border-line py-2 text-[11px] leading-4 text-muted">
-          Roots come from chain_getHeader at the finalized hash. One node reports that
-          checkpoint, which is the trust assumption this console rests on.
+          connections above about two concurrent requests. Roots come from chain_getHeader at the
+          finalized hash; one node reports that checkpoint, which is the trust assumption this
+          console rests on. The console makes no cross-VM calls, so it reports none.
         </p>
       </Panel>
     </div>

@@ -22,7 +22,7 @@ function Slot({ slot, probe }: { slot: ContractSlot; probe: Probe<unknown> | nul
   return (
     <li className="border-b border-line py-3 last:border-b-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <span className="text-[12.5px] text-ink">{slot.label}</span>
+        <span className="text-[13px] text-ink">{slot.label}</span>
 
         {slot.address === null ? (
           <State tone="warn">not deployed yet</State>
@@ -40,11 +40,11 @@ function Slot({ slot, probe }: { slot: ContractSlot; probe: Probe<unknown> | nul
         )}
       </div>
 
-      <p className="mt-1 text-[11.5px] leading-4 text-muted">{slot.detail}</p>
+      <p className="mt-1 text-[12px] leading-4 text-muted">{slot.detail}</p>
 
       <p
         className={cn(
-          'mt-1.5 break-words font-mono text-[10.5px] leading-4 tabular-nums',
+          'mt-1.5 break-words font-mono text-[11px] leading-4 tabular-nums',
           slot.address === null ? 'text-warn' : 'text-muted',
         )}
       >
@@ -76,7 +76,7 @@ export function DeploymentPanel({ snapshot }: { snapshot: FlowSnapshot | null })
       hint={snapshot === null ? 'reading' : `chain ${formatInt(snapshot.chain.chainId)}`}
       aside={
         snapshot === null ? null : (
-          <span className="font-mono text-[10px] tabular-nums text-muted">
+          <span className="font-mono text-[11px] tabular-nums text-muted">
             {ms(snapshot.latencyMs)}
           </span>
         )

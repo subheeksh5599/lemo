@@ -52,7 +52,7 @@ export function VerifyPanel({
         )
       }
     >
-      <p className="max-w-[64ch] text-[11.5px] leading-4 text-muted">
+      <p className="max-w-[64ch] text-[12px] leading-4 text-muted">
         Sends the proof to the verifier with the commitment the gate holds. The verifier walks the
         trie, decodes the record and recomputes its commitment, so a mismatch shows up here before
         any wallet is involved.
@@ -85,7 +85,7 @@ export function VerifyPanel({
               )}
             </p>
             {verifier.codeSize === 0 ? null : (
-              <p className="mt-1 break-all font-mono text-[10.5px] text-muted">
+              <p className="mt-1 break-all font-mono text-[11px] text-muted">
                 {verifier.address}
               </p>
             )}
@@ -109,7 +109,7 @@ export function VerifyPanel({
                   void verification.run(proof.parsed, binding, gateState.titleCommitment)
                 }
               }}
-              className="btn btn--sm h-8"
+              className="btn btn--sm"
             >
               {verification.running ? (
                 <Loader2 className="size-3.5 animate-spin" strokeWidth={2} aria-hidden="true" />
@@ -119,7 +119,7 @@ export function VerifyPanel({
               {verification.running ? 'Verifying' : 'Run verification'}
             </button>
 
-            <span className="font-mono text-[10.5px] leading-4 text-muted">
+            <span className="font-mono text-[11px] leading-4 text-muted">
               {proof.parsed === null
                 ? (proof.problem ?? 'paste a proof in the panel above')
                 : binding === null
@@ -137,24 +137,24 @@ export function VerifyPanel({
           {result === null ? null : (
             <div className="mt-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line pb-2">
-                <p className="text-[12.5px] text-ink">
+                <p className="text-[13px] text-ink">
                   {result.statusWord === 'PROVEN'
                     ? 'The verifier returned a decoded record under this root.'
                     : `The verifier returned ${result.statusWord}.`}
                 </p>
-                <span className="flex items-center gap-1.5 font-mono text-[10px] tabular-nums text-muted">
+                <span className="flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-muted">
                   <Clock className="size-3" strokeWidth={1.8} aria-hidden="true" />
                   {ms(result.latencyMs)}
                 </span>
               </div>
 
               <Row
-                label="status"
+                label="Status"
                 value={`${formatInt(Number(result.status))} ${result.statusWord}`}
                 tone={STATUS_TONE[result.statusWord] ?? 'warn'}
               />
               <Row
-                label="record title id"
+                label="Record title id"
                 value={hashShort(result.record.titleId, 8, 6)}
                 title={result.record.titleId}
                 tone={
@@ -164,26 +164,26 @@ export function VerifyPanel({
                 }
               />
               <Row
-                label="record chain id"
+                label="Record chain id"
                 value={result.record.chainId.toString()}
                 tone={
                   result.record.chainId === gateState.boundChainId ? 'default' : 'warn'
                 }
               />
               <Row
-                label="record revision"
+                label="Record revision"
                 value={result.record.revision.toString()}
                 tone={
                   result.record.revision >= gateState.acceptedRevision ? 'default' : 'warn'
                 }
               />
               <Row
-                label="record owner"
+                label="Record owner"
                 value={hashShort(result.record.owner, 6, 4)}
                 title={result.record.owner}
               />
               <Row
-                label="representation"
+                label="Representation"
                 value={hashShort(result.record.evmContract, 6, 4)}
                 title={result.record.evmContract}
                 tone={
@@ -194,7 +194,7 @@ export function VerifyPanel({
                 }
               />
               <Row
-                label="backing bound"
+                label="Backing bound"
                 value={
                   /^0x0{64}$/.test(result.record.backing) ? (
                     <State tone="warn">unbound</State>
@@ -206,7 +206,7 @@ export function VerifyPanel({
                 mono={false}
               />
               <Row
-                label="identity set"
+                label="Identity set"
                 value={
                   /^0x0{64}$/.test(result.record.identityHash) ? (
                     <State tone="warn">cleared</State>
@@ -218,7 +218,7 @@ export function VerifyPanel({
                 mono={false}
               />
               <Row
-                label="commitment, recomputed"
+                label="Commitment, recomputed"
                 value={
                   result.recomputedCommitment === null
                     ? 'not returned'
@@ -228,7 +228,7 @@ export function VerifyPanel({
                 tone={result.commitmentMatches === false ? 'bad' : 'default'}
               />
               <Row
-                label="commitment, gate anchor"
+                label="Commitment, gate anchor"
                 value={hashShort(result.expectedCommitment, 8, 6)}
                 title={result.expectedCommitment}
                 tone={result.commitmentMatches === false ? 'bad' : 'default'}

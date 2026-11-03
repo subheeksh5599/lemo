@@ -33,10 +33,23 @@ Use the tokens in `app/tokens.css`; do not introduce raw hex values in component
 ## Components
 
 - `components/ui/tooltip.tsx` is the only tooltip.
-- `components/console/primitives.tsx` holds the console panel, label and value primitives.
+- `components/console/primitives.tsx` holds the console primitives:
+  - `PageHeader`: every console page opens with it (22px title, one mono meta line, at most one action). No second right-hand meta line.
+  - `Panel`, `Row`, `State`, `Skeleton`.
+  - `FigureBand` + `Figure`: headline figures sit in one hairline-divided band, never loose or as separate cards.
+  - `Notice`: the one status component for boundaries, failures and empty states. State each boundary (paused gate, placeholder commitment, EVM-only predecessor, single-node checkpoint) once per page, in a Notice or in one footnote, never both.
+- `components/console/root-source.tsx` is the only place the gate's root source (feed type) is named. A new feed kind is a new case there; the overview Runtimes table and the gate panel read the label from it.
 - `components/console/copy-button.tsx` is the only copy control.
 - `components/wallet/wallet-provider.tsx` owns wallet discovery and account state; do not create a second wallet store.
 - `components/console/flow/*` owns the transaction console panels. The page composes panels; it does not duplicate their logic.
+
+## Type scale in the console
+
+- Sizes: 11px (meta, mono footnotes), 12px (mono values, secondary), 13px (body, row labels), 14px (panel titles), 22px (page title), 24/28px (figures). Nothing below 11px; no half-pixel sizes.
+- Radii: `rounded-md` for top-level panels and bands, `rounded-sm` for inputs, wells and anything nested, `rounded-xs` for skeletons and tooltips.
+- Buttons use `.btn` sizes as defined; do not override `.btn--sm` height.
+- Row and form labels are sentence case.
+- Hashes are middle-truncated mono with the full value in `title` and a `CopyButton` where the user may need it.
 
 ## Copy and data
 

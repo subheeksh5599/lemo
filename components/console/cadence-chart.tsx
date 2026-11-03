@@ -34,8 +34,8 @@ export function CadenceChart({
 
   if (data.length < 2) {
     return (
-      <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[7px] border border-dashed border-line px-6">
-        <p className="max-w-[34ch] text-center text-[12.5px] leading-5 text-muted">
+      <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-sm border border-dashed border-line px-6">
+        <p className="max-w-[34ch] text-center text-[13px] leading-5 text-muted">
           {error ?? 'Reading the finalized blocks. The chart needs two neighbours to measure a slot.'}
         </p>
       </div>
@@ -107,14 +107,14 @@ export function CadenceChart({
                 if (point === undefined) return null
 
                 return (
-                  <div className="rounded-[7px] border border-line-strong bg-overlay px-2.5 py-2 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.9)]">
+                  <div className="rounded-sm border border-line-strong bg-overlay px-2.5 py-2 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.9)]">
                     <p className="font-mono text-[11px] tabular-nums text-ink">
                       block #{formatInt(point.number)}
                     </p>
                     <p className="mt-1 font-mono text-[11px] tabular-nums text-ink-2">
                       slot {slotLabel(point.slot * 1000)}
                     </p>
-                    <p className="font-mono text-[10.5px] tabular-nums text-muted">
+                    <p className="font-mono text-[11px] tabular-nums text-muted">
                       {new Date(point.timestamp).toISOString().slice(11, 19)} UTC
                     </p>
                   </div>
@@ -137,7 +137,7 @@ export function CadenceChart({
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 border-t border-line pt-2.5 font-mono text-[10.5px] text-muted">
+      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 border-t border-line pt-2.5 font-mono text-[11px] text-muted">
         <span>
           {formatInt(data.length)} blocks, #{formatInt(data[0]?.number ?? null)} to #
           {formatInt(data.at(-1)?.number ?? null)}

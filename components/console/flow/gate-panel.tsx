@@ -1,6 +1,7 @@
 'use client'
 
 import { Notice, Panel, Row, State } from '@/components/console/primitives'
+import { ROOT_SOURCE_LABEL, rootSourceKind } from '@/components/console/root-source'
 import { formatUnits } from '@/lib/flow/codec'
 import { contract } from '@/lib/flow/config'
 import type { FlowSnapshot } from '@/lib/flow/snapshot'
@@ -75,17 +76,17 @@ export function GatePanel({ snapshot }: { snapshot: FlowSnapshot | null }) {
       ) : (
         <>
           <Row
-            label="total supply"
+            label="Total supply"
             value={`${formatUnits(state.totalSupply, state.decimals)} ${state.symbol}`}
             title={`${state.totalSupply.toString()} base units`}
           />
           <Row
-            label="accepted revision"
+            label="Accepted revision"
             value={state.acceptedRevision.toString()}
             title="the highest revision a proof has been accepted at"
           />
           <Row
-            label="representation outstanding"
+            label="Representation outstanding"
             value={
               state.outstanding ? (
                 <State tone="ok">yes</State>
@@ -95,20 +96,20 @@ export function GatePanel({ snapshot }: { snapshot: FlowSnapshot | null }) {
             }
             mono={false}
           />
-          <Row label="owner" value={hashShort(state.owner, 6, 4)} title={state.owner} />
+          <Row label="Owner" value={hashShort(state.owner, 6, 4)} title={state.owner} />
           <Row
-            label="title commitment"
+            label="Title commitment"
             value={hashShort(state.titleCommitment, 8, 6)}
             title={state.titleCommitment}
           />
           <Row
-            label="verifier it points at"
+            label="Verifier it points at"
             value={hashShort(state.verifier, 6, 4)}
             title={state.verifier}
             tone={verifierMismatch ? 'warn' : 'default'}
           />
           <Row
-            label="feed it points at"
+            label="Feed it points at"
             value={hashShort(state.feed, 6, 4)}
             title={state.feed}
             tone={feedMismatch ? 'warn' : 'default'}
@@ -124,12 +125,12 @@ export function GatePanel({ snapshot }: { snapshot: FlowSnapshot | null }) {
 
           <div className="mt-3 border-t border-line pt-2">
             <Row
-              label="feed root"
+              label="Feed root"
               value={feed?.state === null || feed?.state === undefined ? '-' : hashShort(feed.state.root, 8, 6)}
               title={feed?.state?.root}
             />
             <Row
-              label="feed block"
+              label="Feed block"
               value={
                 feed?.state === null || feed?.state === undefined
                   ? '-'
@@ -137,7 +138,7 @@ export function GatePanel({ snapshot }: { snapshot: FlowSnapshot | null }) {
               }
             />
             <Row
-              label="pinned"
+              label="Pinned"
               value={
                 feed?.state === null || feed?.state === undefined ? (
                   '-'
@@ -150,17 +151,27 @@ export function GatePanel({ snapshot }: { snapshot: FlowSnapshot | null }) {
               mono={false}
             />
             <Row
-              label="attester"
+              label="Root source"
+              value={
+                feed?.state === null || feed?.state === undefined
+                  ? '-'
+                  : ROOT_SOURCE_LABEL[rootSourceKind(feed.state)]
+              }
+              tone={feed?.state?.attester == null ? 'default' : 'warn'}
+              mono={false}
+            />
+            <Row
+              label="Attester"
               value={
                 feed?.state === null || feed?.state === undefined || feed.state.attester === null
-                  ? 'threshold feed, no single attester'
+                  ? 'none'
                   : hashShort(feed.state.attester, 6, 4)
               }
               title={feed?.state?.attester ?? undefined}
               mono={feed?.state?.attester !== null}
             />
             <Row
-              label="verifier code"
+              label="Verifier code"
               value={
                 verifier === null || verifier.codeSize === 0
                   ? 'none at this address'
@@ -170,7 +181,7 @@ export function GatePanel({ snapshot }: { snapshot: FlowSnapshot | null }) {
             />
           </div>
 
-          <p className="mt-2 font-mono text-[10px] leading-4 text-muted">
+          <p className="mt-2 font-mono text-[11px] leading-4 text-muted">
             read at the latest block · {snapshot === null ? '-' : `head #${formatInt(snapshot.chain.head)}`}
           </p>
         </>

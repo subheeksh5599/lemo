@@ -19,6 +19,10 @@ interface IERC721Receiver {
 ///
 /// One token per title, so `tokenId` is fixed at 1 and cannot be re-used: the
 /// token represents the title, not an edition of it.
+///
+/// Mint and burn nullifiers are revision scoped (one each per native
+/// revision); transfers are action scoped. Pause refuses mints and transfers,
+/// never burns. See TitleGateBase.
 contract TitleGateERC721 is TitleGateBase {
   string public name;
   string public symbol;
@@ -57,10 +61,10 @@ contract TitleGateERC721 is TitleGateBase {
   // ------------------------------------------------------------------ gated
 
   /// @notice Mint the representation. Needs a mint proof.
-  function mint(address to, ITitleVerifier.TitleProof calldata proof) external {
+  function mint(address to, ITitleVerifier.TitleProof calldata proof) external whenNotPaused {
     if (to == address(0)) revert UnsafeRecipient(to);
     if (_ownerOf[TOKEN_ID] != address(0)) revert TokenExists(TOKEN_ID);
-    TitleRecord memory record = _gate(OP_MINT, keccak256(abi.encode(to)), proof);
+    TitleRecord memory record = _gateRevision(OP_MINT, proof);
     if (to != record.owner) revert RecipientNotProven(record.owner, to);
     totalSupply = 1;
     _ownerOf[TOKEN_ID] = to;
@@ -75,7 +79,7 @@ contract TitleGateERC721 is TitleGateBase {
     if (msg.sender != holder && !isApprovedForAll[holder][msg.sender]) {
       revert NotAuthorised(msg.sender, TOKEN_ID);
     }
-    _gate(OP_BURN, keccak256(abi.encode(holder)), proof);
+    _gateRevision(OP_BURN, proof);
     totalSupply = 0;
     _ownerOf[TOKEN_ID] = address(0);
     balanceOf[holder] -= 1;
@@ -90,11 +94,11 @@ contract TitleGateERC721 is TitleGateBase {
     address to,
     uint256 tokenId,
     ITitleVerifier.TitleProof calldata proof
-  ) external {
+  ) external whenNotPaused {
     _transfer(from, to, tokenId);
     // The gate runs after the authorisation checks and before any state
     // change: _transfer above only validates, it writes nothing.
-    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
+    _gateAction(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
     _ownerOf[tokenId] = to;
     balanceOf[from] -= 1;
     balanceOf[to] += 1;
@@ -107,9 +111,9 @@ contract TitleGateERC721 is TitleGateBase {
     address to,
     uint256 tokenId,
     ITitleVerifier.TitleProof calldata proof
-  ) external {
+  ) external whenNotPaused {
     _transfer(from, to, tokenId);
-    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
+    _gateAction(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
     _ownerOf[tokenId] = to;
     balanceOf[from] -= 1;
     balanceOf[to] += 1;
@@ -124,9 +128,9 @@ contract TitleGateERC721 is TitleGateBase {
     uint256 tokenId,
     bytes calldata data,
     ITitleVerifier.TitleProof calldata proof
-  ) external {
+  ) external whenNotPaused {
     _transfer(from, to, tokenId);
-    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
+    _gateAction(OP_TRANSFER, keccak256(abi.encode(from, to, tokenId)), proof);
     _ownerOf[tokenId] = to;
     balanceOf[from] -= 1;
     balanceOf[to] += 1;

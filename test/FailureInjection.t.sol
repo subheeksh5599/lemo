@@ -36,6 +36,8 @@ contract FailureInjectionTest is Test {
   bytes32 internal constant BACKING = keccak256("LEMO.BACKING.TEST.1");
   bytes32 internal constant IDENTITY = keccak256("LEMO.IDENTITY.TEST.1");
 
+  uint256 internal nextBlock = 1;
+
   TestBlake2b internal hasher;
   SubstrateTrieVerifier internal verifier;
   RootFeed internal feed;
@@ -54,7 +56,7 @@ contract FailureInjectionTest is Test {
     address predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
     TitleRecord memory base = _record(1, BACKING, IDENTITY, predicted);
     token = new TitleGateERC20(
-      verifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1", 1_000_000e18
+      verifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1", 100
     );
     assertEq(address(token), predicted, "predicted address");
 
@@ -431,9 +433,10 @@ contract FailureInjectionTest is Test {
     assertEq(token.totalSupply(), 0);
   }
 
-  /// @notice Scenario 20: the paused switch. Pausing must stop every gated
-  /// operation, including with a perfectly valid proof.
-  function test_20_PausedRefusesEverything() public {
+  /// @notice Scenario 20: the paused switch. Pausing stops transfers and
+  /// mints even with a perfectly valid proof, but never a holder's burn
+  /// (audit M-03): an exit cannot be frozen.
+  function test_20_PausedRefusesTransfersButNotBurns() public {
     _mintBase();
     token.setPaused(true);
 
@@ -444,6 +447,11 @@ contract FailureInjectionTest is Test {
     vm.expectRevert(TitleGateBase.GateIsPaused.selector);
     vm.prank(ALICE);
     token.transfer(BOB, 10, proof);
+
+    (ITitleVerifier.TitleProof memory burnProof,) = _proof(2, BACKING, IDENTITY, OP_BURN);
+    vm.prank(ALICE);
+    token.burn(ALICE, 100, burnProof);
+    assertEq(token.totalSupply(), 0, "burn is open while paused");
   }
 
   /// @notice Scenario 21: a burn request is completed after the representation
@@ -491,6 +499,98 @@ contract FailureInjectionTest is Test {
     guard.requestUnbond(second);
   }
 
+  /// @dev Burn everything at revision 2 and open an unbond request.
+  function _burnAndRequest() internal returns (bytes32 id, ITitleVerifier.TitleProof memory burnProof) {
+    _mintBase();
+    bytes32 root2;
+    (burnProof, root2) = _proof(2, BACKING, IDENTITY, OP_BURN);
+    _attest(root2);
+    vm.prank(ALICE);
+    token.burn(ALICE, 100, burnProof);
+    vm.prank(ALICE);
+    id = guard.requestUnbond(burnProof);
+  }
+
+  /// @notice L-02: the requester can cancel, which frees the title for a fresh
+  /// request; a cancelled request can never be released.
+  function test_23_RequesterCanCancelAndReRequest() public {
+    (bytes32 id, ITitleVerifier.TitleProof memory burnProof) = _burnAndRequest();
+    (, address requester,,) = _request(id);
+    assertEq(requester, ALICE);
+
+    vm.prank(ALICE);
+    guard.cancelUnbond(id);
+    assertEq(uint256(guard.requestState(id)), uint256(UnbondGuard.State.CANCELLED));
+    assertEq(guard.openRequest(), bytes32(0));
+
+    vm.expectRevert(abi.encodeWithSelector(UnbondGuard.RequestNotPending.selector, id));
+    vm.prank(ATTESTER);
+    guard.completeUnbond(id);
+
+    bytes32 again = guard.requestUnbond(burnProof);
+    assertTrue(again != id, "a fresh request id");
+    vm.prank(ATTESTER);
+    guard.completeUnbond(again);
+    assertTrue(guard.released());
+  }
+
+  /// @notice L-02: the attester can cancel; a stranger cannot.
+  function test_24_OnlyRequesterOrAttesterCancels() public {
+    (bytes32 id,) = _burnAndRequest();
+    vm.expectRevert(UnbondGuard.NotRequesterOrAttester.selector);
+    vm.prank(STRANGER);
+    guard.cancelUnbond(id);
+
+    vm.prank(ATTESTER);
+    guard.cancelUnbond(id);
+    assertEq(uint256(guard.requestState(id)), uint256(UnbondGuard.State.CANCELLED));
+  }
+
+  /// @notice L-02: requestBlock is the expiry anchor. Past it the request
+  /// cannot be released, only cancelled.
+  function test_25_ExpiredRequestCannotBeReleased() public {
+    (bytes32 id,) = _burnAndRequest();
+    uint256 expiresAt = guard.requestBlock(id) + guard.UNBOND_EXPIRY_BLOCKS();
+
+    vm.roll(expiresAt + 1);
+    vm.expectRevert(abi.encodeWithSelector(UnbondGuard.RequestExpired.selector, id, expiresAt));
+    vm.prank(ATTESTER);
+    guard.completeUnbond(id);
+
+    vm.prank(ALICE);
+    guard.cancelUnbond(id);
+    assertEq(guard.openRequest(), bytes32(0));
+  }
+
+  /// @notice A title is released at most once, ever.
+  function test_26_ReleasedTitleCannotBeRequestedAgain() public {
+    (bytes32 id, ITitleVerifier.TitleProof memory burnProof) = _burnAndRequest();
+    vm.prank(ATTESTER);
+    guard.completeUnbond(id);
+
+    vm.expectRevert(UnbondGuard.AlreadyReleased.selector);
+    guard.requestUnbond(burnProof);
+  }
+
+  /// @notice L-02: one operation constant; a transfer proof cannot unbond.
+  function test_27_UnbondNeedsTheBurnOperation() public {
+    assertEq(guard.OP_BURN(), OP_BURN);
+    (ITitleVerifier.TitleProof memory proof, bytes32 root) =
+      _proof(1, BACKING, IDENTITY, OP_TRANSFER);
+    _attest(root);
+    vm.expectRevert(abi.encodeWithSelector(UnbondGuard.OperationMismatch.selector, OP_TRANSFER));
+    guard.requestUnbond(proof);
+  }
+
+  function _request(bytes32 id)
+    internal
+    view
+    returns (UnbondGuard.State state, address requester, uint256 at, uint64 revision)
+  {
+    bytes32 root;
+    (state, revision, requester, at, root) = guard.requests(id);
+  }
+
   // ------------------------------------------------------------- helpers
 
   function _record(uint64 revision, bytes32 backing, bytes32 identity, address evm)
@@ -512,9 +612,19 @@ contract FailureInjectionTest is Test {
     });
   }
 
+  /// @dev The feed is strictly monotonic (H-07), so every attestation is at
+  /// the next native block, even when it re-publishes an earlier root.
   function _attest(bytes32 root) internal {
     vm.prank(ATTESTER);
-    feed.attest(root, 1);
+    feed.attest(root, nextBlock);
+    nextBlock += 1;
+  }
+
+  function _setCommitment(bytes32 next) internal {
+    if (token.titleCommitment() == next) return;
+    token.proposeTitleCommitment(next);
+    vm.warp(block.timestamp + token.COMMITMENT_DELAY());
+    token.acceptTitleCommitment();
   }
 
   /// @dev Mint 100 to ALICE at revision 1 with a real proof.
@@ -534,12 +644,12 @@ contract FailureInjectionTest is Test {
   {
     TitleRecord memory record = _record(revision, backing, identity, address(token));
     (proof, root,) = builder.proofFor(record, operation, address(token));
-    token.setTitleCommitment(TitleLib.hash(record));
+    _setCommitment(TitleLib.hash(record));
   }
 
   /// @dev Adopt a revision's commitment without building a proof.
   function _adopt(uint64 revision, bytes32 backing, bytes32 identity) internal {
     TitleRecord memory record = _record(revision, backing, identity, address(token));
-    token.setTitleCommitment(TitleLib.hash(record));
+    _setCommitment(TitleLib.hash(record));
   }
 }

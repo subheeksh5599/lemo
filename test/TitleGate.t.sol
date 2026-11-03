@@ -39,6 +39,12 @@ contract TitleGateTest is Test {
   bytes32 internal constant VESTING = keccak256("LEMO.VESTING.TEST.1");
   bytes32 internal constant PERMISSIONS = keccak256("LEMO.PERMISSIONS.TEST.1");
 
+  /// @dev The cap every test token mints in one go (audit C-01: a mint is
+  /// all of maxSupply or nothing).
+  uint256 internal constant MAX = 100;
+
+  uint256 internal nextBlock = 1;
+
   TestBlake2b internal hasher;
   SubstrateTrieVerifier internal realVerifier;
   MockTitleVerifier internal mockVerifier;
@@ -63,7 +69,7 @@ contract TitleGateTest is Test {
     address predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
     TitleRecord memory base = _record(1, BACKING, IDENTITY, predicted);
     token = new TitleGateERC20(
-      mockVerifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1", 1_000_000e18
+      mockVerifier, feed, TITLE_ID, TitleLib.hash(base), address(this), "LEMO Title 1", "LT1", MAX
     );
     assertEq(address(token), predicted, "predicted address mismatch");
     mockVerifier.set(ITitleVerifier.Status.PROVEN, base);
@@ -71,7 +77,7 @@ contract TitleGateTest is Test {
     address predictedReal = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
     TitleRecord memory realBase = _record(1, BACKING, IDENTITY, predictedReal);
     realToken = new TitleGateERC20(
-      realVerifier, feed, TITLE_ID, TitleLib.hash(realBase), address(this), "LEMO Title 1", "LT1", 1_000_000e18
+      realVerifier, feed, TITLE_ID, TitleLib.hash(realBase), address(this), "LEMO Title 1", "LT1", MAX
     );
     assertEq(address(realToken), predictedReal, "predicted address mismatch (real)");
 
@@ -92,8 +98,7 @@ contract TitleGateTest is Test {
     (ITitleVerifier.TitleProof memory mintProof, bytes32 root1,) =
       builder.proofFor(rev1, OP_MINT, address(realToken));
 
-    vm.prank(ATTESTER);
-    feed.attest(root1, 292_815);
+    _attest(root1);
 
     assertEq(realToken.balanceOf(ALICE), 0);
     vm.prank(ALICE);
@@ -101,12 +106,11 @@ contract TitleGateTest is Test {
     assertEq(realToken.balanceOf(ALICE), 100, "mint with a real proof");
 
     TitleRecord memory rev2 = _record(2, BACKING, IDENTITY, address(realToken));
-    realToken.setTitleCommitment(TitleLib.hash(rev2));
+    _setCommitment(realToken, TitleLib.hash(rev2));
     (ITitleVerifier.TitleProof memory transferProof, bytes32 root2,) =
       builder.proofFor(rev2, OP_TRANSFER, address(realToken));
 
-    vm.prank(ATTESTER);
-    feed.attest(root2, 292_816);
+    _attest(root2);
 
     vm.prank(ALICE);
     realToken.transfer(BOB, 40, transferProof);
@@ -123,8 +127,7 @@ contract TitleGateTest is Test {
     (ITitleVerifier.TitleProof memory mintProof, bytes32 root1,) =
       builder.proofFor(rev1, OP_MINT, address(nft));
 
-    vm.prank(ATTESTER);
-    feed.attest(root1, 1);
+    _attest(root1);
 
     nft.mint(ALICE, mintProof);
     assertEq(nft.ownerOf(1), ALICE);
@@ -134,8 +137,7 @@ contract TitleGateTest is Test {
     (ITitleVerifier.TitleProof memory transferProof, bytes32 root2,) =
       builder.proofFor(rev2, OP_TRANSFER, address(nft));
 
-    vm.prank(ATTESTER);
-    feed.attest(root2, 2);
+    _attest(root2);
 
     vm.prank(ALICE);
     nft.transferFrom(ALICE, BOB, 1, transferProof);
@@ -180,8 +182,7 @@ contract TitleGateTest is Test {
 
     // Re-publish the revision 1 root, so the root check passes and the
     // revision check is what has to refuse.
-    vm.prank(ATTESTER);
-    feed.attest(oldRoot, 1);
+    _attest(oldRoot);
 
     vm.expectRevert(
       abi.encodeWithSelector(TitleGateBase.RevisionStale.selector, uint64(1), uint64(2))
@@ -196,8 +197,7 @@ contract TitleGateTest is Test {
     _adopt(unbound, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(unbound, OP_MINT, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 1);
+    _attest(root);
 
     vm.expectRevert(TitleGateBase.BackingNotBound.selector);
     vm.prank(ALICE);
@@ -211,8 +211,7 @@ contract TitleGateTest is Test {
     _adopt(cleared, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(cleared, OP_MINT, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 1);
+    _attest(root);
 
     vm.expectRevert(TitleGateBase.IdentityCleared.selector);
     vm.prank(ALICE);
@@ -227,8 +226,7 @@ contract TitleGateTest is Test {
     _adopt(rev2, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_TRANSFER, address(nft));
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.expectRevert(abi.encodeWithSelector(TitleGateBase.TokenMismatch.selector, address(nft)));
     vm.prank(ALICE);
@@ -243,8 +241,7 @@ contract TitleGateTest is Test {
     _adopt(rev2, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_TRANSFER, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.prank(ALICE);
     token.transfer(BOB, 5, proof);
@@ -268,7 +265,7 @@ contract TitleGateTest is Test {
     RootFeed empty = new RootFeed(ATTESTER);
     TitleRecord memory record = _record(1, BACKING, IDENTITY, address(this));
     TitleGateERC20 other = new TitleGateERC20(
-      mockVerifier, empty, TITLE_ID, TitleLib.hash(record), address(this), "T", "T", 1_000_000e18
+      mockVerifier, empty, TITLE_ID, TitleLib.hash(record), address(this), "T", "T", MAX
     );
     mockVerifier.set(ITitleVerifier.Status.PROVEN, record);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
@@ -276,7 +273,7 @@ contract TitleGateTest is Test {
     proof.stateRoot = root;
 
     vm.expectRevert(TitleGateBase.FeedHasNoRoot.selector);
-    other.mint(ALICE, 1, proof);
+    other.mint(ALICE, MAX, proof);
   }
 
   function test_RevertOnVerifierVerdictThatIsNotProven() public {
@@ -285,8 +282,7 @@ contract TitleGateTest is Test {
     _adopt(rev2, ITitleVerifier.Status.ABSENT);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_TRANSFER, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.expectRevert(
       abi.encodeWithSelector(
@@ -304,8 +300,7 @@ contract TitleGateTest is Test {
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_TRANSFER, address(token));
     proof.chainId = 1;
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.expectRevert(
       abi.encodeWithSelector(TitleGateBase.ChainMismatch.selector, uint256(1), block.chainid)
@@ -320,8 +315,7 @@ contract TitleGateTest is Test {
     _adopt(rev2, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_MINT, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.expectRevert(
       abi.encodeWithSelector(TitleGateBase.OperationMismatch.selector, OP_MINT, OP_TRANSFER)
@@ -337,8 +331,7 @@ contract TitleGateTest is Test {
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_TRANSFER, address(token));
     proof.titleId = keccak256("another title");
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.expectRevert(
       abi.encodeWithSelector(TitleGateBase.TitleIdMismatch.selector, keccak256("another title"))
@@ -359,14 +352,114 @@ contract TitleGateTest is Test {
     token.transfer(BOB, 1, proof);
   }
 
+  /// @notice M-03: pause refuses mints but never burns; holders can exit.
+  function test_PauseBlocksMintButNotBurn() public {
+    TitleRecord memory rev1 = _record(1, BACKING, IDENTITY, address(token));
+    _adopt(rev1, ITitleVerifier.Status.PROVEN);
+    (ITitleVerifier.TitleProof memory mintProof, bytes32 root,) =
+      builder.proofFor(rev1, OP_MINT, address(token));
+    _attest(root);
+    vm.prank(ALICE);
+    token.mint(ALICE, MAX, mintProof);
+
+    token.setPaused(true);
+    vm.expectRevert(TitleGateBase.GateIsPaused.selector);
+    vm.prank(ALICE);
+    token.mint(ALICE, MAX, mintProof);
+
+    ITitleVerifier.TitleProof memory burnProof = _proofAt(1, OP_BURN);
+    vm.prank(ALICE);
+    token.burn(ALICE, MAX, burnProof);
+    assertEq(token.totalSupply(), 0, "burn went through while paused");
+    assertFalse(token.representationOutstanding());
+  }
+
+  function test_PauseDoesNotBlockERC721Burn() public {
+    TitleRecord memory rev1 = _record(1, BACKING, IDENTITY, address(nft));
+    _adoptNft(rev1, ITitleVerifier.Status.PROVEN);
+    (ITitleVerifier.TitleProof memory mintProof, bytes32 root,) =
+      builder.proofFor(rev1, OP_MINT, address(nft));
+    _attest(root);
+    nft.mint(ALICE, mintProof);
+
+    nft.setPaused(true);
+    (ITitleVerifier.TitleProof memory burnProof,,) = builder.proofFor(rev1, OP_BURN, address(nft));
+    vm.prank(ALICE);
+    nft.burn(burnProof);
+    assertEq(nft.totalSupply(), 0);
+  }
+
+  /// @notice M-03: a commitment change is proposed, waits COMMITMENT_DELAY,
+  /// then lands; early acceptance and outsiders are refused. L-01: a zero
+  /// commitment reverts ZeroCommitment.
+  function test_CommitmentChangeIsTimelocked() public {
+    bytes32 next = TitleLib.hash(_record(2, BACKING, IDENTITY, address(token)));
+    bytes32 current = token.titleCommitment();
+
+    vm.expectRevert(TitleGateBase.ZeroCommitment.selector);
+    token.proposeTitleCommitment(bytes32(0));
+    vm.expectRevert(TitleGateBase.CommitmentUnchanged.selector);
+    token.proposeTitleCommitment(current);
+    vm.expectRevert(TitleGateBase.OnlyOwner.selector);
+    vm.prank(STRANGER);
+    token.proposeTitleCommitment(next);
+    vm.expectRevert(TitleGateBase.NoPendingCommitment.selector);
+    token.acceptTitleCommitment();
+
+    token.proposeTitleCommitment(next);
+    uint256 eta = block.timestamp + token.COMMITMENT_DELAY();
+    assertEq(token.pendingTitleCommitmentEta(), eta);
+
+    vm.warp(eta - 1);
+    vm.expectRevert(abi.encodeWithSelector(TitleGateBase.CommitmentTimelocked.selector, eta, eta - 1));
+    token.acceptTitleCommitment();
+    assertEq(token.titleCommitment(), current, "nothing landed early");
+
+    vm.warp(eta);
+    vm.expectRevert(TitleGateBase.OnlyOwner.selector);
+    vm.prank(STRANGER);
+    token.acceptTitleCommitment();
+
+    token.acceptTitleCommitment();
+    assertEq(token.titleCommitment(), next);
+    assertEq(token.pendingTitleCommitment(), bytes32(0));
+  }
+
+  function test_CommitmentProposalCanBeCancelled() public {
+    bytes32 current = token.titleCommitment();
+    token.proposeTitleCommitment(keccak256("other"));
+    token.cancelTitleCommitment();
+    vm.warp(block.timestamp + 2 days);
+    vm.expectRevert(TitleGateBase.NoPendingCommitment.selector);
+    token.acceptTitleCommitment();
+    assertEq(token.titleCommitment(), current);
+  }
+
+  /// @notice L-07: transferFrom with from == to is refused and consumes
+  /// neither the proof nor the allowance.
+  function test_TransferFromToSelfIsRefused() public {
+    _mintWithToken();
+    vm.prank(ALICE);
+    token.approve(BOB, 50);
+    ITitleVerifier.TitleProof memory proof = _proofAt(1, OP_TRANSFER);
+
+    vm.expectRevert(TitleGateBase.SameOwnerAndRecipient.selector);
+    vm.prank(BOB);
+    token.transferFrom(ALICE, ALICE, 10, proof);
+    assertEq(token.allowance(ALICE, BOB), 50, "allowance untouched");
+
+    vm.expectRevert(TitleGateBase.ZeroAddress.selector);
+    vm.prank(BOB);
+    token.transferFrom(ALICE, address(0), 10, proof);
+  }
+
   function test_TransferToSelfIsRefusedBeforeConsumingTheProof() public {
     _mintBase();
     TitleRecord memory rev2 = _record(2, BACKING, IDENTITY, address(token));
     _adopt(rev2, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_TRANSFER, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.expectRevert(TitleGateBase.SameOwnerAndRecipient.selector);
     vm.prank(ALICE);
@@ -401,8 +494,7 @@ contract TitleGateTest is Test {
     _adopt(rev2, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev2, OP_TRANSFER, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 2);
+    _attest(root);
 
     vm.prank(BOB);
     token.transferFrom(ALICE, BOB, 50, proof);
@@ -417,16 +509,109 @@ contract TitleGateTest is Test {
     _adopt(rev1, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev1, OP_MINT, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 1);
+    _attest(root);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        TitleGateERC20.SupplyCapExceeded.selector, 1_000_000e18, uint256(0), 1_000_001e18
-      )
-    );
+    vm.expectRevert(abi.encodeWithSelector(TitleGateERC20.MintAmountNotCap.selector, MAX, MAX + 1));
     vm.prank(ALICE);
-    token.mint(ALICE, 1_000_001e18, proof);
+    token.mint(ALICE, MAX + 1, proof);
+  }
+
+  /// @notice C-01: a partial mint is refused, so the cap cannot be minted in
+  /// slices (one slice per root) and the amount is bound to the cap.
+  function test_PartialAmountMintIsRefused() public {
+    TitleRecord memory rev1 = _record(1, BACKING, IDENTITY, address(token));
+    _adopt(rev1, ITitleVerifier.Status.PROVEN);
+    (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
+      builder.proofFor(rev1, OP_MINT, address(token));
+    _attest(root);
+
+    vm.expectRevert(abi.encodeWithSelector(TitleGateERC20.MintAmountNotCap.selector, MAX, uint256(1)));
+    vm.prank(ALICE);
+    token.mint(ALICE, 1, proof);
+    assertEq(token.totalSupply(), 0, "partial mint moved nothing");
+
+    // The refused call did not spend the revision's mint: the full cap still mints.
+    vm.prank(ALICE);
+    token.mint(ALICE, MAX, proof);
+    assertEq(token.totalSupply(), MAX);
+  }
+
+  /// @notice C-01: nothing mints on top of outstanding supply.
+  function test_MintWhileSupplyOutstandingIsRefused() public {
+    _mintWithToken();
+    TitleRecord memory rev2 = _record(2, BACKING, IDENTITY, address(token));
+    _adopt(rev2, ITitleVerifier.Status.PROVEN);
+    (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
+      builder.proofFor(rev2, OP_MINT, address(token));
+    _attest(root);
+
+    vm.expectRevert(abi.encodeWithSelector(TitleGateERC20.SupplyOutstanding.selector, MAX));
+    vm.prank(ALICE);
+    token.mint(ALICE, MAX, proof);
+  }
+
+  /// @notice H-01 / C-01: one mint per native revision. After a burn empties
+  /// supply and the feed publishes a NEW root at the same revision, a second
+  /// mint is refused, whatever the amount.
+  function test_SecondMintAtSameRevisionRefusedAfterNewRoot() public {
+    (ITitleVerifier.TitleProof memory mintProof,) = _mintWithToken();
+
+    (ITitleVerifier.TitleProof memory burnProof,,) =
+      builder.proofFor(_record(1, BACKING, IDENTITY, address(token)), OP_BURN, address(token));
+    vm.prank(ALICE);
+    token.burn(ALICE, MAX, burnProof);
+    assertEq(token.totalSupply(), 0);
+
+    // A new finalized root, same native revision. The mock verifier proves the
+    // same record at it.
+    bytes32 newRoot = keccak256("a later root at revision 1");
+    _attest(newRoot);
+    mintProof.stateRoot = newRoot;
+
+    bytes32 nullifier = keccak256(abi.encode(TITLE_ID, uint64(1), OP_MINT, address(token)));
+    vm.expectRevert(abi.encodeWithSelector(TitleGateBase.ProofReplayed.selector, nullifier));
+    vm.prank(ALICE);
+    token.mint(ALICE, MAX, mintProof);
+
+    // A different amount does not make it a different authorisation.
+    vm.expectRevert(abi.encodeWithSelector(TitleGateERC20.MintAmountNotCap.selector, MAX, MAX / 2));
+    vm.prank(ALICE);
+    token.mint(ALICE, MAX / 2, mintProof);
+
+    assertEq(token.totalSupply(), 0, "no second mint at revision 1");
+  }
+
+  /// @notice H-01: one burn per native revision, even at a new root.
+  function test_SecondBurnAtSameRevisionRefused() public {
+    _mintWithToken();
+    ITitleVerifier.TitleProof memory transferProof = _proofAt(1, OP_TRANSFER);
+    vm.prank(ALICE);
+    token.transfer(BOB, 40, transferProof);
+
+    ITitleVerifier.TitleProof memory burnProof = _proofAt(1, OP_BURN);
+    vm.prank(ALICE);
+    token.burn(ALICE, 60, burnProof);
+
+    bytes32 newRoot = keccak256("another root at revision 1");
+    _attest(newRoot);
+    burnProof.stateRoot = newRoot;
+    bytes32 nullifier = keccak256(abi.encode(TITLE_ID, uint64(1), OP_BURN, address(token)));
+    vm.expectRevert(abi.encodeWithSelector(TitleGateBase.ProofReplayed.selector, nullifier));
+    vm.prank(BOB);
+    token.burn(BOB, 40, burnProof);
+    assertEq(token.balanceOf(BOB), 40);
+  }
+
+  /// @notice Transfers stay action scoped: two different transfers at one
+  /// revision are both legitimate.
+  function test_DistinctTransfersAtSameRevisionBothSucceed() public {
+    _mintWithToken();
+    ITitleVerifier.TitleProof memory proof = _proofAt(1, OP_TRANSFER);
+    vm.prank(ALICE);
+    token.transfer(BOB, 10, proof);
+    vm.prank(ALICE);
+    token.transfer(BOB, 11, proof);
+    assertEq(token.balanceOf(BOB), 21);
   }
 
   function test_MintIsBoundToTheProvenOwner() public {
@@ -434,14 +619,13 @@ contract TitleGateTest is Test {
     _adopt(rev1, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev1, OP_MINT, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 1);
+    _attest(root);
 
     vm.expectRevert(
       abi.encodeWithSelector(TitleGateBase.RecipientNotProven.selector, ALICE, BOB)
     );
     vm.prank(BOB);
-    token.mint(BOB, 1, proof);
+    token.mint(BOB, MAX, proof);
   }
 
   function test_BurnByAnOutsiderIsRefusedBeforeTheProof() public {
@@ -488,6 +672,32 @@ contract TitleGateTest is Test {
     });
   }
 
+  function _attest(bytes32 root) internal {
+    vm.prank(ATTESTER);
+    feed.attest(root, nextBlock);
+    nextBlock += 1;
+  }
+
+  /// @dev Two step commitment change through the delay; a no-op when the
+  /// commitment is already current.
+  function _setCommitment(TitleGateBase gate, bytes32 next) internal {
+    if (gate.titleCommitment() == next) return;
+    gate.proposeTitleCommitment(next);
+    vm.warp(block.timestamp + gate.COMMITMENT_DELAY());
+    gate.acceptTitleCommitment();
+  }
+
+  /// @dev A proof for the token at `revision` with the current feed root
+  /// (the mock verifier proves whatever record it was given).
+  function _proofAt(uint64 revision, uint8 operation)
+    internal
+    view
+    returns (ITitleVerifier.TitleProof memory proof)
+  {
+    (proof,,) = builder.proofFor(_record(revision, BACKING, IDENTITY, address(token)), operation, address(token));
+    proof.stateRoot = feed.currentRoot();
+  }
+
   /// @dev Mint 100 to ALICE through the mock verifier; the feed is left on
   /// revision 1's root.
   function _mintBase() internal {
@@ -497,12 +707,12 @@ contract TitleGateTest is Test {
   /// @dev Point the mock and the token at the same record.
   function _adopt(TitleRecord memory record, ITitleVerifier.Status status) internal {
     mockVerifier.set(status, record);
-    token.setTitleCommitment(TitleLib.hash(record));
+    _setCommitment(token, TitleLib.hash(record));
   }
 
   function _adoptNft(TitleRecord memory record, ITitleVerifier.Status status) internal {
     mockVerifier.set(status, record);
-    nft.setTitleCommitment(TitleLib.hash(record));
+    _setCommitment(nft, TitleLib.hash(record));
   }
 
   function _mintWithToken() internal returns (ITitleVerifier.TitleProof memory, bytes32) {
@@ -510,10 +720,9 @@ contract TitleGateTest is Test {
     _adopt(rev1, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(rev1, OP_MINT, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, 1);
+    _attest(root);
     vm.prank(ALICE);
-    token.mint(ALICE, 100, proof);
+    token.mint(ALICE, MAX, proof);
     return (proof, root);
   }
 
@@ -522,8 +731,7 @@ contract TitleGateTest is Test {
     _adopt(record, ITitleVerifier.Status.PROVEN);
     (ITitleVerifier.TitleProof memory proof, bytes32 root,) =
       builder.proofFor(record, OP_TRANSFER, address(token));
-    vm.prank(ATTESTER);
-    feed.attest(root, revision);
+    _attest(root);
     vm.prank(ALICE);
     token.transfer(BOB, amount, proof);
   }

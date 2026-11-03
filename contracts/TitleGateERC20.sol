@@ -16,7 +16,22 @@ import { IRootFeed } from "./IRootFeed.sol";
 ///
 /// A transfer to yourself is refused rather than treated as a no-op, because a
 /// no-op that consumes a nullifier is a trap: it would burn the authorisation
-/// and move nothing.
+/// and move nothing. That holds for `transferFrom` too (audit L-07).
+///
+/// # Supply is bound to the immutable cap (audit C-01)
+///
+/// The 320 byte native record carries no supply field and its layout is frozen
+/// (the pallet and the captured fixtures depend on it), so the amount cannot be
+/// read from the proof. It is bound to `maxSupply` instead, which is fixed at
+/// deployment and published before anyone mints:
+///
+///   - a mint is only possible while `totalSupply == 0`;
+///   - it must mint exactly `maxSupply`, to the record's proven owner;
+///   - and the mint nullifier is revision scoped, so a native revision
+///     authorises at most one mint, whatever the root or the amount.
+///
+/// So the representation is all or nothing: either the whole cap exists, held
+/// by whoever the owner moved it to, or nothing does.
 contract TitleGateERC20 is TitleGateBase {
   string public name;
   string public symbol;
@@ -34,7 +49,8 @@ contract TitleGateERC20 is TitleGateBase {
   error InsufficientBalance(address owner, uint256 balance, uint256 needed);
   error InsufficientAllowance(address spender, uint256 allowed, uint256 needed);
   error ZeroAmount();
-  error SupplyCapExceeded(uint256 cap, uint256 current, uint256 requested);
+  error SupplyOutstanding(uint256 supply);
+  error MintAmountNotCap(uint256 cap, uint256 requested);
   error NotAuthorised(address caller, address from);
 
   constructor(
@@ -47,6 +63,7 @@ contract TitleGateERC20 is TitleGateBase {
     string memory symbol_,
     uint256 maxSupply_
   ) TitleGateBase(verifier_, feed_, titleId_, titleCommitment_, owner_) {
+    if (maxSupply_ == 0) revert ZeroAmount();
     name = name_;
     symbol = symbol_;
     maxSupply = maxSupply_;
@@ -57,11 +74,12 @@ contract TitleGateERC20 is TitleGateBase {
   /// @notice Move your own tokens. Needs a transfer proof.
   function transfer(address to, uint256 amount, ITitleVerifier.TitleProof calldata proof)
     external
+    whenNotPaused
     returns (bool)
   {
     if (to == address(0)) revert ZeroAddress();
     if (to == msg.sender) revert SameOwnerAndRecipient();
-    _gate(OP_TRANSFER, keccak256(abi.encode(msg.sender, to, amount)), proof);
+    _gateAction(OP_TRANSFER, keccak256(abi.encode(msg.sender, to, amount)), proof);
     _transfer(msg.sender, to, amount);
     return true;
   }
@@ -73,8 +91,10 @@ contract TitleGateERC20 is TitleGateBase {
     address to,
     uint256 amount,
     ITitleVerifier.TitleProof calldata proof
-  ) external returns (bool) {
-    _gate(OP_TRANSFER, keccak256(abi.encode(from, to, amount)), proof);
+  ) external whenNotPaused returns (bool) {
+    if (to == address(0)) revert ZeroAddress();
+    if (from == to) revert SameOwnerAndRecipient();
+    _gateAction(OP_TRANSFER, keccak256(abi.encode(from, to, amount)), proof);
 
     uint256 allowed = allowance[from][msg.sender];
     if (allowed != type(uint256).max) {
@@ -89,21 +109,27 @@ contract TitleGateERC20 is TitleGateBase {
     return true;
   }
 
-  /// @notice Create representation. Needs a mint proof of a title that is
-  /// bound and backed. This is the "mint without backing" path that must fail.
-  function mint(address to, uint256 amount, ITitleVerifier.TitleProof calldata proof) external {
+  /// @notice Create the representation: exactly `maxSupply`, to the record's
+  /// proven owner, only while nothing is outstanding, at most once per native
+  /// revision. Needs a mint proof of a title that is bound and backed.
+  function mint(address to, uint256 amount, ITitleVerifier.TitleProof calldata proof)
+    external
+    whenNotPaused
+  {
     if (to == address(0)) revert ZeroAddress();
-    TitleRecord memory record = _gate(OP_MINT, keccak256(abi.encode(to, amount)), proof);
+    if (totalSupply != 0) revert SupplyOutstanding(totalSupply);
+    if (amount != maxSupply) revert MintAmountNotCap(maxSupply, amount);
+    TitleRecord memory record = _gateRevision(OP_MINT, proof);
     if (to != record.owner) revert RecipientNotProven(record.owner, to);
-    if (totalSupply + amount > maxSupply) revert SupplyCapExceeded(maxSupply, totalSupply, amount);
     _mint(to, amount);
   }
 
-  /// @notice Destroy representation. Needs a burn proof, so a burn cannot be
-  /// used to satisfy the native side without the native side agreeing.
+  /// @notice Destroy your own representation. Needs a burn proof, so a burn
+  /// cannot be used to satisfy the native side without the native side
+  /// agreeing. At most one burn per native revision. Never blocked by pause.
   function burn(address from, uint256 amount, ITitleVerifier.TitleProof calldata proof) external {
     if (msg.sender != from) revert NotAuthorised(msg.sender, from);
-    _gate(OP_BURN, keccak256(abi.encode(from, amount)), proof);
+    _gateRevision(OP_BURN, proof);
     _burn(from, amount);
   }
 
@@ -123,6 +149,8 @@ contract TitleGateERC20 is TitleGateBase {
   // ---------------------------------------------------------------- internal
 
   function _transfer(address from, address to, uint256 amount) private {
+    if (to == address(0)) revert ZeroAddress();
+    if (from == to) revert SameOwnerAndRecipient();
     if (amount == 0) revert ZeroAmount();
     uint256 balance = balanceOf[from];
     if (balance < amount) revert InsufficientBalance(from, balance, amount);

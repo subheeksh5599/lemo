@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import { ITitleVerifier } from "./ITitleVerifier.sol";
-import { TitleLib, TitleRecord } from "./LemoTitle.sol";
+import { TitleRecord } from "./LemoTitle.sol";
 import { IRootFeed } from "./IRootFeed.sol";
 import { IRepresentation } from "./IRepresentation.sol";
 
@@ -25,9 +25,32 @@ import { IRepresentation } from "./IRepresentation.sol";
 ///   commitment   the decoded record must hash to the commitment this token was
 ///                created with, which is what makes the fields non-substitutable
 ///
-/// A nullifier per (titleId, revision, operation, action, token) is consumed
-/// on success, so replaying the same action with the same proof cannot work —
-/// including after the feed publishes a new state root.
+/// # Nullifiers: what one native revision authorises
+///
+///   mint, burn   keccak256(titleId, revision, operation, token). Revision
+///                scoped: at most ONE mint and ONE burn per native revision,
+///                whatever the root, the amount or the recipient. A new state
+///                root at an unchanged revision does not re-authorise either
+///                (audit H-01, C-01).
+///   transfer     keccak256(titleId, revision, operation, actionHash, token),
+///                actionHash = keccak256(from, to, amount|tokenId). Action
+///                scoped: many distinct transfers per revision are legitimate
+///                (the native record carries no per-transfer counter), so a
+///                transfer proof is reusable for a DIFFERENT action at the same
+///                revision, but the same action is never accepted twice at that
+///                revision, including after the feed publishes a new root.
+///                Transfers move existing supply only; they cannot create or
+///                destroy it.
+///
+/// # Owner powers (a trusted role)
+///
+///   - pause: refuses new mints and transfers. It never refuses a burn, so
+///     holders can always exit (audit M-03).
+///   - commitment change: two step, `proposeTitleCommitment` then, no earlier
+///     than COMMITMENT_DELAY later, `acceptTitleCommitment`. Holders see the
+///     change coming and can exit before it lands. The owner can pick WHICH
+///     real native record the token follows; it cannot invent one, because
+///     every proof must still decode a record hashing to the commitment.
 ///
 /// Everything fails closed: an unrecognised status, an empty feed, a cleared
 /// identity, an unbound backing and a replayed proof all revert, and no storage
@@ -36,6 +59,9 @@ abstract contract TitleGateBase is IRepresentation {
   uint8 internal constant OP_TRANSFER = 1;
   uint8 internal constant OP_MINT = 2;
   uint8 internal constant OP_BURN = 3;
+
+  /// @notice Minimum time between proposing and accepting a new commitment.
+  uint256 public constant COMMITMENT_DELAY = 1 days;
 
   ITitleVerifier public immutable verifier;
   IRootFeed public immutable feed;
@@ -46,12 +72,11 @@ abstract contract TitleGateBase is IRepresentation {
   /// @notice Which native record this token represents: the commitment the
   /// decoded record must hash to. A newer revision is a different record, so
   /// this has to be advanced deliberately rather than matching any revision.
-  ///
-  /// Advancing it is a trust point and it is a weak one: the new commitment
-  /// still has to equal the hash of a record decoded out of a trie proof under
-  /// the feed's current root. The owner can choose WHICH real native record
-  /// this token follows; they cannot invent one.
   bytes32 public titleCommitment;
+
+  /// @notice A proposed next commitment and the earliest time it may land.
+  bytes32 public pendingTitleCommitment;
+  uint256 public pendingTitleCommitmentEta;
 
   /// @notice Highest revision a proof has been accepted at. Monotonic.
   uint64 public acceptedRevision;
@@ -68,6 +93,8 @@ abstract contract TitleGateBase is IRepresentation {
     bytes32 nullifier
   );
   event PausedChanged(bool paused);
+  event TitleCommitmentProposed(bytes32 indexed current, bytes32 indexed next, uint256 eta);
+  event TitleCommitmentCancelled(bytes32 indexed next);
   event TitleCommitmentChanged(bytes32 indexed previous, bytes32 indexed next);
   event OwnerChanged(address indexed previous, address indexed next);
 
@@ -87,6 +114,9 @@ abstract contract TitleGateBase is IRepresentation {
   error ProofReplayed(bytes32 nullifier);
   error SameOwnerAndRecipient();
   error ZeroCommitment();
+  error CommitmentUnchanged();
+  error NoPendingCommitment();
+  error CommitmentTimelocked(uint256 eta, uint256 nowTs);
   error RecipientNotProven(address proven, address claimed);
 
   constructor(
@@ -97,6 +127,7 @@ abstract contract TitleGateBase is IRepresentation {
     address owner_
   ) {
     if (address(verifier_) == address(0) || address(feed_) == address(0) || owner_ == address(0)) revert ZeroAddress();
+    if (titleCommitment_ == bytes32(0)) revert ZeroCommitment();
     verifier = verifier_;
     feed = feed_;
     titleId = titleId_;
@@ -111,32 +142,83 @@ abstract contract TitleGateBase is IRepresentation {
     _;
   }
 
-  /// @notice Adopt the commitment of a newer revision of this title.
+  modifier whenNotPaused() {
+    if (paused) revert GateIsPaused();
+    _;
+  }
+
+  /// @notice Schedule the commitment of a newer revision of this title.
+  /// Replaces any earlier proposal and restarts the delay.
+  function proposeTitleCommitment(bytes32 next) external onlyOwner {
+    if (next == bytes32(0)) revert ZeroCommitment();
+    if (next == titleCommitment) revert CommitmentUnchanged();
+    uint256 eta = block.timestamp + COMMITMENT_DELAY;
+    pendingTitleCommitment = next;
+    pendingTitleCommitmentEta = eta;
+    emit TitleCommitmentProposed(titleCommitment, next, eta);
+  }
+
+  /// @notice Land the proposed commitment once the delay has passed.
   /// @dev Does not relax any check: the next proof must still prove a record
   /// that hashes to the new commitment, at the feed's current root, at a
   /// revision at or above the accepted one.
-  function setTitleCommitment(bytes32 next) external onlyOwner {
-    if (next == bytes32(0)) revert ZeroAddress();
+  function acceptTitleCommitment() external onlyOwner {
+    bytes32 next = pendingTitleCommitment;
+    if (next == bytes32(0)) revert NoPendingCommitment();
+    if (block.timestamp < pendingTitleCommitmentEta) {
+      revert CommitmentTimelocked(pendingTitleCommitmentEta, block.timestamp);
+    }
     emit TitleCommitmentChanged(titleCommitment, next);
     titleCommitment = next;
+    delete pendingTitleCommitment;
+    delete pendingTitleCommitmentEta;
   }
 
-  /// @notice Halt every gated operation. There is no path that un-gates a
-  /// transfer by pausing: paused means refuse.
+  function cancelTitleCommitment() external onlyOwner {
+    bytes32 next = pendingTitleCommitment;
+    if (next == bytes32(0)) revert NoPendingCommitment();
+    delete pendingTitleCommitment;
+    delete pendingTitleCommitmentEta;
+    emit TitleCommitmentCancelled(next);
+  }
+
+  /// @notice Refuse new mints and transfers. Burns stay open: a pause can stop
+  /// value entering or moving, never a holder leaving.
   function setPaused(bool next) external onlyOwner {
     paused = next;
     emit PausedChanged(next);
   }
 
+  /// @dev Mint and burn: one per native revision (see the contract notes).
+  function _gateRevision(uint8 operation, ITitleVerifier.TitleProof calldata proof)
+    internal
+    returns (TitleRecord memory)
+  {
+    return _gate(
+      operation, keccak256(abi.encode(titleId, proof.revision, operation, address(this))), proof
+    );
+  }
+
+  /// @dev Transfers: one per (revision, action).
+  function _gateAction(uint8 operation, bytes32 actionHash, ITitleVerifier.TitleProof calldata proof)
+    internal
+    returns (TitleRecord memory)
+  {
+    return _gate(
+      operation,
+      keccak256(abi.encode(titleId, proof.revision, operation, actionHash, address(this))),
+      proof
+    );
+  }
+
   /// @dev Run every binding check, consume the nullifier, and hand back the
   /// decoded native record. Reverts on anything less than a fully bound,
-  /// current, unreplayed proof.
-  function _gate(uint8 operation, bytes32 actionHash, ITitleVerifier.TitleProof calldata proof)
-    internal
+  /// current, unreplayed proof. Pausing is the caller's decision, not this
+  /// function's, so that burns can bypass it.
+  function _gate(uint8 operation, bytes32 nullifier, ITitleVerifier.TitleProof calldata proof)
+    private
     returns (TitleRecord memory record)
   {
-    if (paused) revert GateIsPaused();
-
     bytes32 accepted = feed.currentRoot();
     if (accepted == bytes32(0)) revert FeedHasNoRoot();
     if (proof.stateRoot != accepted) revert FeedRootMismatch(proof.stateRoot, accepted);
@@ -156,8 +238,6 @@ abstract contract TitleGateBase is IRepresentation {
     if (record_.identityHash == bytes32(0)) revert IdentityCleared();
     if (record_.backing == bytes32(0)) revert BackingNotBound();
 
-    bytes32 nullifier =
-      keccak256(abi.encode(titleId, proof.revision, operation, actionHash, address(this)));
     if (nullifierUsed[nullifier]) revert ProofReplayed(nullifier);
 
     nullifierUsed[nullifier] = true;

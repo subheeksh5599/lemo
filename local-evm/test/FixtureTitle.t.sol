@@ -30,6 +30,10 @@ contract FixtureTitleTest is Test {
   uint8 internal constant OP_MINT = 2;
   uint8 internal constant OP_TRANSFER = 1;
 
+  /// @dev A mint is exactly maxSupply (audit C-01), so the cap is the amount
+  /// the fixture mint creates.
+  uint256 internal constant MAX_SUPPLY = 100;
+
   bytes32 internal fixtureRoot;
 
   TestBlake2b internal hasher;
@@ -73,7 +77,7 @@ contract FixtureTitleTest is Test {
       address(this),
       "LEMO Local Title",
       "LEMO-L",
-      1_000_000e18
+      MAX_SUPPLY
     );
   }
 
@@ -158,7 +162,8 @@ contract FixtureTitleTest is Test {
   }
 
   /// @notice A derived record (same fixture fields, evmContract set to the
-  /// gate) with a repository style 32 byte keccak key is accepted end to end.
+  /// gate) under the canonical 80 byte key the builder derives (frozen prefix ++
+  /// blake2_128(titleId) ++ titleId) is accepted end to end.
   /// This is NOT the fixture proof: it is a binding drill that shows the gate
   /// works once a record names the token and the key fits the struct.
   function test_DerivedBoundRecordMintsAndTransfers() public {
@@ -170,18 +175,26 @@ contract FixtureTitleTest is Test {
     bytes32 boundCommitment = TitleLib.hash(bound);
 
     feed.attest(root, 7);
-    gate.setTitleCommitment(boundCommitment);
+    // The fixture record already names this gate, so the anchor is the same
+    // commitment; were it different, the change would be two step with a
+    // delay (audit M-03): propose, wait COMMITMENT_DELAY, accept.
+    if (gate.titleCommitment() != boundCommitment) {
+      gate.proposeTitleCommitment(boundCommitment);
+      vm.warp(block.timestamp + gate.COMMITMENT_DELAY());
+      gate.acceptTitleCommitment();
+    }
+    assertEq(gate.titleCommitment(), boundCommitment);
 
-    gate.mint(record.owner, 1000, mintProof);
-    assertEq(gate.balanceOf(record.owner), 1000);
+    gate.mint(record.owner, MAX_SUPPLY, mintProof);
+    assertEq(gate.balanceOf(record.owner), MAX_SUPPLY);
 
     (ITitleVerifier.TitleProof memory transferProof,,) =
       builder.proofFor(bound, OP_TRANSFER, address(gate));
     vm.prank(record.owner);
-    gate.transfer(address(0xB0B), 400, transferProof);
+    gate.transfer(address(0xB0B), 40, transferProof);
 
-    assertEq(gate.balanceOf(record.owner), 600);
-    assertEq(gate.balanceOf(address(0xB0B)), 400);
+    assertEq(gate.balanceOf(record.owner), 60);
+    assertEq(gate.balanceOf(address(0xB0B)), 40);
     assertEq(gate.acceptedRevision(), 2);
   }
 

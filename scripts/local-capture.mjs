@@ -61,6 +61,21 @@ async function main() {
 
   // Rule 2: the flag must be explicit before an unbond. Set it true, then false
   // so the fixture shows both the refusal state and the releasable state.
+  const evmContract = (process.env.LEMO_EVM_CONTRACT ?? '').trim()
+  if (evmContract.length > 0) {
+    const call = api.tx.lemoTitle.setRepresentation(
+      titleId,
+      api.createType('[u8;20]', evmContract),
+    )
+    await new Promise((resolve, reject) => {
+      call.signAndSend(alice, ({ status, dispatchError }) => {
+        if (dispatchError) reject(new Error(dispatchError.toString()))
+        if (status.isInBlock) resolve(status.asInBlock.toHex())
+      }).catch(reject)
+    })
+    console.log('representation bound to', evmContract)
+  }
+
   for (const live of [true, false]) {
     const call = api.tx.lemoTitle.setRepresentationLive(titleId, live)
     const sudo = api.tx.sudo.sudo(call)
@@ -107,11 +122,11 @@ async function main() {
     titleId: titleId.toHex(),
     storageKey: storageKeyHex,
     value: value.toHex(),
-    valueBytes: value.toU8a().length,
+    valueBytes: (value.toHex().length - 2) / 2,
     proofNodes: proof.proof.map((node) => node.toHex()),
     canonicalStorageKey: canonicalKeyHex,
     canonicalValue: canonicalValue.toHex(),
-    canonicalValueBytes: canonicalValue.toU8a().length,
+    canonicalValueBytes: (canonicalValue.toHex().length - 2) / 2,
     canonicalProofNodes: canonicalProof.proof.map((node) => node.toHex()),
     record: decoded.toHuman(),
     representationLive: representation.toHuman(),

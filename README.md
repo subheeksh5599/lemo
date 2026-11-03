@@ -40,13 +40,14 @@ The honest demo is read-only: live heads, a real Substrate proof, `eth_getProof`
 |---|---|---|
 | Marketing site and console | **Live** | [lemo-ebon.vercel.app](https://lemo-ebon.vercel.app) |
 | Transaction console | **Live, gate paused** | [/console/flow](https://lemo-ebon.vercel.app/console/flow) |
-| Blake2b adapter | **Live on Portaldot V3** | `0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22` |
-| Trie verifier | **Live on Portaldot V3** | `0xe5ca668667d3e2c8a0272ee4e446d6aa88a86bac` |
-| Root feed | **Live, root attested** | `0xc1c95be2f38f865438f684d269f340f5c505d5c0`; root `0x19ff…8b80` at #294515 |
-| ERC-20 gate | **Live, paused after the burn fix** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f`; deployed bytecode predates the holder-only burn fix |
+| Blake2b adapter | **Live on Portaldot V3** | `0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5CZ8cWRiFMjyLbQwhAMiJdJ9RLyTw3YJjjZy2vCXM1vdSani), [deploy 294148-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294148-1) |
+| Trie verifier | **Live on Portaldot V3** | `0xe5ca668667d3e2c8a0272ee4e446d6aa88a86bac`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5HFzwxCtJFj8q7eETYTqFxdG2wnEwJCdLVBHpeYEivwitwGw), [deploy 294498-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294498-1) |
+| Root feed | **Live, root attested** | `0xc1c95be2f38f865438f684d269f340f5c505d5c0`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5GSnv2LBRuf7hikmh39R8ws5qwi6moH6AGgHTSeRykGC5fdY), [deploy 294249-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294249-1); root `0x19ff…8b80` = state root of [#294515](https://scanner-testnet-v3.portaldot.dev/#/blocks/294515) |
+| ERC-20 gate | **Live, paused after the burn fix** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5Hm38ynRjaM2qRdje35XJbD6CsYcAXX1TEuHcwub7ju69EJf), [deploy 294503-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294503-1); deployed bytecode predates the holder-only burn fix |
 | `UnbondGuard` | **Not deployed** | Rule 2 logic tested; no live address |
 | Earlier EVM-only deployment | **Live, settled receipts** | [`/console/legacy`](https://lemo-ebon.vercel.app/console/legacy); registry `0xc887…88bB`, token `0x61c3…8ff7` |
 | Transaction receipt view | **Live** | `/tx/<hash>`; reads the receipt from the Portaldot V3 EVM RPC |
+| Portaldot V3 scanner links | **Live** | every deployment, contract account and receipt block links to [scanner-testnet-v3.portaldot.dev](https://scanner-testnet-v3.portaldot.dev/#/accounts/5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx); EVM transactions are unsigned `revive.ethTransact` extrinsics, which the scanner does not list, so they link to their block |
 | Local native capture | **Live, fixture view** | [`/console/local`](https://lemo-ebon.vercel.app/console/local); verifies a real local Substrate proof offline |
 | Native title registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 10 tests |
 | Four-contract mint / transfer | **Wired, cannot settle** | placeholder commitment; no native title record |

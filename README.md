@@ -179,7 +179,7 @@ Wrapping an asset moves it. It does not enforce the relationship between the ori
 - **Unbond guard**: Rule 2 in Solidity, with a release recheck and one open request per title.
 - **Native pallet**: `pallets/lemo-title`, with create, edit, representation, fail-closed liveness and unbond calls; 10 tests.
 - **Proof service**: a Fastify service with typed RPC clients, trie verification, fixtures and 1,077 tests.
-- **Console**: landing, overview, proof walk, key verifier, network checks, a transaction surface, a read-only page for the earlier deployment, and a local-capture proof page.
+- **Console**: landing, overview, proof walk, key verifier, network checks, a transaction surface, a read-only page for the earlier deployment, and a local lifecycle page (a recorded native + anvil run, re-verified in the browser).
 - **Local proof work**: a solochain runtime with `pallets/lemo-title` (10 tests), a 320-byte canonical record, and a Foundry EVM test that mints and transfers from the captured proof (6 tests).
 - **Deployment tooling**: `revive.instantiateWithCode` from the native SS58 wallet, plus the Foundry path and cost measurement.
 

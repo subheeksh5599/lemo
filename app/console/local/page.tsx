@@ -1,36 +1,33 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { AlertTriangle, Check, ShieldCheck, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 
-import { CopyButton } from '@/components/console/copy-button'
 import {
-  Figure,
-  FigureBand,
-  Notice,
-  PageHeader,
-  Panel,
-  Row,
-  Skeleton,
-  State,
-} from '@/components/console/primitives'
-import { ProofWalk } from '@/components/console/proof-walk'
+  CaptureCheck,
+  Chapter,
+  EvmStepRow,
+  Hash,
+  NativeStepRow,
+  StepList,
+} from '@/components/console/local-timeline'
+import { Figure, FigureBand, Notice, PageHeader, Panel, Row } from '@/components/console/primitives'
 import { formatInt, hashShort } from '@/lib/format'
 import {
-  CANONICAL_RECORD_BYTES,
-  loadLocalCapture,
-  type CaptureCheck,
-  type LocalCaptureReport,
-} from '@/lib/local-capture'
-import { cn } from '@/lib/utils'
+  decodeRecord,
+  evmState,
+  evmStep,
+  nativeStep,
+  run,
+  tokens,
+  verifyCapture,
+  type CaptureReport,
+  type EvmSnapshot,
+} from '@/lib/local-e2e'
 
-const VERDICT = {
-  valid: { tone: 'ok', word: 'verified' },
-  absent: { tone: 'warn', word: 'absent' },
-  incomplete: { tone: 'warn', word: 'incomplete' },
-  'root-mismatch': { tone: 'bad', word: 'root mismatch' },
-  invalid: { tone: 'bad', word: 'invalid' },
-} as const
+type Reports = { A: CaptureReport; B: CaptureReport; C: CaptureReport; at: number; ms: number }
+
+const DEV_AUTHORITY = run.native.devAuthority.publicKey
+const UNIT = 10n ** 12n
 
 function utc(value: string): string {
   const at = new Date(value)
@@ -38,308 +35,339 @@ function utc(value: string): string {
   return `${at.toISOString().slice(0, 16).replace('T', ' ')} UTC`
 }
 
-/** 32 bytes a line, groups of four, so a word boundary stays visible. */
-function hexLines(hex: string): string[] {
-  const body = hex.startsWith('0x') ? hex.slice(2) : hex
-  const lines: string[] = []
-
-  for (let offset = 0; offset < body.length; offset += 64) {
-    lines.push(body.slice(offset, offset + 64).replace(/(.{8})/g, '$1 ').trim())
-  }
-
-  return lines
+function units(planck: string): string {
+  return formatInt(Number(BigInt(planck) / UNIT))
 }
 
-function CheckLine({ check }: { check: CaptureCheck }) {
-  const Icon = check.tone === 'ok' ? Check : check.tone === 'warn' ? AlertTriangle : X
-  const color = check.tone === 'ok' ? 'text-ok' : check.tone === 'warn' ? 'text-warn' : 'text-bad'
+function verifyAll(): Reports {
+  const started = performance.now()
+  const A = verifyCapture(run.proofs.A, DEV_AUTHORITY)
+  const B = verifyCapture(run.proofs.B, DEV_AUTHORITY)
+  const C = verifyCapture(run.proofs.C, DEV_AUTHORITY)
+  return { A, B, C, at: Date.now(), ms: performance.now() - started }
+}
 
+function GateState({ state, title }: { state: EvmSnapshot; title: string }) {
   return (
-    <li className="flex items-start gap-2 border-b border-line/60 py-2 last:border-b-0">
-      <Icon className={cn('mt-[3px] size-3.5 shrink-0', color)} strokeWidth={2.1} aria-hidden="true" />
-      <div className="min-w-0">
-        <p className={cn('text-[13px] leading-5', check.tone === 'ok' ? 'text-ink-2' : color)}>
-          {check.label}
-        </p>
-        <p className="mt-0.5 break-words font-mono text-[11px] leading-4 text-muted">
-          {check.detail}
-        </p>
+    <Panel title={title} hint="read from the gate after the step">
+      <div className="grid gap-x-6 sm:grid-cols-2">
+        <Row label="totalSupply" value={tokens(state.totalSupply)} />
+        <Row
+          label="representationOutstanding"
+          value={state.representationOutstanding ? 'true' : 'false'}
+          tone={state.representationOutstanding ? 'warn' : 'ok'}
+        />
+        <Row label="Beneficiary balance" value={tokens(state.beneficiary)} />
+        <Row label="Bob balance" value={tokens(state.bob)} />
+        <Row label="Feed root" value={<Hash value={state.feedRoot} label="feed root" />} tone="accent" />
+        <Row label="Feed block / accepted revision" value={`#${state.feedBlock} / ${state.acceptedRevision}`} />
       </div>
-    </li>
+    </Panel>
   )
 }
 
-function Report({ report }: { report: LocalCaptureReport }) {
-  const { fixture, proof, record } = report
-  const verdict = VERDICT[proof.status]
-
-  return (
-    <div className="space-y-4">
-      <FigureBand>
-        <Figure
-          label="Source"
-          value="local-lemo-runtime"
-          note={`fixture source field; ${fixture.chain}`}
-        />
-        <Figure
-          label="Finalized block"
-          value={`#${formatInt(fixture.finalized.number)}`}
-          note={hashShort(fixture.finalized.hash, 10, 6)}
-        />
-        <Figure
-          label="Canonical value"
-          value={`${formatInt(report.valueBytes)} B`}
-          note="ten words, measured from the hex"
-          tone={report.valueBytes === CANONICAL_RECORD_BYTES ? 'ok' : 'warn'}
-        />
-        <Figure
-          label="Proof"
-          value={verdict.word}
-          note={`${formatInt(proof.totalNodes)} nodes, ${formatInt(proof.unusedNodes)} unused`}
-          tone={verdict.tone}
-        />
-      </FigureBand>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Finalized header" hint="local devnet">
-          <Row label="Chain" value={fixture.chain} />
-          <Row label="Endpoint" value={fixture.endpoint} />
-          <Row label="Runtime" value={fixture.runtime.specName} title={fixture.runtime.specName} />
-          <Row
-            label="Spec / state version"
-            value={`${fixture.runtime.specVersion} / ${fixture.runtime.stateVersion}`}
-          />
-          <Row label="Block" value={`#${formatInt(fixture.finalized.number)}`} />
-          <Row
-            label="Block hash"
-            value={<span title={fixture.finalized.hash}>{hashShort(fixture.finalized.hash, 10, 8)}</span>}
-            tone="muted"
-          />
-          <Row
-            label="Parent hash"
-            value={
-              <span title={fixture.finalized.parentHash}>
-                {hashShort(fixture.finalized.parentHash, 10, 8)}
-              </span>
-            }
-            tone="muted"
-          />
-          <Row
-            label="State root"
-            value={<span title={fixture.finalized.stateRoot}>{hashShort(fixture.finalized.stateRoot, 10, 8)}</span>}
-            tone="accent"
-          />
-          <Row
-            label="Genesis"
-            value={<span title={fixture.genesis}>{hashShort(fixture.genesis, 10, 8)}</span>}
-            tone="muted"
-          />
-          <Row label="Captured" value={utc(fixture.capturedAt)} tone="muted" />
-        </Panel>
-
-        <Panel
-          title="Canonical record"
-          hint="decoded from the proven bytes"
-        >
-          <Row
-            label="Title id"
-            value={<span title={record.titleId}>{hashShort(record.titleId, 10, 8)}</span>}
-          />
-          <Row label="Chain id" value={record.chainIdLabel} title={fixture.record.chainId} />
-          <Row
-            label="EVM beneficiary"
-            value={<span title={record.ownerWord}>{hashShort(record.ownerLow20, 10, 8)}</span>}
-          />
-          <Row
-            label="Backing"
-            value={<span title={record.backing}>{hashShort(record.backing, 10, 8)}</span>}
-          />
-          <Row label="Revision" value={record.revision.toString()} />
-          <Row
-            label="Native asset"
-            value={<span title={record.nativeAsset}>{hashShort(record.nativeAsset, 10, 8)}</span>}
-            tone="muted"
-          />
-          <Row
-            label="EVM contract"
-            value={record.evmContract}
-            title={record.evmContract}
-            tone="muted"
-          />
-          <p className="mt-3 text-[12px] leading-5 text-muted">
-            Word 4 is the explicit EVM beneficiary {record.ownerLow20}. The native
-            account is {fixture.record.owner}; the record keeps both namespaces
-            instead of truncating the account id.
-          </p>
-        </Panel>
-      </div>
-
-      <Panel
-        title="Verification"
-        hint={`${fixture.canonicalProofNodes.length} committed nodes, walked here`}
-        aside={
-          <State tone={verdict.tone}>
-            <ShieldCheck className="size-3" strokeWidth={1.8} aria-hidden="true" />
-            {verdict.word}
-          </State>
-        }
-      >
-        <p className="max-w-[92ch] text-[13px] leading-5 text-ink-2">
-          {proof.message}. The walk reads the canonical storage key against the state root in the
-          finalized header, re-hashing every node it is handed, so the order the capture stored the
-          nodes in does not matter.
-        </p>
-
-        <ul className="mt-3">
-          {report.checks.map((check) => (
-            <CheckLine key={check.label} check={check} />
-          ))}
-        </ul>
-
-        <div className="mt-4 grid gap-x-6 border-t border-line pt-1 sm:grid-cols-2">
-          <Row label="Proof nodes" value={formatInt(proof.totalNodes)} />
-          <Row label="Unused nodes" value={formatInt(proof.unusedNodes)} />
-          <Row label="Key bytes" value={formatInt(proof.keyBytes)} />
-          <Row
-            label="Last node walked"
-            value={
-              <span title={proof.computedRoot ?? undefined}>
-                {proof.computedRoot === null ? '-' : hashShort(proof.computedRoot, 10, 8)}
-              </span>
-            }
-            tone="muted"
-          />
-        </div>
-
-        <div className="mt-3 border-t border-line pt-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="meta">Proof path</p>
-            <p className="font-mono text-[11px] tabular-nums text-muted">
-              {proof.valueHashed ? 'value node hashed into the walk' : 'value inline in the leaf'}
-            </p>
-          </div>
-          <ProofWalk nodes={proof.steps} />
-        </div>
-      </Panel>
-
-      <Panel
-        title="Canonical value"
-        hint={`${formatInt(report.valueBytes)} bytes, ten 32 byte words`}
-        aside={
-          <span className="flex items-center gap-1">
-            <span className="meta">{`uint8[${report.valueBytes}]`}</span>
-            <CopyButton value={fixture.canonicalValue} label="canonical value" />
-          </span>
-        }
-      >
-        <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-          <div className="min-w-0">
-            <pre className="overflow-x-auto rounded-sm border border-line bg-canvas px-3 py-2.5 font-mono text-[11px] leading-[1.55] text-ink-2">
-              {hexLines(fixture.canonicalValue).join('\n')}
-            </pre>
-            <p className="mt-2 font-mono text-[11px] tabular-nums text-muted">
-              {report.valueBytes === report.declaredValueBytes
-                ? `the fixture declares ${formatInt(report.declaredValueBytes)} bytes, and the hex measures the same`
-                : `the fixture declares ${formatInt(report.declaredValueBytes)} bytes; the hex measures ${formatInt(report.valueBytes)}. The hex is the record here.`}
-            </p>
-          </div>
-
-          <div className="min-w-0">
-            <Row
-              label="Canonical key"
-              value={
-                <span title={fixture.canonicalStorageKey}>
-                  {hashShort(fixture.canonicalStorageKey, 10, 8)}
-                </span>
-              }
-            />
-            <Row
-              label="Title id"
-              value={<span title={fixture.titleId}>{hashShort(fixture.titleId, 10, 8)}</span>}
-            />
-            <Row
-              label="Proven value"
-              value={
-                proof.valueHex !== null &&
-                proof.valueHex.toLowerCase() === fixture.canonicalValue.toLowerCase()
-                  ? 'equals the capture'
-                  : 'differs from the capture'
-              }
-              tone={
-                proof.valueHex !== null &&
-                proof.valueHex.toLowerCase() === fixture.canonicalValue.toLowerCase()
-                  ? 'ok'
-                  : 'bad'
-              }
-            />
-            <Row
-              label="Representation live"
-              value={fixture.representationLive ? 'yes' : 'no'}
-              tone={fixture.representationLive ? 'ok' : 'muted'}
-            />
-            <p className="mt-3 text-[12px] leading-5 text-muted">
-              The record was read once, at the block above. There is no second read of{' '}
-              <span className="font-mono">state_getStorage</span> to compare against, because no node
-              is running: the proof is the whole of the evidence here.
-            </p>
-          </div>
-        </div>
-      </Panel>
-    </div>
-  )
-}
-
-export default function LocalCapturePage() {
-  const [report, setReport] = useState<LocalCaptureReport | null>(null)
+export default function LocalLifecyclePage() {
+  const [reports, setReports] = useState<Reports | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
 
-  useEffect(() => {
+  const rerun = useCallback(() => {
     try {
-      setReport(loadLocalCapture())
+      setReports(verifyAll())
+      setProblem(null)
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'the capture did not load')
+      setProblem(error instanceof Error ? error.message : 'the checks did not run')
     }
   }, [])
 
+  // Verification runs here, in the browser, never at build time.
+  useEffect(() => {
+    rerun()
+  }, [rerun])
+
+  const { native, evm } = run
+  const record = decodeRecord(run.proofs.A.value ?? '0x')
+  const nativeFailed = native.steps.filter((s) => s.outcome === 'failed').length
+  const evmReverted = evm.steps.filter((s) => s.status === 'reverted').length
+  const checks =
+    reports === null
+      ? null
+      : [reports.A, reports.B, reports.C].flatMap((r) => [r.header.ok, r.grandpa.ok, r.storageOk])
+  const passed = checks === null ? 0 : checks.filter(Boolean).length
+
+  const deploys = evm.steps.filter((s) => s.label.startsWith('deploy '))
+  const refused = nativeStep('request_unbond (while live)')
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader
-        title="Local capture"
-        meta={
-          report === null
-            ? 'loading the committed fixture'
-            : `local-lemo-runtime, block #${formatInt(report.fixture.finalized.number)}, captured ${utc(report.fixture.capturedAt)}`
+        title="Local lifecycle"
+        meta={`native blocks #${run.proofs.A.header.number} to #${run.proofs.C.header.number}, anvil chain ${evm.chainId}, recorded ${utc(run.capturedAt)}`}
+        action={
+          <button type="button" className="btn btn--sm" onClick={rerun}>
+            Re-verify in browser
+          </button>
         }
       />
 
-      <Notice tone="warn" title="A local devnet capture, not public Portaldot">
+      <Notice tone="warn" title="A local devnet run, recorded once">
         <p>
-          <span className="font-mono">fixtures/lemo-local-capture.json</span> was read from a
-          solochain template node at <span className="font-mono">ws://127.0.0.1:9944</span>, running
-          development mode. This page reads no node and no wallet: the proof is recomputed in the
-          browser from the committed bytes, and the console&apos;s live status strip is a separate
-          read of the configured endpoint. Nothing here is evidence of a mint, a transfer, or public
-          network state.
+          The native half ran on a local solochain node with pallet-lemo-title (Aura and GRANDPA, one dev
+          authority, no Revive and no EVM). The EVM half ran on anvil, with the repository&apos;s real
+          verifier, feed, gate and guard. Every hash below is a real extrinsic or transaction on those two
+          local chains, captured by <span className="font-mono">scripts/local-e2e.mjs</span>; the headers,
+          GRANDPA signatures and storage proofs are re-checked in this browser from the committed bytes.
+          It is not public Portaldot: the root feed is attested by one anvil dev key and the liveness flag
+          is written by sudo.
         </p>
       </Notice>
 
-      {problem !== null ? (
-        <Notice tone="bad" title="The capture did not load">
+      {problem === null ? null : (
+        <Notice tone="bad" title="The checks did not run">
           <p>{problem}</p>
-          <p className="mt-1">
-            The page reads <span className="font-mono">fixtures/lemo-local-capture.json</span> directly,
-            so a broken capture shows up here rather than being papered over.
-          </p>
         </Notice>
-      ) : null}
+      )}
 
-      {report === null && problem === null ? (
-        <Panel title="Verifying the capture" hint="no network">
-          <Skeleton lines={9} />
+      <FigureBand className="grid-cols-2 lg:grid-cols-5">
+        <Figure label="Title id" value={hashShort(native.titleId, 4, 4)} note={native.titleIdDerivation} />
+        <Figure
+          label="Native extrinsics"
+          value={formatInt(native.steps.length)}
+          note={`${nativeFailed} refused by the pallet, as intended`}
+        />
+        <Figure
+          label="Anvil transactions"
+          value={formatInt(evm.steps.length)}
+          note={`${evmReverted} reverted by the contracts, as intended`}
+        />
+        <Figure
+          label="Browser checks"
+          value={checks === null ? '-' : `${passed}/${checks.length}`}
+          note={reports === null ? 'running' : `header, GRANDPA and trie for 3 blocks, ${reports.ms.toFixed(0)} ms`}
+          tone={checks === null ? 'muted' : passed === checks.length ? 'ok' : 'bad'}
+        />
+        <Figure
+          label="Final state"
+          value={native.titleExistsAfterFinalize ? 'title kept' : 'unbonded'}
+          note={`deposit ${native.deposit.reservedAfterFinalize === '0' ? 'returned' : 'still reserved'}`}
+          tone={native.titleExistsAfterFinalize ? 'warn' : 'ok'}
+        />
+      </FigureBand>
+
+      <Chapter
+        id="create"
+        index={1}
+        title="Create the title on the native chain"
+        lede={
+          <>
+            Alice registers a title. The pallet derives the id from her account and a salt, so nobody else
+            can claim it, and reserves a deposit of {units(native.deposit.reservedAfterCreate)} UNIT. She
+            then names the gate address the EVM deploy will land at, and sudo marks the representation live
+            (an unwritten flag would also read as live).
+          </>
+        }
+      >
+        <StepList>
+          <NativeStepRow
+            step={nativeStep('create_title')}
+            note={
+              <>
+                Salt {hashShort(native.salt, 6, 4)}, title id {hashShort(native.titleId, 8, 6)}, EVM
+                beneficiary {hashShort(evm.accounts.beneficiary, 6, 4)}, chain id {String(native.fields.chainId)}.
+                Revision 1.
+              </>
+            }
+          />
+          <NativeStepRow
+            step={nativeStep('set_representation')}
+            note={<>Binds the record to {evm.predictedGate}, predicted from the deployer nonce. Revision 2.</>}
+          />
+          <NativeStepRow step={nativeStep('sudo set_representation_live(true)')} />
+        </StepList>
+      </Chapter>
+
+      <Chapter
+        id="proof-a"
+        index={2}
+        title="Wait for finality and capture the proof"
+        lede="The script waits for a block GRANDPA has finalized, then reads its header, its stored justification and a read proof for the title's CanonicalTitles key. The three checks below run here, on the committed bytes."
+      >
+        <CaptureCheck report={reports?.A ?? null} devAuthority={DEV_AUTHORITY} walkOpen>
+          <div className="mt-3 grid gap-x-6 border-t border-line pt-1 sm:grid-cols-2">
+            <Row label="Record revision" value={record.revision.toString()} />
+            <Row label="Chain id" value={record.chainId.toString()} />
+            <Row label="EVM beneficiary" value={<Hash value={record.evmBeneficiary} label="beneficiary" />} />
+            <Row label="EVM contract" value={<Hash value={record.evmContract} label="gate address" />} />
+            <Row label="Backing" value={hashShort(record.backing, 8, 6)} title={record.backing} tone="muted" />
+            <Row
+              label="Identity hash"
+              value={hashShort(record.identityHash, 8, 6)}
+              title={record.identityHash}
+              tone="muted"
+            />
+          </div>
+        </CaptureCheck>
+      </Chapter>
+
+      <Chapter
+        id="mint"
+        index={3}
+        title="Mint and transfer on anvil, one proof per action"
+        lede={
+          <>
+            The gate is deployed with the record&apos;s commitment, computed by the verifier from the proven
+            320 bytes. The feed attests the state root of block #{run.proofs.A.header.number}. The mint must
+            be the whole cap, to the proven beneficiary, while supply is zero; the transfer carries its own
+            proof, and replaying the same transfer is refused.
+          </>
+        }
+      >
+        <Panel title="Deployed" hint={`${deploys.length} contracts from ${hashShort(evm.accounts.deployer, 6, 4)}`}>
+          <div className="grid gap-x-6 sm:grid-cols-2">
+            {deploys.map((step) => (
+              <Row
+                key={step.txHash}
+                label={step.label.replace('deploy ', '')}
+                value={<Hash value={step.contractAddress ?? ''} label={`${step.label} address`} head={6} tail={4} />}
+                title={`tx ${step.txHash}, block #${step.blockNumber}`}
+              />
+            ))}
+            <Row label="Title commitment" value={<Hash value={evm.titleCommitment} label="title commitment" />} />
+          </div>
         </Panel>
-      ) : null}
+        <StepList>
+          <EvmStepRow
+            step={evmStep('feed.attest(root A)')}
+            note={
+              <>
+                Root {hashShort(run.proofs.A.header.stateRoot, 8, 6)} at native block #{run.proofs.A.header.number}.
+              </>
+            }
+          />
+          <EvmStepRow
+            step={evmStep('gate.mint(full cap to beneficiary)')}
+            note={`${tokens(evm.maxSupply)} LEMO-L to the beneficiary named in word 4 of the proven record.`}
+          />
+          <EvmStepRow
+            step={evmStep('gate.transfer(beneficiary -> bob)')}
+            note={`${tokens(evm.transferAmount)} LEMO-L to Bob, with a transfer proof bound to this exact action.`}
+          />
+          <EvmStepRow
+            step={evmStep('gate.transfer replayed (same action)')}
+            title="gate.transfer, same action again"
+            note="The same (from, to, amount) at the same revision was already used, so its nullifier is spent."
+          />
+        </StepList>
+        <GateState state={evmState('transfer')} title="Gate after the transfer" />
+      </Chapter>
 
-      {report === null ? null : <Report report={report} />}
+      <Chapter
+        id="refused"
+        index={4}
+        title="Unbond refused while the representation is live"
+        lede="With supply outstanding on the EVM side, Alice asks the native chain to release the backing. The pallet refuses: the extrinsic is included in a block and fails with the exact error below. The EVM guard refuses for the same reason."
+      >
+        <StepList>
+          <NativeStepRow
+            step={refused}
+            title="request_unbond"
+            expectRefusal
+            note={
+              <>
+                Included in block #{refused.blockNumber} and refused with {refused.error?.pallet}.
+                {refused.error?.error}: RepresentationLive is Some(true), and only an explicit Some(false) lets
+                an unbond start.
+              </>
+            }
+          />
+          <EvmStepRow
+            step={evmStep('guard.requestUnbond (supply outstanding)')}
+            title="UnbondGuard.requestUnbond"
+            note="The guard reads representationOutstanding() from the gate before it looks at the proof."
+          />
+        </StepList>
+      </Chapter>
+
+      <Chapter
+        id="burn"
+        index={5}
+        title="Burn the representation with a fresh finalized root"
+        lede={
+          <>
+            A later finalized block, #{run.proofs.B.header.number}, is captured and attested; the older root
+            no longer authorises anything. Bob sends his share back, and the beneficiary burns the whole cap.
+            Mint and burn nullifiers are separate, so one revision allows one of each.
+          </>
+        }
+      >
+        <CaptureCheck report={reports?.B ?? null} devAuthority={DEV_AUTHORITY} />
+        <StepList>
+          <EvmStepRow
+            step={evmStep('feed.attest(root B)')}
+            note={
+              <>
+                Root {hashShort(run.proofs.B.header.stateRoot, 8, 6)} at native block #{run.proofs.B.header.number}.
+              </>
+            }
+          />
+          <EvmStepRow step={evmStep('gate.transfer(bob -> beneficiary)')} />
+          <EvmStepRow
+            step={evmStep('gate.burn(full cap)')}
+            note={`${tokens(evm.maxSupply)} LEMO-L burned; totalSupply is 0.`}
+          />
+          <EvmStepRow
+            step={evmStep('guard.requestUnbond (burn proof)')}
+            title="UnbondGuard.requestUnbond"
+            note="Now accepted: no supply outstanding, and a burn proof of the record at the feed's root."
+          />
+          <EvmStepRow
+            step={evmStep('guard.completeUnbond')}
+            title="UnbondGuard.completeUnbond"
+            note={<>Request {hashShort(evm.guard.requestId, 6, 4)} released by the attester.</>}
+          />
+        </StepList>
+        <GateState state={evmState('burn')} title="Gate after the burn" />
+      </Chapter>
+
+      <Chapter
+        id="unbond"
+        index={6}
+        title="Unbond allowed on the native chain"
+        lede={
+          <>
+            Only after the burn does sudo mirror the representation as not live. The unbond request now
+            succeeds and starts a ten block period; finalizing early is refused; from block #
+            {native.unbondDueBlock} anyone can finalize. The record is deleted and the deposit returned.
+          </>
+        }
+      >
+        <StepList>
+          <NativeStepRow step={nativeStep('sudo set_representation_live(false)')} />
+          <NativeStepRow
+            step={nativeStep('request_unbond')}
+            note={<>Due at block #{native.unbondDueBlock}. The title is frozen until then: no edit can bump its revision.</>}
+          />
+          <NativeStepRow
+            step={nativeStep('finalize_unbond (before due)')}
+            title="finalize_unbond, before the period"
+            expectRefusal
+          />
+          <NativeStepRow
+            step={nativeStep('finalize_unbond')}
+            note={
+              <>
+                Signed by Bob: finalization is permissionless. Alice&apos;s reserved balance went from{' '}
+                {units(native.deposit.reservedAfterCreate)} UNIT back to {units(native.deposit.reservedAfterFinalize)}.
+              </>
+            }
+          />
+        </StepList>
+        <CaptureCheck report={reports?.C ?? null} devAuthority={DEV_AUTHORITY} />
+      </Chapter>
+
+      <p className="font-mono text-[11px] leading-4 text-muted">
+        fixtures/local-e2e.json, replayed by local-evm/test/LocalE2E.t.sol;{' '}
+        {reports === null ? 'checks pending' : `last verified ${new Date(reports.at).toISOString().slice(11, 19)} UTC`}
+      </p>
     </div>
   )
 }

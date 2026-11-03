@@ -134,3 +134,33 @@ Lengths, node counts, step counts, and `valid` status are stable.
   nothing here signs against a live network.
 - **Wasm execution is not exercised at runtime** beyond the compiled runtime;
   the capture goes through the native runtime API and storage proof path only.
+
+## End-to-end lifecycle run (native + anvil)
+
+`scripts/local-e2e.mjs` drives the whole lifecycle with real transactions and
+writes `fixtures/local-e2e.json`, which `/console/local` renders and re-verifies
+in the browser and `local-evm/test/LocalE2E.t.sol` replays.
+
+```bash
+# native: keep a GRANDPA justification for every commit target so
+# chain_getBlock returns it (engine id FRNK); the default period is 512
+cd /Users/subheeksh/code/lemo-runtime
+LEMO_GRANDPA_JUSTIFICATION_PERIOD=1 target/release/solochain-template-node --dev --tmp --rpc-port 9944
+
+# EVM: a fresh anvil (the gate address is predicted from the deployer nonce)
+anvil --port 8545
+
+cd /Users/subheeksh/code/lemo/local-evm && forge build
+cd .. && node scripts/local-e2e.mjs fixtures/local-e2e.json
+cd local-evm && forge test --match-contract LocalE2E
+```
+
+Order: create_title, set_representation (predicted gate), sudo
+set_representation_live(true), capture proof A at a justified block; deploy
+hasher, verifier, feed, gate, guard on anvil, attest root A, mint, transfer,
+replayed transfer (reverts); request_unbond (refused, RepresentationLive) and
+UnbondGuard.requestUnbond (reverts); capture proof B, attest, transfer back,
+burn, guard request and complete; sudo live(false), request_unbond,
+finalize_unbond early (refused, UnbondingNotDue), finalize_unbond after the
+period; capture proof C (key absent). The burn uses the same revision as the
+mint: mint and burn nullifiers are separate, so no revision bump is needed.

@@ -50,8 +50,8 @@ export const NAV_READ: readonly NavItem[] = [
   },
   {
     href: '/console/local',
-    label: 'Local capture',
-    detail: 'Offline proof from a local devnet fixture',
+    label: 'Local lifecycle',
+    detail: 'Recorded devnet run: title, proof, mint, unbond',
     icon: HardDrive,
   },
 ]

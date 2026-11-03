@@ -51,7 +51,7 @@ The honest demo is read-only: live heads, a real Substrate proof, `eth_getProof`
 | Native title registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 10 tests |
 | Four-contract mint / transfer | **Wired, cannot settle** | placeholder commitment; no native title record |
 | Proof service | **1,077 tests passing** | `server/` |
-| Security audit | **Self-audit; critical hazards mitigated** | [docs/AUDIT.md](docs/AUDIT.md); C-01 amount binding and H-06/H-07 open |
+| Security audit | **Self-audit; critical hazards mitigated** | [docs/AUDIT.md](docs/AUDIT.md); C-01 amount binding and H-07 open (H-06 closed in source) |
 
 The honest line: the site, the proof surface and four support contracts are deployed. The gate's title is a deployment placeholder, so this is not a live asset system yet.
 
@@ -404,13 +404,13 @@ The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723d
 - The live gate is **paused** and its bytecode predates the holder-only burn fix. The source is fixed and tested; the deployed gate must be redeployed before any live use.
 - The live gate's commitment is a placeholder. It is a real contract with a real verifier, but there is no real title to prove.
 - The root feed is one attester. `ThresholdRootFeed` exists and is tested but is not deployed.
-- The pallet now stores a 320-byte `CanonicalTitles` blob and the EVM proof carries the full 80-byte storage key. The canonical owner is still derived from `AccountId32`, not an explicit EVM beneficiary field; H-06 is partly closed.
+- The pallet now stores a 320-byte `CanonicalTitles` blob and the EVM proof carries the full 80-byte storage key. H-06 is closed in source: the record carries an explicit `evm_beneficiary` address instead of truncating `AccountId32`. The public runtime still does not include this pallet.
 - A distinct action at the same revision gets a distinct nullifier; the audit's H-01 notes that a true per-revision spend counter is still the stronger design.
 - No external audit. The self-audit is in [`docs/AUDIT.md`](docs/AUDIT.md).
 
 ## Security
 
-- [`docs/AUDIT.md`](docs/AUDIT.md): 28 findings, critical hazards mitigated, H-06/H-07 open. C-01 is bounded by a global cap; the amount-to-record binding is still missing.
+- [`docs/AUDIT.md`](docs/AUDIT.md): 28 findings, critical hazards mitigated, H-07 open (H-06 closed in source). C-01 is bounded by a global cap; the amount-to-record binding is still missing.
 - Mitigations: supply cap, recipient binding, holder-only burn, action-scoped nullifier, unbond release recheck, one open request per title, zero-recipient refusal, ERC-165.
 - The proof service never accepts a caller-supplied state root.
 - The public RPC proxy uses a method allowlist and does not expose wallet-signing methods.

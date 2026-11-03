@@ -15,7 +15,7 @@
  *   word 1   chain id
  *   word 2   native asset id
  *   word 3   backing reference
- *   word 4   owner word
+ *   word 4   explicit EVM beneficiary
  *   word 5   identity hash
  *   word 6   vesting hash
  *   word 7   permissions hash
@@ -27,7 +27,6 @@
  * disagreement stays visible as a warning.
  */
 
-import { decodeAddress } from '@polkadot/util-crypto'
 
 import fixtureJson from '@/fixtures/lemo-local-capture.json'
 import { fromHex, toHex, verifyProof, type ProofVerification } from '@/lib/proofs'
@@ -51,6 +50,7 @@ export type LocalCaptureRecord = {
   nativeAsset: string
   backing: string
   owner: string
+  evmBeneficiary: string
   identityHash: string
   vestingHash: string
   permissionsHash: string
@@ -270,6 +270,7 @@ export function parseFixture(raw: unknown): LocalCaptureFixture {
       nativeAsset: requireHex(fields.nativeAsset, 'record.nativeAsset'),
       backing: requireHex(fields.backing, 'record.backing'),
       owner: requireString(fields.owner, 'record.owner'),
+      evmBeneficiary: requireHex(fields.evmBeneficiary, 'record.evmBeneficiary'),
       identityHash: requireHex(fields.identityHash, 'record.identityHash'),
       vestingHash: requireString(fields.vestingHash, 'record.vestingHash'),
       permissionsHash: requireString(fields.permissionsHash, 'record.permissionsHash'),
@@ -376,29 +377,18 @@ export function verifyLocalCapture(fixture: LocalCaptureFixture): LocalCaptureRe
     tone: record.revision === parseNumber(fixture.record.revision) ? 'ok' : 'bad',
   })
 
-  // The owner word is the one field whose width is smaller than an AccountId.
-  try {
-    const account = toHex(decodeAddress(fixture.record.owner))
-    const tail = account.slice(-40)
-    const matches = record.ownerLow20.slice(2).toLowerCase() === tail.toLowerCase()
-    const padded = record.ownerWord.startsWith('0x' + '00'.repeat(12))
-
-    checks.push({
-      label: 'word 4 carries the owner account',
-      detail: matches
-        ? padded
-          ? `the low 20 bytes of ${fixture.record.owner}; the high 12 bytes of the word are zero`
-          : 'the low 20 bytes match the declared account'
-        : `the low 20 bytes do not match ${fixture.record.owner}`,
-      tone: matches ? (padded ? 'warn' : 'ok') : 'bad',
-    })
-  } catch {
-    checks.push({
-      label: 'word 4 carries the owner account',
-      detail: 'the fixture owner is not a decodable SS58 address',
-      tone: 'warn',
-    })
-  }
+  // Word 4 is an explicit EVM beneficiary address, not a truncation of AccountId32.
+  checks.push({
+    label: 'word 4 is the EVM beneficiary',
+    detail:
+      record.ownerLow20.toLowerCase() === fixture.record.evmBeneficiary.toLowerCase()
+        ? `the explicit address ${fixture.record.evmBeneficiary}`
+        : `the word does not match ${fixture.record.evmBeneficiary}`,
+    tone:
+      record.ownerLow20.toLowerCase() === fixture.record.evmBeneficiary.toLowerCase()
+        ? 'ok'
+        : 'bad',
+  })
 
   if (fixture.canonicalValueBytes !== valueBytes) {
     checks.push({

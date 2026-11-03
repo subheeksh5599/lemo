@@ -103,7 +103,7 @@ contract FixtureTitleTest is Test {
       bytes32(uint256(0x3333333333333333333333333333333333333333333333333333333333333333))
     );
     assertEq(record.evmContract, address(gate), "fixture record is bound to the gate");
-    assertEq(record.revision, 3);
+    assertEq(record.revision, 2);
     assertEq(TitleLib.encodeNative(record), canonicalValue, "re-encode is byte identical");
   }
 
@@ -154,7 +154,7 @@ contract FixtureTitleTest is Test {
 
     assertEq(gate.balanceOf(record.owner), 60);
     assertEq(gate.balanceOf(address(0xB0B)), 40);
-    assertEq(gate.acceptedRevision(), 3);
+    assertEq(gate.acceptedRevision(), 2);
   }
 
   /// @notice A derived record (same fixture fields, evmContract set to the
@@ -182,7 +182,7 @@ contract FixtureTitleTest is Test {
 
     assertEq(gate.balanceOf(record.owner), 600);
     assertEq(gate.balanceOf(address(0xB0B)), 400);
-    assertEq(gate.acceptedRevision(), 3);
+    assertEq(gate.acceptedRevision(), 2);
   }
 
   // ------------------------------------------------------------------ helpers

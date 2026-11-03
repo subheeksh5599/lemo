@@ -25,6 +25,10 @@ pub mod pallet {
     pub native_asset: Hash,
     pub backing: Hash,
     pub owner: AccountId,
+    /// The EVM address that owns the representation. Kept explicit rather than
+    /// truncating `AccountId32`; the native account and the EVM beneficiary are
+    /// different namespaces.
+    pub evm_beneficiary: [u8; 20],
     pub identity_hash: Hash,
     pub vesting_hash: Hash,
     pub permissions_hash: Hash,
@@ -115,6 +119,7 @@ pub mod pallet {
       identity_hash: T::Hash,
       vesting_hash: T::Hash,
       permissions_hash: T::Hash,
+      evm_beneficiary: [u8; 20],
     ) -> DispatchResult {
       let owner = ensure_signed(origin)?;
       ensure!(!Titles::<T>::contains_key(title_id), Error::<T>::TitleExists);
@@ -125,6 +130,7 @@ pub mod pallet {
         native_asset,
         backing,
         owner: owner.clone(),
+        evm_beneficiary,
         identity_hash,
         vesting_hash,
         permissions_hash,
@@ -256,9 +262,7 @@ pub mod pallet {
       out[56..64].copy_from_slice(&record.chain_id.to_be_bytes());
       out[64..96].copy_from_slice(&record.native_asset.encode());
       out[96..128].copy_from_slice(&record.backing.encode());
-      let owner = record.owner.encode();
-      let take = core::cmp::min(owner.len(), 20);
-      out[160 - take..160].copy_from_slice(&owner[owner.len() - take..]);
+      out[140..160].copy_from_slice(&record.evm_beneficiary);
       out[160..192].copy_from_slice(&record.identity_hash.encode());
       out[192..224].copy_from_slice(&record.vesting_hash.encode());
       out[224..256].copy_from_slice(&record.permissions_hash.encode());
@@ -318,7 +322,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
 
       let record = crate::Titles::<Test>::get(h(1)).expect("title exists");
@@ -327,6 +332,7 @@ mod tests {
       assert_eq!(record.evm_contract, [0u8; 20]);
       let canonical = crate::CanonicalTitles::<Test>::get(h(1)).expect("canonical record");
       assert_eq!(canonical.len(), 320);
+      assert_eq!(&canonical[140..160], &[0u8; 20]);
       assert_eq!(&canonical[312..320], &1u64.to_be_bytes());
     });
   }
@@ -342,7 +348,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
       assert_noop!(
         LemoTitle::create_title(
@@ -353,7 +360,8 @@ mod tests {
           h(3),
           h(4),
           h(5),
-          h(6)
+          h(6),
+        [0u8; 20]
         ),
         Error::<Test>::TitleExists
       );
@@ -371,7 +379,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
       assert_ok!(LemoTitle::set_identity(RuntimeOrigin::signed(1), h(1), h(9)));
       assert_eq!(crate::Titles::<Test>::get(h(1)).unwrap().revision, 2);
@@ -394,7 +403,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
       assert_ok!(LemoTitle::set_representation(
         RuntimeOrigin::signed(1),
@@ -418,7 +428,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
       assert_ok!(LemoTitle::set_representation_live(
         RuntimeOrigin::root(),
@@ -445,7 +456,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
       assert_ok!(LemoTitle::set_representation_live(
         RuntimeOrigin::root(),
@@ -469,7 +481,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
 
       assert_noop!(
@@ -490,7 +503,8 @@ mod tests {
         h(3),
         h(4),
         h(5),
-        h(6)
+        h(6),
+        [0u8; 20]
       ));
 
       assert_noop!(

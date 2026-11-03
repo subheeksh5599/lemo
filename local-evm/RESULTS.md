@@ -39,12 +39,14 @@ own proof, key and root. No derived record is used for that test.
 
 Fixture values from the committed capture:
 
-- finalized block `23`
-- state root `0x612a782d77e95425f8129f9db7aa97fd5d57228a58ab2530c46fbba71f06bd0e`
+- finalized block `5`
+- state root `0xb38ce0fc8a521cba7691c3970b039caa37f487b5abf2acb8375a2d37a1727e9c`
 - canonical value 320 bytes
 - canonical storage key 80 bytes
+- SCALE title value 280 bytes
+- EVM beneficiary `0x04A99FD6822C8558854CCde39a5684e7A56dA27d`
 - title id `0xee00…0000`
-- revision `3`
+- revision `2`
 - bound EVM contract `0xa0Cb889707d426A7A386870A03bc70d1b0697598`
 
 ## Why the interface changed

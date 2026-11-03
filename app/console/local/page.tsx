@@ -64,7 +64,6 @@ function CheckLine({ check }: { check: CaptureCheck }) {
 function Report({ report }: { report: LocalCaptureReport }) {
   const { fixture, proof, record } = report
   const verdict = VERDICT[proof.status]
-  const ownerPadded = record.ownerWord.slice(2, 26) === '0'.repeat(24)
 
   return (
     <div className="space-y-4">
@@ -142,7 +141,7 @@ function Report({ report }: { report: LocalCaptureReport }) {
           />
           <Row label="Chain id" value={record.chainIdLabel} title={fixture.record.chainId} />
           <Row
-            label="Owner"
+            label="EVM beneficiary"
             value={<span title={record.ownerWord}>{hashShort(record.ownerLow20, 10, 8)}</span>}
           />
           <Row
@@ -162,9 +161,9 @@ function Report({ report }: { report: LocalCaptureReport }) {
             tone="muted"
           />
           <p className="mt-3 text-[11.5px] leading-5 text-muted">
-            {ownerPadded
-              ? `Word 4 is 12 zero bytes then the low 20 bytes of the declared account ${fixture.record.owner}. The capture does not carry the full 32 byte account id, so the owner reads as that address form here.`
-              : `Word 4 is the 32 byte owner word; the declared account is ${fixture.record.owner}.`}
+            Word 4 is the explicit EVM beneficiary {record.ownerLow20}. The native
+            account is {fixture.record.owner}; the record keeps both namespaces
+            instead of truncating the account id.
           </p>
         </Panel>
       </div>

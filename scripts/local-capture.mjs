@@ -48,6 +48,7 @@ async function main() {
       api.createType('H256', new Uint8Array(32).fill(0x11)),
       api.createType('H256', new Uint8Array(32).fill(0x22)),
       api.createType('H256', new Uint8Array(32).fill(0x33)),
+      api.createType('[u8;20]', '0x04A99FD6822C8558854CCde39a5684e7A56dA27d'),
     )
 
     await new Promise((resolve, reject) => {

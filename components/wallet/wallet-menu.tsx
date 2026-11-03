@@ -9,10 +9,20 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown, ExternalLink, Loader2, Wallet, X } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Loader2,
+  ShieldAlert,
+  ShieldCheck,
+  Wallet,
+  X,
+} from 'lucide-react'
 
 import { useWallet, type WalletStatus } from '@/components/wallet/wallet-provider'
 import { shortHash } from '@/lib/format'
+import { safeWalletIcon } from '@/lib/wallet/validation'
 import { cn } from '@/lib/utils'
 
 const INSTALL_LINKS = {
@@ -46,11 +56,14 @@ function initials(name: string): string {
 
 function WalletGlyph({ name, icon }: { name: string; icon: string | null }) {
   const [failed, setFailed] = useState(false)
+  // Re-checked at render: only inline png/svg/webp data URIs ever reach <img>,
+  // so a wallet cannot turn its icon into a remote tracking request.
+  const safeIcon = safeWalletIcon(icon)
 
-  if (icon !== null && !failed) {
+  if (safeIcon !== null && !failed) {
     return (
       <img
-        src={icon}
+        src={safeIcon}
         alt=""
         aria-hidden="true"
         className="size-6"
@@ -62,6 +75,26 @@ function WalletGlyph({ name, icon }: { name: string; icon: string | null }) {
   return (
     <span aria-hidden="true" className="font-mono text-[11px] text-ink-2">
       {initials(name)}
+    </span>
+  )
+}
+
+function TrustBadge({ verified }: { verified: boolean }) {
+  return verified ? (
+    <span
+      className="badge badge--ok h-5 shrink-0 px-1.5"
+      title="Announced rdns is on LEMO's known-wallet list"
+    >
+      <ShieldCheck aria-hidden="true" />
+      Verified
+    </span>
+  ) : (
+    <span
+      className="badge badge--warn h-5 shrink-0 px-1.5"
+      title="Not a known wallet id, or another provider on this page claimed the same id. The name is self-reported."
+    >
+      <ShieldAlert aria-hidden="true" />
+      Unverified
     </span>
   )
 }
@@ -368,8 +401,9 @@ export function WalletMenu({ className }: { className?: string }) {
                               </span>
 
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-[13px] font-medium text-ink">
-                                  {wallet.name}
+                                <p className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-ink">
+                                  <span className="truncate">{wallet.name}</span>
+                                  <TrustBadge verified={wallet.verified} />
                                 </p>
                                 <p className="mt-0.5 truncate font-mono text-[10.5px] text-muted">
                                   {isActive && activeAccount !== null

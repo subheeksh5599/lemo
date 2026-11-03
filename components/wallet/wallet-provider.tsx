@@ -402,7 +402,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           const address = accounts[0]?.address
 
           if (address === undefined) {
-            throw new Error(`${substrate.name} has no account to share.`)
+            throw new Error(
+              `${substrate.name} has no valid SS58 (prefix 42) account to share.`,
+            )
           }
           if (!mountedRef.current || connectionEpochRef.current !== epoch) return
 

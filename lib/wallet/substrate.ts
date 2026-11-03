@@ -9,12 +9,9 @@
  * no seed or private key is ever touched.
  */
 
-export type SubstrateAccount = {
-  address: string
-  name?: string
-  type?: string
-  genesisHash?: string | null
-}
+import { normalizeSubstrateAccounts, type SubstrateAccount } from './validation'
+
+export type { SubstrateAccount } from './validation'
 
 /** The subset of the extension's accounts API this console relies on. */
 export type SubstrateAccountsApi = {
@@ -78,28 +75,8 @@ function isSubstrateExtension(value: unknown): value is SubstrateExtension {
   return typeof value.accounts.get === 'function'
 }
 
-function normalizeAccounts(value: unknown): SubstrateAccount[] {
-  if (!Array.isArray(value)) return []
-
-  const accounts: SubstrateAccount[] = []
-
-  for (const item of value) {
-    if (!isRecord(item) || typeof item.address !== 'string' || item.address.length === 0) {
-      continue
-    }
-
-    accounts.push({
-      address: item.address,
-      ...(typeof item.name === 'string' ? { name: item.name } : {}),
-      ...(typeof item.type === 'string' ? { type: item.type } : {}),
-      ...(typeof item.genesisHash === 'string' || item.genesisHash === null
-        ? { genesisHash: item.genesisHash }
-        : {}),
-    })
-  }
-
-  return accounts
-}
+/** Only SS58-valid (prefix 42) accounts survive; see `validation.ts`. */
+const normalizeAccounts = normalizeSubstrateAccounts
 
 function readInjectedWeb3(): Record<string, InjectedEntry> {
   if (typeof window === 'undefined') return {}

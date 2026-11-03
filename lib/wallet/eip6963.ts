@@ -10,26 +10,21 @@
  * transactions, and no keys ever leave the extension.
  */
 
+import {
+  isEvmAddress,
+  mergeAnnouncement,
+  parseEip6963Announcement,
+  type AnnouncedWallet,
+  type Eip1193Provider,
+} from './validation'
+
 export const EIP6963_ANNOUNCE = 'eip6963:announceProvider'
 export const EIP6963_REQUEST = 'eip6963:requestProvider'
 
-/** The slice of EIP-1193 this console needs. Providers own the rest. */
-export type Eip1193Provider = {
-  request: (args: { method: string; params?: unknown }) => Promise<unknown>
-  on?: (event: string, listener: (payload: unknown) => void) => void
-  removeListener?: (event: string, listener: (payload: unknown) => void) => void
-}
+export type { Eip1193Provider } from './validation'
 
-export type EvmWallet = {
-  /** Stable within a session; `rdns` when the wallet supplies one. */
-  id: string
-  uuid: string
-  name: string
-  /** Data URI announced by the wallet, or null when it announced none. */
-  icon: string | null
-  rdns: string
-  provider: Eip1193Provider
-}
+/** A parsed announcement; `verified` and `icon` are already sanitised. */
+export type EvmWallet = AnnouncedWallet
 
 export type EvmConnection = {
   address: string
@@ -42,19 +37,9 @@ type EvmEventHandlers = {
   onDisconnect?: () => void
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function isEip1193Provider(value: unknown): value is Eip1193Provider {
-  return isRecord(value) && typeof value.request === 'function'
-}
-
 function normalizeAccounts(value: unknown): string[] {
   if (!Array.isArray(value)) return []
-  return value.filter(
-    (account): account is string => typeof account === 'string' && account.length > 0,
-  )
+  return value.filter(isEvmAddress)
 }
 
 /** Accepts the hex string wallets return, and the number some test shims send. */
@@ -80,31 +65,6 @@ export function chainLabel(chainId: number | null): string {
   return chainId === null ? 'Chain unavailable' : `Chain ${chainId}`
 }
 
-function parseAnnouncement(detail: unknown): EvmWallet | null {
-  if (!isRecord(detail)) return null
-
-  const info = detail.info
-  const provider = detail.provider
-
-  if (!isRecord(info) || !isEip1193Provider(provider)) return null
-  if (typeof info.name !== 'string' || info.name.length === 0) return null
-
-  const uuid = typeof info.uuid === 'string' ? info.uuid : ''
-  const rdns = typeof info.rdns === 'string' ? info.rdns : ''
-  const id = rdns.length > 0 ? rdns : uuid
-
-  if (id.length === 0) return null
-
-  return {
-    id,
-    uuid,
-    name: info.name,
-    icon: typeof info.icon === 'string' && info.icon.length > 0 ? info.icon : null,
-    rdns,
-    provider,
-  }
-}
-
 function sortByName(wallets: EvmWallet[]): EvmWallet[] {
   return [...wallets].sort((left, right) => left.name.localeCompare(right.name))
 }
@@ -114,7 +74,8 @@ function sortByName(wallets: EvmWallet[]): EvmWallet[] {
  *
  * A second request is sent shortly after the first because some extensions
  * inject their provider after the document has already hydrated. Repeated
- * announcements from the same wallet are deduped by `rdns`/`uuid`.
+ * announcements from the same wallet are deduped by `rdns`/`uuid`; a different
+ * provider re-using a claimed id is kept out and the entry marked unverified.
  */
 export function subscribeEvmWallets(
   listener: (wallets: EvmWallet[]) => void,
@@ -137,15 +98,14 @@ export function subscribeEvmWallets(
   }
 
   const announce = (event: Event) => {
-    const wallet = parseAnnouncement((event as CustomEvent<unknown>).detail)
+    const wallet = parseEip6963Announcement((event as CustomEvent<unknown>).detail)
     if (wallet === null) return
 
-    const previous = found.get(wallet.id)
-    found.set(wallet.id, wallet)
-
-    // A repeat announcement with the same provider instance changes nothing.
-    if (previous !== undefined && previous.provider === wallet.provider) return
-    flush()
+    // First claimant keeps the id; a second provider claiming it demotes the
+    // entry to unverified instead of silently replacing it.
+    const merged = mergeAnnouncement(found.get(wallet.id), wallet)
+    found.set(wallet.id, merged.wallet)
+    if (merged.changed) flush()
   }
 
   window.addEventListener(EIP6963_ANNOUNCE, announce)

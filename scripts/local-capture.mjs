@@ -12,7 +12,7 @@
 
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import { Keyring } from '@polkadot/keyring'
-import { cryptoWaitReady } from '@polkadot/util-crypto'
+import { cryptoWaitReady, decodeAddress } from '@polkadot/util-crypto'
 import { u8aToHex } from '@polkadot/util'
 import { writeFileSync } from 'node:fs'
 
@@ -30,6 +30,8 @@ async function main() {
   const api = await ApiPromise.create({ provider: new WsProvider(endpoint) })
   const keyring = new Keyring({ type: 'sr25519' })
   const alice = keyring.addFromUri('//Alice')
+  const beneficiary =
+    process.env.LEMO_EVM_BENEFICIARY ?? u8aToHex(decodeAddress(alice.address).slice(-20))
   const titleId = api.createType('H256', titleIdBytes())
 
   const chain = await api.rpc.system.chain()
@@ -48,7 +50,7 @@ async function main() {
       api.createType('H256', new Uint8Array(32).fill(0x11)),
       api.createType('H256', new Uint8Array(32).fill(0x22)),
       api.createType('H256', new Uint8Array(32).fill(0x33)),
-      api.createType('[u8;20]', '0x04A99FD6822C8558854CCde39a5684e7A56dA27d'),
+      api.createType('[u8;20]', beneficiary),
     )
 
     await new Promise((resolve, reject) => {

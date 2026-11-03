@@ -26,8 +26,8 @@ contract TitleProofBuilder {
     hasher = hasher_;
   }
 
-  function storageKey(bytes32 titleId) public pure returns (bytes32) {
-    return keccak256(abi.encode("LEMO.NATIVE.TITLE", titleId));
+  function storageKey(bytes32 titleId) public pure returns (bytes memory) {
+    return abi.encodePacked(keccak256(abi.encode("LEMO.NATIVE.TITLE", titleId)));
   }
 
   /// @notice The 66 byte leaf that commits the record.
@@ -42,17 +42,17 @@ contract TitleProofBuilder {
     returns (ITitleVerifier.TitleProof memory proof, bytes32 root, bytes32 commitment)
   {
     bytes memory encoded = TitleLib.encodeNative(record);
-    bytes32 key = storageKey(record.titleId);
+    bytes memory keyBytes = storageKey(record.titleId);
+    bytes32 key = bytes32(keyBytes);
     bytes32 valueHash = hasher.hash(encoded);
     bytes memory leaf = leafFor(key, valueHash);
-
     proof.titleId = record.titleId;
     proof.chainId = block.chainid;
     proof.revision = record.revision;
     proof.token = token;
     proof.operation = operation;
     proof.stateRoot = hasher.hash(leaf);
-    proof.storageKey = key;
+    proof.storageKey = keyBytes;
     proof.nodes = new bytes[](2);
     proof.nodes[0] = leaf;
     proof.nodes[1] = encoded;

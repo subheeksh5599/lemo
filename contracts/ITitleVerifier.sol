@@ -32,7 +32,7 @@ interface ITitleVerifier {
     address token;
     uint8 operation;
     bytes32 stateRoot;
-    bytes32 storageKey;
+    bytes storageKey;
     bytes[] nodes;
   }
 

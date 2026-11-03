@@ -133,7 +133,7 @@ contract SubstrateTrieVerifier is ITitleVerifier {
     returns (Status status, TitleRecord memory record)
   {
     (Status walk, bytes memory blob) =
-      _verify(proof.stateRoot, _toBytes(proof.storageKey), _copy(proof.nodes), false, "");
+      _verify(proof.stateRoot, proof.storageKey, _copy(proof.nodes), false, "");
     if (walk != Status.PROVEN) return (walk, record);
 
     (bool decoded, TitleRecord memory r) = TitleLib.decodeNative(blob);

@@ -8,7 +8,7 @@ const setId=(await api.query.beefy.validatorSetId()).toString()
 const auths=(await api.query.beefy.authorities()).map(a=>u8aToHex(keccakAsU8a(secp256k1Expand(a.toU8a())).slice(12)))
 const name=process.argv[2]||'BeefyRootFeed'
 const art=JSON.parse(fs.readFileSync(`out/${name}.sol/${name}.json`))
-const args=execSync(`$HOME/.foundry/bin/cast abi-encode "c(uint64,address[],address)" ${setId} "[${auths.join(",")}]" 0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22`).toString().trim()
+const args=process.env.ARGS||execSync(`$HOME/.foundry/bin/cast abi-encode "c(uint64,address[],address)" ${setId} "[${auths.join(",")}]" 0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22`).toString().trim()
 const code=art.bytecode.object+args.slice(2)
 const origin=process.env.ORIGIN||'5FJ9YMZwMuqDpmD5Y6xTje2vEN3UcMaMcVs9ptSDqJSkshCz'
 const r=await api.call.reviveApi.instantiate(origin,0,null,null,{Upload:code},'0x',null)

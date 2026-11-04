@@ -239,6 +239,26 @@ export type RelayResult =
   | { status: 'current'; behind: number; rootBlock: number }
   | { status: 'refused'; reason: string }
 
+export type RelayPlan = {
+  feed: { setId: number; block: number }
+  finalSetId: number
+  steps: { note: string; block: number; stateRoot: string; data: string }[]
+}
+
+/**
+ * The submissions that bring the feed current: one per validator set it missed,
+ * then the newest root. Planned server-side by the same code as the scheduled
+ * relayer; the feed itself checks every byte against the validators' signatures.
+ */
+export async function fetchPlan(): Promise<RelayPlan> {
+  const response = await fetch('/api/relay/next', { cache: 'no-store' })
+  const body = (await response.json().catch(() => null)) as (RelayPlan & { error?: string }) | null
+  if (!response.ok || body === null || !Array.isArray(body.steps)) {
+    throw new Error(body?.error ?? `planning failed: HTTP ${response.status}`)
+  }
+  return body
+}
+
 /** Ask the server relayer to submit the given calldata to the feed. */
 export async function requestRelay(calldata: string): Promise<RelayResult> {
   const response = await fetch('/api/relay', {

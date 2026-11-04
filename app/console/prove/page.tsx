@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { CopyButton } from '@/components/console/copy-button'
 import { Figure, FigureBand, Notice, PageHeader, Panel, Row, Skeleton, State } from '@/components/console/primitives'
 import { ScannerLink } from '@/components/console/scanner-link'
-import { BEEFY_FEED, fetchBeefyMaterial, readBeefyFeed, verifyBeefy, type BeefyFeedReading } from '@/lib/beefy'
+import { BEEFY_FEED, readBeefyFeed, type BeefyFeedReading } from '@/lib/beefy'
 import { formatInt, hashShort } from '@/lib/format'
 import {
-  encodeSubmit,
+  fetchPlan,
   formatPot,
   proveAccount,
   requestRelay,
@@ -16,7 +16,8 @@ import {
   type AccountProof,
   type RelayResult,
 } from '@/lib/live-proof'
-import { scannerAccount, scannerBlock } from '@/lib/scanner'
+import { scannerAccount, scannerBlock, scannerExtrinsic } from '@/lib/scanner'
+import { connectSigner, listSubstrateWallets, submitSigned, type SignedSubmit } from '@/lib/wallet/sign'
 
 /** The relayer's native account: it always holds tPOT, so it proves a non-empty record. */
 const EXAMPLE = '5HeBperF6m5AbP8TZKPnYRdBPMHNK3ebgkDH7FpPHNPBM9y1'
@@ -94,9 +95,9 @@ function FeedSection({
 
       {relay === null ? (
         <p className="mt-3 text-[12px] leading-4 text-muted">
-          The button reads the newest BEEFY justification in this browser, builds the submit calldata and asks
-          the server relayer to send it. The relayer only pays gas; the feed reverts anything the validators did
-          not sign. It sends at most once every 30 blocks.
+          The button plans one submission per validator set the feed missed, then the newest root, and the server
+          relayer sends each one. The relayer only pays gas; the feed reverts anything the validators did not sign.
+          It sends nothing while the root is within 30 blocks of the head.
         </p>
       ) : relay.status === 'sent' ? (
         <div className="mt-3 space-y-1 border-t border-line pt-3">
@@ -123,6 +124,139 @@ function FeedSection({
         </p>
       ) : (
         <p className="mt-3 text-[13px] text-bad">Not sent: {relay.reason}</p>
+      )}
+    </Panel>
+  )
+}
+
+function SignYourself({ onDone }: { onDone: () => void }) {
+  const [wallets, setWallets] = useState<{ id: string; name: string }[]>([])
+  const [walletId, setWalletId] = useState('')
+  const [accounts, setAccounts] = useState<{ address: string; name?: string }[]>([])
+  const [address, setAddress] = useState('')
+  const [signer, setSigner] = useState<Parameters<typeof submitSigned>[1] | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [result, setResult] = useState<SignedSubmit | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+
+  useEffect(() => {
+    const read = () => {
+      const found = listSubstrateWallets()
+      setWallets(found)
+      setWalletId((current) => current || found[0]?.id || '')
+    }
+    read()
+    const timer = setTimeout(read, 1200) // extensions inject after load
+    return () => clearTimeout(timer)
+  }, [])
+
+  const connect = async () => {
+    setProblem(null)
+    try {
+      setBusy('Connecting')
+      const connected = await connectSigner(walletId)
+      setAccounts(connected.accounts)
+      setAddress(connected.accounts[0]?.address ?? '')
+      setSigner(connected.signer)
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'the wallet did not connect')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const submit = async () => {
+    if (signer === null || BEEFY_FEED === null) return
+    setProblem(null)
+    setResult(null)
+    try {
+      setBusy('Planning from BEEFY')
+      const plan = await fetchPlan()
+      if (plan.steps.length === 0) throw new Error('the feed is already at the newest justified block')
+      const done = await submitSigned(address, signer, BEEFY_FEED, plan.steps.map((step) => step.data), setBusy)
+      setResult(done)
+      onDone()
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'the submission failed')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const link = result === null ? null : scannerExtrinsic(result.blockNumber, result.index)
+
+  return (
+    <Panel
+      title="Sign the update yourself"
+      hint="a native revive.call from your Portaldot wallet, listed on the V3 scanner"
+    >
+      {wallets.length === 0 ? (
+        <p className="text-[13px] text-muted">
+          No Portaldot wallet extension found. Install Talisman, SubWallet or Polkadot.js and reload.
+        </p>
+      ) : signer === null ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Wallet extension"
+            value={walletId}
+            onChange={(event) => setWalletId(event.target.value)}
+            className="h-9 rounded-sm border border-line bg-canvas px-2 text-[13px] text-ink"
+          >
+            {wallets.map((wallet) => (
+              <option key={wallet.id} value={wallet.id}>
+                {wallet.name}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn btn--solid btn--sm" onClick={() => void connect()} disabled={busy !== null}>
+            {busy ?? 'Connect wallet'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Account"
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            className="h-9 min-w-0 max-w-full flex-1 rounded-sm border border-line bg-canvas px-2 font-mono text-[12px] text-ink"
+          >
+            {accounts.map((account) => (
+              <option key={account.address} value={account.address}>
+                {account.name ? `${account.name} · ` : ''}
+                {hashShort(account.address, 8, 6)}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn btn--solid btn--sm" onClick={() => void submit()} disabled={busy !== null}>
+            {busy ?? 'Sign and submit'}
+          </button>
+        </div>
+      )}
+      <p className="mt-2 text-[12px] leading-4 text-muted">
+        Your wallet signs the same validator-signed submission the relayer sends. The fee is a fraction of a tPOT.
+        The feed reverts if the root is not newer or the validators did not sign it.
+      </p>
+      {problem !== null ? <p className="mt-3 text-[13px] text-bad">Not submitted: {problem}</p> : null}
+      {result === null ? null : (
+        <div className="mt-3 space-y-1 border-t border-line pt-3">
+          <Row
+            label="Extrinsic"
+            value={
+              <span className="inline-flex items-center gap-2">
+                <State tone="ok">
+                  {formatInt(result.blockNumber)}-{result.index}
+                </State>
+                <ScannerLink href={link} label="open on the scanner" />
+              </span>
+            }
+            mono={false}
+          />
+          <Row label="Extrinsic hash" value={<Hash value={result.extrinsicHash} label="the extrinsic hash" />} />
+          <Row label="Signed by" value={<span className="truncate font-mono text-[12px]">{address}</span>} />
+          <Row label="Fee" value={result.feePlanck === null ? '-' : `${formatPot(BigInt(result.feePlanck))} tPOT`} />
+          <Row label="Feed calls" value={`${result.calls} revive.call${result.calls === 1 ? '' : 's'} in one extrinsic`} mono={false} />
+          {result.mapped ? null : <Row label="Account mapping" value="mapped to Revive in the same batch" mono={false} />}
+        </div>
       )}
     </Panel>
   )
@@ -173,15 +307,19 @@ export default function ProvePage() {
   const advance = useCallback(async () => {
     setRelay(null)
     try {
-      setRelaying('Reading BEEFY')
-      const material = await fetchBeefyMaterial()
-      const verdict = verifyBeefy(material)
-      if (!verdict.pass) {
-        setRelay({ status: 'refused', reason: 'the newest justification did not pass the browser checks' })
+      setRelaying('Planning from BEEFY')
+      const plan = await fetchPlan()
+      if (plan.steps.length === 0) {
+        setRelay({ status: 'current', behind: 0, rootBlock: plan.feed.block })
         return
       }
-      setRelaying('Submitting')
-      setRelay(await requestRelay(encodeSubmit(material)))
+      let last: RelayResult = { status: 'refused', reason: 'nothing sent' }
+      for (const [i, step] of plan.steps.entries()) {
+        setRelaying(`Submitting ${i + 1} of ${plan.steps.length}`)
+        last = await requestRelay(step.data)
+        if (last.status !== 'sent') break
+      }
+      setRelay(last)
       await loadFeed()
     } catch (error) {
       setRelay({ status: 'refused', reason: error instanceof Error ? error.message : 'the relay failed' })
@@ -210,6 +348,8 @@ export default function ProvePage() {
       ) : null}
 
       <FeedSection feed={feed} reading={reading} onRelay={advance} relaying={relaying} relay={relay} />
+
+      <SignYourself onDone={() => void loadFeed()} />
 
       <Panel title="2. Choose a native account" hint="System.Account, any SS58 address">
         <form

@@ -119,6 +119,14 @@ export async function evmCalls(api: ApiPromise, address: string, calls: EvmCall[
   if (dry.result.isErr) {
     const err = dry.result.asErr
     const meta = err.isModule ? api.registry.findMetaError(err.asModule as never) : null
+    if (meta?.name === 'StorageDepositNotEnoughFunds' || meta?.name === 'StorageDepositLimitExhausted') {
+      const account = (await api.query.system.account(address)) as unknown as { data: { free: { toBigInt: () => bigint } } }
+      const free = Number(account.data.free.toBigInt()) / 1e14
+      const need = calls.reduce((n, c) => n + (c.storageTpot ?? 2), 0)
+      throw new Error(
+        `Not enough tPOT on ${address.slice(0, 6)}…${address.slice(-5)}: it has ${free.toFixed(2)} free, and this step can hold up to ${need} tPOT of storage deposit plus fees. Fund this account (or switch to one with tPOT) and press again.`,
+      )
+    }
     throw new Error(meta ? `the chain would refuse this: ${meta.section}.${meta.name}` : 'the chain would refuse this call')
   }
   if (dry.result.asOk.flags.isRevert) {

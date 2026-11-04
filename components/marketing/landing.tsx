@@ -689,22 +689,23 @@ function Security() {
       <div className="mx-auto max-w-[900px] px-6 text-center">
         <Eyebrow light>VERIFICATION &amp; BOUNDARIES</Eyebrow>
         <h2 className="mt-4 text-[clamp(1.8rem,3vw,2.5rem)] font-normal leading-[1.25] tracking-[-0.035em]">
-          A proof can be checked. The gate is deployed.
+          Validators sign the root. The EVM checks the proof.
         </h2>
         <p className="mx-auto mt-5 max-w-[680px] text-[14px] leading-[1.7] text-white/60">
-          The trie verifier is checked against real finalized captures in TypeScript
-          and Solidity, and the four support contracts are deployed on Portaldot V3.
-          The gate is paused after a burn fix in source, so the live contract predates
-          that fix. The native registry and the WASM contracts module are not; the root
-          feed is still a trusted checkpoint. The landing page says that on purpose.
+          BeefyRootFeed on Portaldot V3 accepts a state root only with both BEEFY
+          validators&apos; signatures, and the deployed trie verifier proves native
+          account records against it on the public chain. The public runtime has no
+          title pallet, so the title gate stays paused; the full two-rule lifecycle
+          runs on a local runtime. The landing page says that on purpose.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 font-mono text-[9.5px] tracking-[0.12em] text-white/45">
-          <span>TRUSTED ROOT FEED</span>
+          <span>VALIDATOR-SIGNED ROOTS</span>
+          <span>NATIVE STATE PROVEN IN THE EVM</span>
           <span>GATE PAUSED</span>
           <span>ETH_GETPROOF REFUSED</span>
         </div>
-        <Link href="/console/network" className="mt-8 inline-flex items-center gap-1.5 text-[12px] text-[#6e94ff] hover:text-white">
-          Read the network page
+        <Link href="/console/prove" className="mt-8 inline-flex items-center gap-1.5 text-[12px] text-[#6e94ff] hover:text-white">
+          Prove an account on-chain
           <ArrowUpRight className="size-3.5" aria-hidden="true" />
         </Link>
       </div>
@@ -715,11 +716,11 @@ function Security() {
 const FAQS = [
   [
     'Does LEMO exist on a public chain?',
-    'The proof verifier, title design and four support contracts are live on Portaldot V3. The native registry and the WASM contracts module are not. The gate is paused after a burn-authority fix in source, and it uses a deployment placeholder commitment until a real native title record is available.',
+    'Yes. On Portaldot V3 the BEEFY root feed, the trie verifier, the Blake2b adapter, the older root feed and the title gate are deployed, and anyone can prove a native account on /console/prove or sign a feed update with their own wallet. The native title pallet is not in the public runtime, so the title gate is paused; the full lifecycle runs on a local runtime with the pallet, shown on /console/local.',
   ],
   [
     'What exactly is proven?',
-    'A Substrate read proof for System.Number is decoded, walked against the finalized state root, and checked in both TypeScript and Solidity. The fixtures are real captures from the public testnet.',
+    'A native storage proof (for example an account\'s System.Account record) is walked from a state root that the BEEFY validators signed. On /console/prove the deployed SubstrateTrieVerifier does the walk on-chain and returns PROVEN with the record; one flipped proof byte and it refuses. The same walk is checked in TypeScript and in 153 Foundry tests.',
   ],
   [
     'Which runtimes does it target?',
@@ -727,15 +728,15 @@ const FAQS = [
   ],
   [
     'Can I move a title today?',
-    'Not yet. The gate and verifier are deployed, but the gate is paused after a burn fix and bound to a deployment placeholder commitment. A real native title record and its proof are still required before a mint or transfer can settle.',
+    'On the local runtime, yes: create, prove, mint, transfer, refused unbond, burn and unbond all run, see /console/local. On public V3, no: the public runtime has no title pallet, so there is no native title to prove and the public gate stays paused.',
   ],
   [
     'Where does the state root come from?',
-    'A trusted checkpoint, currently a single attester. That is a boundary of the design, not a trustless bridge. Replacing it is the next protocol step.',
+    'From the validators. BeefyRootFeed accepts a root only with both BEEFY validators\' secp256k1 signatures over the MMR root that commits to the block, checked with ecrecover. It has no owner and no attester; anyone can relay. The older single-attester RootFeed is still the one the paused public gate reads.',
   ],
   [
     'What is still missing?',
-    'The native title registry in the runtime, the live WASM module, and an independent root source. The contract layer and browser verifier are deployed and tested.',
+    'The title pallet in the public Portaldot runtime, a gate redeploy pointed at the validator-signed feed, and an external audit.',
   ],
 ]
 
@@ -812,7 +813,7 @@ function Footer() {
             </Link>
             <p className="mt-4 max-w-[240px] text-[12px] leading-5 text-[#6b6b83]">
               A protocol design for one asset title across Portaldot native and
-              Revive. Live on Vercel; all four support contracts are on testnet.
+              Revive. Live on Vercel and on Portaldot V3 testnet.
             </p>
             <a
               href="https://lemo-ebon.vercel.app"

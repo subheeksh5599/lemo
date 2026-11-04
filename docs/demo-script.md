@@ -1,6 +1,8 @@
 # LEMO demo script (website only)
 
-About 3 minutes. Everything happens in the browser: no terminal, no editor, no repository page. One window, at least 1280 px wide, zoom 100 percent. Start on the landing page with the page settled. The public endpoints serialize calls, so let each live page settle for two seconds before the next click.
+About 4½ minutes. Everything happens in the browser: no terminal, no editor, no repository page. One window, at least 1280 px wide, zoom 100 percent. Start on the landing page with the page settled. The public endpoints serialize calls, so let each live page settle for two seconds before the next click.
+
+**Before recording:** install a Portaldot wallet extension (Talisman, SubWallet or Polkadot.js), import the project wallet `5FJ9…kshCz` (it holds about 20 tPOT; one update costs well under 1 tPOT), and allow it on the site once so the approval prompt does not surprise you on camera. Connect nothing anywhere else: only the "Sign the update yourself" panel uses the wallet.
 
 The console reads Portaldot V3 testnet live, so heads will differ from any earlier recording. The local lifecycle page is a recorded run on a local devnet and anvil. Say which one you are on every time you change between them.
 
@@ -116,7 +118,17 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 **Expect:** INCOMPLETE. **Say:** "One byte changed and the contract refuses it."
 
-**Click:** untick it, then **Advance the feed now**. **Expect:** Submitted, a transaction hash and a new root. **Say:** "That was a real transaction. The relayer only pays gas; the validators' signatures decide the root."
+## 4:00 to 4:30, sign it yourself, open it on the scanner
+
+**Click:** untick it. Under **Sign the update yourself**, pick the wallet, **Connect wallet**, choose `5FJ9…kshCz`, **Sign and submit**, approve in the extension.
+
+**Expect:** the button walks Planning from BEEFY, Dry-running against the feed, Approve in your wallet, Broadcast. Then an Extrinsic row such as `318,9xx-1` with **open on the scanner**.
+
+**Say:** "I'm signing this myself. The page took the validators' signatures for every set the feed is behind, and my wallet sends them to the feed in one extrinsic. If they didn't sign it, the feed reverts."
+
+**Click:** **open on the scanner**. **Expect:** the Portaldot V3 scanner showing `utility.batchAll`, Signer `5FJ9…kshCz`, calls to `0x0ec209…6937`. **Say:** "Here it is on the Portaldot explorer, signed by my account." Back on the site, **Root of block** in step 1 has moved forward.
+
+If the result says the feed would refuse it, someone advanced it a moment ago: wait a minute and press again. **Advance the feed now** does the same through the server relayer if the wallet misbehaves.
 
 ## If something goes wrong
 

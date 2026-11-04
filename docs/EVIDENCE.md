@@ -2,7 +2,7 @@
 
 This file maps every claim in the README to a file, a command and an observed result. A claim without an artifact is not a claim.
 
-Snapshot: 2026-11-02. Four support contracts are deployed on Portaldot V3; the native registry is not.
+Snapshot: 2026-11-04. Six contracts are deployed on Portaldot V3. The title pallet is not in the public runtime; on public V3 the native title is an `nfts` item.
 
 ## Live deployments
 
@@ -25,6 +25,20 @@ All four were deployed through `revive.instantiateWithCode` from the native SS58
 | First relayer root | EVM tx `0x85df9d1f4dab815fedcc5fe1982df75a89ebb33b3a507dd0d7fb92d4873577a9`, block [#316976](https://scanner-testnet-v3.portaldot.dev/#/blocks/316976) |
 | First CI relay, implicit rotation | GitHub Actions run 41788964644: EVM tx `0x38ea967acd92ee9c87a26f6c8e56bb086f2d5a1d989450c3a87b1d4cc7df028f` (block [#317023](https://scanner-testnet-v3.portaldot.dev/#/blocks/317023)) advanced the feed from set 533 to 534; `validatorSetId()` then read 534 and `currentBlockNumber()` 317010 |
 | Live check | `/console/finality`: both signers recovered, MMR root rebuilt, header hash bound, `currentRoot` equals the browser-derived root |
+
+### Public native title token
+
+| Item | Value |
+|---|---|
+| `NativeTitleToken` | `0xbfe32cc991738b850260c6b2cd32bb15b510c4d4`, constructor `(BeefyRootFeed 0x0ec2…6937, SubstrateTrieVerifier 0xe5ca…6bac)` |
+| Deploy | extrinsic [319127-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319127-1) from `5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx`; storage deposit 391.18 tPOT (dry-run measured) |
+| Native title | `nfts` collection 12, item 0, owner `5FJ9…kshCz`: `utility.batchAll(nfts.create, nfts.mint)` [319111-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319111-1) (`scripts/native-title.mjs`) |
+| Mint | [319198-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319198-1): one feed submit (root of #319193) + `claim`; 1,000 LNT to `0x448c…2cc6`, the mapped address of `5FJ9…kshCz`; claim storage deposit 26.89 tPOT |
+| Transfer | [319201-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319201-1): 400 LNT to the relayer's mapped address |
+| Native burn | [319202-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319202-1): `nfts.burn(12, 0)` |
+| Freeze | [319217-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319217-1): one feed submit (root of #319209, where the item is absent) + `freeze` with the absence proof; `titles(…).frozen` reads `true` |
+| Refusal | [319220-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319220-1): a transfer after the freeze, included and failed with `revive.ContractReverted` (`TitleFrozen`) |
+| Tests | `test/NativeTitleToken.t.sol`, 12 tests on the read proof captured at #319115 (`test/fixtures/native-title.json`, `scripts/capture-native-title.mjs`) |
 
 ## Gates
 

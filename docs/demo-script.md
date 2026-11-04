@@ -1,8 +1,8 @@
 # LEMO demo script (website only)
 
-About 4½ minutes. Everything happens in the browser: no terminal, no editor, no repository page. One window, at least 1280 px wide, zoom 100 percent. Start on the landing page with the page settled. The public endpoints serialize calls, so let each live page settle for two seconds before the next click.
+About 6 minutes. Everything happens in the browser: no terminal, no editor, no repository page. One window, at least 1280 px wide, zoom 100 percent. Start on the landing page with the page settled. The public endpoints serialize calls, so let each live page settle for two seconds before the next click.
 
-**Before recording:** install a Portaldot wallet extension (Talisman, SubWallet or Polkadot.js), import the project wallet `5FJ9…kshCz` (it holds about 20 tPOT; one update costs well under 1 tPOT), and allow it on the site once so the approval prompt does not surprise you on camera. Connect nothing anywhere else: only the "Sign the update yourself" panel uses the wallet.
+**Before recording:** install a Portaldot wallet extension (Talisman, SubWallet or Polkadot.js), import the project wallet `5FJ9…kshCz` (it holds about 64 tPOT; a mint holds about 27 tPOT of deposit, everything else costs under 1 tPOT), and allow it on the site once so the approval prompt does not surprise you on camera. Only Transact and the "Sign the update yourself" panel on Verify use the wallet.
 
 The console reads Portaldot V3 testnet live, so heads will differ from any earlier recording. The local lifecycle page is a recorded run on a local devnet and anvil. Say which one you are on every time you change between them.
 
@@ -28,23 +28,9 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 **Point at:** the **Root source** row in the Runtimes table.
 
-**Say:** "This row names where the gate's state root comes from. Today that is a trusted single attester, and the page says so."
+**Say:** "This row names where the original gate's state root comes from: a single attester, and the page says so. The token you'll see on Transact reads the validator-signed feed instead."
 
-## 0:45 to 1:05, proofs
-
-**Click:** **Proofs** in the sidebar.
-
-**Expect:** Native witness with its check lines; EVM account witness in red with `-32601 Method not found`.
-
-**Say:** "A storage proof at the finalized head, with every node rehashed in this browser. On the right, Revive refuses eth_getProof, and we print the refusal instead of inventing a witness."
-
-## 1:05 to 1:20, verify key
-
-**Click:** **Verify key** in the sidebar, then **System.Number key**. Wait for the walk.
-
-**Say:** "The same check with the key exposed: two twox128 prefixes, read at the finalized block and walked to the root."
-
-## 1:20 to 2:40, local lifecycle
+## 0:45 to 2:00, local lifecycle
 
 **Click:** **Local lifecycle** in the sidebar.
 
@@ -80,19 +66,25 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 **Say:** "Only after the burn is the flag set to not live. Now the unbond request succeeds. Finalizing early is refused with UnbondingNotDue. After ten blocks, Bob finalizes it. The record is deleted, the deposit is returned, and the last proof shows the key is absent from a finalized root."
 
-## 2:40 to 3:00, transactions (live gate)
+## 2:00 to 4:30, the same rules on the public chain: Transact
 
-**Click:** **Transactions** in the sidebar.
+Say first: "That was the local runtime. Now public Portaldot V3, signed by my own wallet."
 
-**Expect:** the flow page with the deployed gate, verifier and feed, and a warning notice about the gate's state.
+**Click:** **Transact** in the sidebar, **Connect wallet**, pick `5FJ9…kshCz`. **Expect:** your native balance and your EVM address.
 
-**Say:** "This is the live gate on Portaldot testnet. Its notice says exactly what it can and cannot do today. The local run shows the full lifecycle. This page is where that lifecycle lands in public."
+**Click:** **Create native title**, approve. **Expect:** "Native title created", extrinsic `319,xxx-1`, **open on the scanner**. **Say:** "A real item in Portaldot's native NFT pallet, owned by me."
 
-**Do not click Mint.**
+Wait about 30 seconds (BEEFY signs a few blocks behind). **Click:** **Prove and mint 1,000 LNT**, approve. **Expect:** "Minted against the native proof", Your LNT 1,000. **Say:** "The token contract walked a proof of my native item under the root the validators signed, and minted only to the address my native account maps to."
 
-## 3:00 to 3:30, validator-signed roots
+**Click:** paste any SS58 address as recipient, **Transfer**, approve. **Expect:** Transferred, Your LNT 600.
 
-**Click:** **Validator-signed roots** in the sidebar. Wait until the verdict reads PASS.
+**Click:** **Burn native title**, approve; wait 30 seconds; **Prove it and freeze**, approve. **Expect:** Token for this title: frozen. **Click:** **Transfer** again. **Expect:** "the contract would revert: TitleFrozen", then **Send anyway: record the refusal on-chain** gives "refused on-chain: revive.ContractReverted" with its own scanner link. **Say:** "The native title is gone, so the EVM token stops. The EVM side obeys the native side, on the public chain."
+
+Open one of the scanner links on camera. This section runs about 2½ minutes with the waits; it is the one to keep if you cut anything.
+
+## 4:30 to 5:00, validator-signed roots
+
+**Click:** **Verify** in the sidebar, then **the BEEFY detail page** link in the first notice. Wait until the verdict reads PASS.
 
 **Expect:** Verdict PASS, Signers 2 / 2, four steps (validator signatures, MMR root, header, state root) all PASS, and the On-chain feed panel with `currentRoot = browser-derived root` reading **match**.
 
@@ -106,9 +98,9 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 **Click:** **Off** to restore. Optionally click **account** on the feed panel to open it on the Portaldot scanner.
 
-## 3:30 to 4:00, prove native state in the EVM
+## 5:00 to 5:30, prove native state in the EVM
 
-**Click:** **Prove native state** in the sidebar, then **Prove on-chain**.
+**Click:** **Verify** in the sidebar, then **Prove on-chain**.
 
 **Expect:** Verifier verdict PROVEN, the proven free balance equal to "Node says", Proven bytes = storage: match.
 
@@ -118,7 +110,7 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 **Expect:** INCOMPLETE. **Say:** "One byte changed and the contract refuses it."
 
-## 4:00 to 4:30, sign it yourself, open it on the scanner
+## 5:30 to 6:00, sign the feed update yourself
 
 **Click:** untick it. Under **Sign the update yourself**, pick the wallet, **Connect wallet**, choose `5FJ9…kshCz`, **Sign and submit**, approve in the extension.
 

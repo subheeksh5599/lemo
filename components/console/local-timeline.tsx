@@ -35,7 +35,7 @@ export function Chapter({
   children: ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-20 space-y-3">
+    <section id={id} className="scroll-mt-32 space-y-3">
       <div className="flex items-baseline gap-3">
         <span className="font-mono text-[12px] tabular-nums text-muted">{String(index).padStart(2, '0')}</span>
         <div className="min-w-0">

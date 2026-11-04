@@ -6,12 +6,77 @@ import { BlockTable } from '@/components/console/block-table'
 import { CadenceChart, type CadencePoint } from '@/components/console/cadence-chart'
 import { useConsole } from '@/components/console/console-provider'
 import { NativeWitnessPanel } from '@/components/console/native-witness'
-import { BEEFY_FEED } from '@/lib/beefy'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { BEEFY_FEED, readBeefyFeed, type BeefyFeedReading } from '@/lib/beefy'
+import { readToken, TOKEN } from '@/lib/native-title'
 import { Figure, FigureBand, Notice, PageHeader, Panel } from '@/components/console/primitives'
 import { useEvmProbe, useNativeModuleProbe } from '@/hooks/use-proof'
 import { EXPECTED_GENESIS, median } from '@/lib/chain'
 import { formatInt, hashShort, ms, slot } from '@/lib/format'
 import { cn } from '@/lib/utils'
+
+function LiveOnChain({ head }: { head: number | null }) {
+  const [feed, setFeed] = useState<BeefyFeedReading | null>(null)
+  const [supply, setSupply] = useState<bigint | null>(null)
+  useEffect(() => {
+    let alive = true
+    if (BEEFY_FEED !== null) {
+      readBeefyFeed(BEEFY_FEED)
+        .then((f) => alive && setFeed(f))
+        .catch(() => undefined)
+    }
+    if (TOKEN !== null) {
+      readToken(null, null, null)
+        .then((t) => alive && setSupply(t.totalSupply))
+        .catch(() => undefined)
+    }
+    return () => {
+      alive = false
+    }
+  }, [])
+  const cells: { href: string; label: string; value: string; note: string }[] = [
+    {
+      href: '/console/prove',
+      label: 'Validator-signed root',
+      value: feed === null ? 'reading' : `#${formatInt(feed.currentBlockNumber)}`,
+      note:
+        feed === null
+          ? 'BeefyRootFeed on Portaldot V3'
+          : `BEEFY set ${feed.validatorSetId ?? '-'}${head === null ? '' : `, ${formatInt(Math.max(0, head - feed.currentBlockNumber))} blocks behind the head`} · Verify`,
+    },
+    {
+      href: '/console/flow',
+      label: 'Native title token',
+      value: supply === null ? 'reading' : `${formatInt(Number(supply / 10n ** 18n))} LNT`,
+      note: 'minted only against a proven nfts item · Transact',
+    },
+    {
+      href: '/console/local',
+      label: 'Both rules, end to end',
+      value: '6 stages',
+      note: 'recorded on a runtime with the title pallet, re-checked in your browser · Local lifecycle',
+    },
+  ]
+  return (
+    <section aria-label="Live on Portaldot V3" className="grid overflow-hidden rounded-md border border-line bg-surface sm:grid-cols-3">
+      {cells.map((c, i) => (
+        <Link
+          key={c.href}
+          href={c.href}
+          className={cn(
+            'group block p-4 transition-colors duration-150 hover:bg-raised',
+            i > 0 && 'border-t border-line sm:border-l sm:border-t-0',
+          )}
+        >
+          <span className="meta">{c.label}</span>
+          <span className="mt-1 block font-mono text-[20px] tabular-nums text-ink">{c.value}</span>
+          <span className="mt-1 block text-[12px] text-muted transition-colors duration-150 group-hover:text-ink-2">{c.note}</span>
+        </Link>
+      ))}
+    </section>
+  )
+}
 
 function RuntimeComparison() {
   const { native, evm } = useConsole()
@@ -181,15 +246,18 @@ export default function ConsoleOverview() {
       <PageHeader
         title="Overview"
         meta={
-          <>
-            {native?.chain ?? '-'}
-            {native === null
-              ? ', reading the native endpoint'
-              : `, finalized #${formatInt(native.finalized.number)} of #${formatInt(native.best)}`}
-            {blocks.length === 0 ? '' : `, ${formatInt(blocks.length)} blocks read`}
-          </>
+          native === null ? (
+            'reading Portaldot V3'
+          ) : (
+            <>
+              {native.chain}, finalized #{formatInt(native.finalized.number)} of #{formatInt(native.best)}
+              {blocks.length === 0 ? '' : `, ${formatInt(blocks.length)} blocks read`}
+            </>
+          )
         }
       />
+
+      <LiveOnChain head={native === null ? null : native.finalized.number} />
 
       {error !== null && native === null ? (
         <Notice tone="bad" title="The native endpoint did not answer">

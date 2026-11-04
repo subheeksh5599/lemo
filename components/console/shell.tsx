@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation'
 import { LemoMark } from '@/components/brand'
 import { useConsole } from '@/components/console/console-provider'
 import { LiveStatus, RefreshButton } from '@/components/console/live-status'
-import { NAV, NAV_ACT, NAV_READ, type NavItem } from '@/components/console/navigation'
+import { NAV, NAV_ACT, NAV_READ, sectionHref, type NavItem } from '@/components/console/navigation'
 import { TopBar } from '@/components/console/top-bar'
 import { formatInt } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -18,7 +18,7 @@ function NavLinks({ items }: { items: readonly NavItem[] }) {
   return (
     <>
       {items.map((item) => {
-        const active = pathname === item.href
+        const active = sectionHref(pathname) === item.href
         const Icon = item.icon
 
         return (
@@ -73,7 +73,7 @@ function MobileNav() {
       className="flex items-center gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {NAV.map((item) => {
-        const active = pathname === item.href
+        const active = sectionHref(pathname) === item.href
         return (
           <Link
             key={item.href}

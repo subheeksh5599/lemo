@@ -290,7 +290,7 @@ export default function TransactPage() {
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <ol className="space-y-3">
+        <ol className="order-2 space-y-3 xl:order-1">
           <Step
             n={1}
             status={s1}
@@ -393,7 +393,7 @@ export default function TransactPage() {
           </Step>
         </ol>
 
-        <aside className="space-y-3 xl:sticky xl:top-20 xl:self-start">
+        <aside className="order-1 space-y-3 xl:order-2 xl:sticky xl:top-20 xl:self-start">
           <Panel title="Wallet">
             {wallets.length === 0 ? (
               <p className="text-[13px] leading-5 text-muted">
@@ -476,7 +476,7 @@ export default function TransactPage() {
           </Panel>
 
           {TOKEN !== null ? (
-            <Panel title="Contracts">
+            <Panel title="Contracts" className="hidden xl:block">
               <dl className="space-y-2 text-[13px]">
                 <Line k="NativeTitleToken" v={<Hash value={TOKEN} label="the token address" />} />
                 {BEEFY_FEED !== null ? <Line k="BeefyRootFeed" v={<Hash value={BEEFY_FEED} label="the feed address" />} /> : null}
@@ -484,6 +484,14 @@ export default function TransactPage() {
             </Panel>
           ) : null}
         </aside>
+          {TOKEN !== null ? (
+            <Panel title="Contracts" className="order-3 xl:hidden">
+              <dl className="space-y-2 text-[13px]">
+                <Line k="NativeTitleToken" v={<Hash value={TOKEN} label="the token address" />} />
+                {BEEFY_FEED !== null ? <Line k="BeefyRootFeed" v={<Hash value={BEEFY_FEED} label="the feed address" />} /> : null}
+              </dl>
+            </Panel>
+          ) : null}
       </div>
     </div>
   )

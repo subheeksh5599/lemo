@@ -66,6 +66,15 @@ function GateState({ state, title }: { state: EvmSnapshot; title: string }) {
   )
 }
 
+const CHAPTERS: [string, string, string][] = [
+  ['create', 'Create title', 'ok'],
+  ['proof-a', 'Finalized proof', 'ok'],
+  ['mint', 'Mint and transfer', 'ok'],
+  ['refused', 'Unbond while live', 'refused'],
+  ['burn', 'Burn', 'ok'],
+  ['unbond', 'Unbond', 'ok'],
+]
+
 export default function LocalLifecyclePage() {
   const [reports, setReports] = useState<Reports | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -152,6 +161,24 @@ export default function LocalLifecyclePage() {
           tone={native.titleExistsAfterFinalize ? 'warn' : 'ok'}
         />
       </FigureBand>
+
+      <nav aria-label="Chapters" className="z-20 -mx-1 overflow-x-auto lg:sticky lg:top-16 border-y border-line bg-canvas/95 px-1 py-2 backdrop-blur">
+        <ol className="flex min-w-max items-center gap-1">
+          {CHAPTERS.map(([id, label, outcome], i) => (
+            <li key={id} className="flex items-center gap-1">
+              {i === 0 ? null : <span aria-hidden="true" className="h-px w-3 bg-line" />}
+              <a
+                href={`#${id}`}
+                className="inline-flex h-8 items-center gap-2 rounded-sm px-2.5 text-[12px] text-ink-2 transition-colors duration-150 hover:bg-raised hover:text-ink"
+              >
+                <span className="font-mono tabular-nums text-muted">{String(i + 1).padStart(2, '0')}</span>
+                {label}
+                <span className={outcome === 'refused' ? 'text-warn' : 'text-ok'}>{outcome}</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
 
       <Chapter
         id="create"

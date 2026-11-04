@@ -6,7 +6,7 @@ import { BlockTable } from '@/components/console/block-table'
 import { CadenceChart, type CadencePoint } from '@/components/console/cadence-chart'
 import { useConsole } from '@/components/console/console-provider'
 import { NativeWitnessPanel } from '@/components/console/native-witness'
-import { useRootSource } from '@/components/console/root-source'
+import { BEEFY_FEED } from '@/lib/beefy'
 import { Figure, FigureBand, Notice, PageHeader, Panel } from '@/components/console/primitives'
 import { useEvmProbe, useNativeModuleProbe } from '@/hooks/use-proof'
 import { EXPECTED_GENESIS, median } from '@/lib/chain'
@@ -17,7 +17,6 @@ function RuntimeComparison() {
   const { native, evm } = useConsole()
   const probe = useEvmProbe()
   const module = useNativeModuleProbe()
-  const rootSource = useRootSource()
 
   const accountProof =
     probe.data === null
@@ -43,7 +42,6 @@ function RuntimeComparison() {
             ? 'no contracts api'
             : 'inconclusive'
 
-  const contractsTone: 'warn' | undefined = module.data?.present === false ? 'warn' : undefined
 
   const rows: {
     label: string
@@ -69,10 +67,9 @@ function RuntimeComparison() {
       evm: hashShort(evm?.stateRoot, 8, 6),
     },
     {
-      label: 'Contracts',
-      wasm: nativeContracts,
-      evm: evm === null ? 'no answer' : 'eth_chainId answered',
-      wasmTone: contractsTone,
+      label: 'Smart contracts',
+      wasm: nativeContracts === 'no contracts api' ? 'pallets only' : nativeContracts,
+      evm: evm === null ? 'no answer' : 'Solidity',
     },
     {
       label: 'Witness read',
@@ -86,31 +83,14 @@ function RuntimeComparison() {
       tone: accountTone,
     },
     {
-      // The one slot that names the gate's root source. The feed type comes
-      // from components/console/root-source.tsx, so a new feed kind only
-      // changes the label there.
+      // The root the live public token (NativeTitleToken) trusts: the
+      // validator-signed BeefyRootFeed. The older single-attester feed only
+      // serves the paused gate, so it is not what this row reports.
       label: 'Root source',
       wasm: 'finalized header',
-      evm:
-        rootSource.kind === 'read'
-          ? rootSource.label
-          : rootSource.kind === 'reading'
-            ? 'reading the feed'
-            : rootSource.kind === 'unset'
-              ? `${rootSource.env} not set`
-              : 'feed did not answer',
-      tone:
-        rootSource.kind === 'read' && rootSource.feed.attester !== null
-          ? 'warn'
-          : rootSource.kind === 'failed'
-            ? 'warn'
-            : undefined,
-      title:
-        rootSource.kind === 'read'
-          ? `feed ${rootSource.address}`
-          : rootSource.kind === 'failed'
-            ? rootSource.message
-            : undefined,
+      evm: BEEFY_FEED === null ? 'NEXT_PUBLIC_LEMO_BEEFY_FEED not set' : 'BEEFY-signed',
+      tone: BEEFY_FEED === null ? 'warn' : 'ok',
+      title: BEEFY_FEED === null ? undefined : `BeefyRootFeed ${BEEFY_FEED}`,
     },
     {
       label: 'Round trip',
@@ -171,7 +151,7 @@ function RuntimeComparison() {
       <p className="mt-2 border-t border-line pt-2 pb-1 text-[12px] leading-5 text-muted">
         The native column reads storage at the finalized state root. The Revive column
         reports what the endpoint answered, including a refusal. Root source is where the EVM
-        gate gets the native root it checks proofs against.
+        token gets the native root it checks proofs against.
       </p>
     </Panel>
   )

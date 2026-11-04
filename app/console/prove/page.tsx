@@ -40,7 +40,9 @@ function FeedSection({
   onRelay,
   relaying,
   relay,
+  children,
 }: {
+  children?: React.ReactNode
   feed: BeefyFeedReading | null
   reading: boolean
   onRelay: () => void
@@ -126,6 +128,7 @@ function FeedSection({
       ) : (
         <p className="mt-3 text-[13px] text-bad">Not sent: {relay.reason}</p>
       )}
+      {children}
     </Panel>
   )
 }
@@ -160,10 +163,9 @@ function SignYourself({ onDone }: { onDone: () => void }) {
   const link = result === null ? null : scannerExtrinsic(result.blockNumber, result.index)
 
   return (
-    <Panel
-      title="Sign the update yourself"
-      hint="a native revive.call from your Portaldot wallet, listed on the V3 scanner"
-    >
+    <div className="mt-4 border-t border-line pt-4">
+      <h3 className="text-[13px] font-medium text-ink">Or sign the update with your own wallet</h3>
+      <p className="mb-3 mt-0.5 text-[12px] leading-4 text-muted">A native revive.call from your Portaldot account, listed on the V3 scanner.</p>
       {wallets.length === 0 ? (
         <p className="text-[13px] text-muted">
           No Portaldot wallet extension found. Install Talisman, SubWallet or Polkadot.js and reload.
@@ -233,7 +235,7 @@ function SignYourself({ onDone }: { onDone: () => void }) {
           {result.mapped ? null : <Row label="Account mapping" value="mapped to Revive in the same batch" mono={false} />}
         </div>
       )}
-    </Panel>
+    </div>
   )
 }
 
@@ -307,7 +309,7 @@ export default function ProvePage() {
     <div className="space-y-4">
       <PageHeader
         title="Verify"
-        meta="a native Portaldot account record, proven by the deployed verifier against the validator-signed root"
+        meta="any native account, proven by the deployed verifier under the validator-signed root"
       />
 
       <Notice title="The contract decides, not this page">
@@ -326,9 +328,9 @@ export default function ProvePage() {
         </Notice>
       ) : null}
 
-      <FeedSection feed={feed} reading={reading} onRelay={advance} relaying={relaying} relay={relay} />
-
-      <SignYourself onDone={() => void loadFeed()} />
+      <FeedSection feed={feed} reading={reading} onRelay={advance} relaying={relaying} relay={relay}>
+        <SignYourself onDone={() => void loadFeed()} />
+      </FeedSection>
 
       <Panel title="2. Choose a native account" hint="System.Account, any SS58 address">
         <form

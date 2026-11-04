@@ -1,11 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Check } from 'lucide-react'
 import { decodeAddress } from '@polkadot/util-crypto'
 import { u8aToHex } from '@polkadot/util'
 
 import { CopyButton } from '@/components/console/copy-button'
-import { Figure, FigureBand, Notice, PageHeader, Panel, Row, State } from '@/components/console/primitives'
+import { Notice, PageHeader, Panel, Row, State } from '@/components/console/primitives'
 import { ScannerLink } from '@/components/console/scanner-link'
 import { formatInt, hashShort } from '@/lib/format'
 import { fetchPlan, formatPot } from '@/lib/live-proof'
@@ -265,16 +266,22 @@ export default function TransactPage() {
   const ownsSelected = selected !== null && titles.some((t) => t.collection === selected.collection && t.item === selected.item)
   const disabled = busy !== null || wallets.length === 0
   const label = (key: string, idle: string) => (active === key && busy !== null ? busy : idle)
+  const connected = signer !== null && address !== ''
+  const balance = reading?.balance ?? null
+
+  const s1: StepStatus = selected !== null && ownsSelected ? 'done' : 'ready'
+  const s2: StepStatus = title?.claimed ? 'done' : selected !== null && ownsSelected ? 'ready' : 'locked'
+  const s3: StepStatus =
+    outcomes.transfer?.result !== undefined && outcomes.transfer.result.failed === undefined
+      ? 'done'
+      : balance !== null && balance > 0n && title?.frozen !== true
+        ? 'ready'
+        : 'locked'
+  const s4: StepStatus = title?.frozen ? 'done' : title?.claimed ? 'ready' : 'locked'
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="Transact" meta="native title, validator-signed proof, EVM token: public Portaldot V3, signed by your wallet" />
-
-      <Notice title="Every button here is a real extrinsic you sign">
-        The native title is an item of Portaldot&apos;s <code>nfts</code> pallet. The EVM token mints only after
-        NativeTitleToken proves you own that item against the state root both BEEFY validators signed. Burn the item
-        natively and anyone can prove it; the token then freezes. Every result links to the Portaldot V3 scanner.
-      </Notice>
+    <div className="space-y-5">
+      <PageHeader title="Transact" meta="public Portaldot V3 · every step is an extrinsic your wallet signs" />
 
       {TOKEN === null || BEEFY_FEED === null ? (
         <Notice tone="warn" title="Not configured">
@@ -282,182 +289,263 @@ export default function TransactPage() {
         </Notice>
       ) : null}
 
-      <Panel title="Wallet" hint="Talisman, SubWallet or Polkadot.js, holding tPOT">
-        {wallets.length === 0 ? (
-          <p className="text-[13px] text-muted">No Portaldot wallet extension found. Install Talisman, SubWallet or Polkadot.js and reload.</p>
-        ) : signer === null ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Wallet extension" value={walletId} onChange={(e) => wallet.setWalletId(e.target.value)} className={field}>
-              {wallets.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-            <button type="button" className={btn} onClick={() => void wallet.connect()} disabled={wallet.connecting}>
-              {wallet.connecting ? 'Connecting' : 'Connect wallet'}
-            </button>
-          </div>
-        ) : (
-          <>
-            <select
-              aria-label="Account"
-              value={address}
-              onChange={(e) => {
-                wallet.setAddress(e.target.value)
-                setSelected(null)
-              }}
-              className={`${field} w-full`}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <ol className="space-y-3">
+          <Step
+            n={1}
+            status={s1}
+            title="Create a native title"
+            what="An item in Portaldot's native nfts pallet, owned by your account. About 1.1 tPOT of deposits."
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={btn} onClick={() => void createTitle()} disabled={disabled}>
+                {label('create', titles.length > 0 ? 'Create another' : 'Create native title')}
+              </button>
+              {titles.length > 0 ? (
+                <select
+                  aria-label="Title"
+                  value={selected === null ? '' : `${selected.collection}/${selected.item}`}
+                  onChange={(e) => {
+                    const [c, i] = e.target.value.split('/').map(Number)
+                    setSelected({ collection: c ?? 0, item: i ?? 0 })
+                  }}
+                  className={field}
+                >
+                  {titles.map((t) => (
+                    <option key={`${t.collection}/${t.item}`} value={`${t.collection}/${t.item}`}>
+                      title {t.collection}/{t.item}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
+            <OutcomeRow outcome={outcomes.create} />
+          </Step>
+
+          <Step
+            n={2}
+            status={s2}
+            title="Prove it and mint the EVM token"
+            what="One extrinsic: the feed takes the newest validator-signed root, then NativeTitleToken walks your item's storage proof under it and mints 1,000 LNT to your mapped EVM address. Holds about 27 tPOT of storage deposit."
+            hint={s2 === 'ready' ? 'Wait about 30 seconds after creating: validators sign a few blocks behind the head.' : undefined}
+          >
+            <button
+              type="button"
+              className={btn}
+              onClick={() => void claim()}
+              disabled={disabled || selected === null || !ownsSelected || title?.claimed === true}
             >
-              {accounts.map((a) => (
-                <option key={a.address} value={a.address}>
-                  {a.name ? `${a.name} · ` : ''}
-                  {a.address}
-                </option>
-              ))}
-            </select>
-            <div className="mt-2">
-              <Row label="Native balance" value={free === null ? '-' : `${formatPot(free)} tPOT`} />
-              <Row
-                label="Your EVM address"
-                value={
-                  <span className="inline-flex items-center gap-2">
-                    {evm === null ? '-' : <Hash value={evm} label="your mapped EVM address" />}
-                    <ScannerLink href={scannerAccount(address)} label="account" />
-                  </span>
+              {title?.claimed ? 'Minted' : label('claim', 'Prove and mint 1,000 LNT')}
+            </button>
+            <OutcomeRow outcome={outcomes.claim} />
+          </Step>
+
+          <Step
+            n={3}
+            status={s3}
+            title="Transfer it"
+            what="Moves while the native title is held. Send to an address that holds no LNT from an earlier title."
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                aria-label="Recipient"
+                placeholder="0x… or a Portaldot SS58 address"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                spellCheck={false}
+                className={`${field} min-w-[16rem] flex-1`}
+              />
+              <input aria-label="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className={`${field} w-24 text-right`} />
+              <button type="button" className={btn} onClick={() => void transfer(false)} disabled={disabled || to.trim() === ''}>
+                {label('transfer', 'Transfer')}
+              </button>
+            </div>
+            {outcomes.transfer?.error?.includes('TitleFrozen') ? (
+              <button type="button" className="btn btn--sm mt-2" onClick={() => void transfer(true)} disabled={disabled}>
+                Send anyway: record the refusal on-chain
+              </button>
+            ) : null}
+            <OutcomeRow outcome={outcomes.transfer} />
+          </Step>
+
+          <Step
+            n={4}
+            status={s4}
+            title="Burn it natively, then freeze the token"
+            what="Once the item is gone, anyone can prove its absence under a validator-signed root. Every LNT of this title freezes and transfers revert with TitleFrozen."
+            hint={s4 === 'ready' ? 'Wait about 30 seconds between the burn and the freeze.' : undefined}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={btn} onClick={() => void burnNative()} disabled={disabled || selected === null || !ownsSelected}>
+                {label('native', 'Burn native title')}
+              </button>
+              <button
+                type="button"
+                className={btn}
+                onClick={() => void freeze()}
+                disabled={disabled || selected === null || title?.claimed !== true || title.frozen}
+              >
+                {title?.frozen ? 'Frozen' : label('freeze', 'Prove absence and freeze')}
+              </button>
+            </div>
+            <OutcomeRow outcome={outcomes.native} />
+            <OutcomeRow outcome={outcomes.freeze} />
+          </Step>
+        </ol>
+
+        <aside className="space-y-3 xl:sticky xl:top-20 xl:self-start">
+          <Panel title="Wallet">
+            {wallets.length === 0 ? (
+              <p className="text-[13px] leading-5 text-muted">
+                No Portaldot wallet extension found. Install Talisman, SubWallet or Polkadot.js and reload.
+              </p>
+            ) : !connected ? (
+              <div className="space-y-2">
+                <select aria-label="Wallet extension" value={walletId} onChange={(e) => wallet.setWalletId(e.target.value)} className={`${field} w-full`}>
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" className={`${btn} w-full justify-center`} onClick={() => void wallet.connect()} disabled={wallet.connecting}>
+                  {wallet.connecting ? 'Connecting' : 'Connect wallet'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <select
+                  aria-label="Account"
+                  value={address}
+                  onChange={(e) => {
+                    wallet.setAddress(e.target.value)
+                    setSelected(null)
+                  }}
+                  className={`${field} w-full`}
+                >
+                  {accounts.map((a) => (
+                    <option key={a.address} value={a.address}>
+                      {a.name ? `${a.name} · ` : ''}
+                      {a.address.slice(0, 8)}…{a.address.slice(-6)}
+                    </option>
+                  ))}
+                </select>
+                <dl className="space-y-2 text-[13px]">
+                  <Line k="Account" v={<ScannerLink href={scannerAccount(address)} label="open on the scanner" />} />
+                  <Line k="Balance" v={free === null ? '-' : `${formatPot(free)} tPOT`} />
+                  <Line
+                    k="EVM address"
+                    v={
+                      evm === null ? (
+                        '-'
+                      ) : (
+                        <Hash value={evm} label="your mapped EVM address" />
+                      )
+                    }
+                  />
+                </dl>
+              </div>
+            )}
+            {wallet.error !== null ? <p className="mt-3 text-[13px] text-bad">{wallet.error}</p> : null}
+          </Panel>
+
+          <Panel title="This title">
+            <dl className="space-y-2 text-[13px]">
+              <Line k="Native title" v={selected === null ? 'none yet' : `${selected.collection}/${selected.item}${ownsSelected ? '' : ' (gone)'}`} />
+              <Line
+                k="EVM token"
+                v={
+                  title === null ? (
+                    '-'
+                  ) : (
+                    <State tone={title.frozen ? 'bad' : title.claimed ? 'ok' : 'idle'}>
+                      {title.frozen ? 'frozen' : title.claimed ? 'minted' : 'not minted'}
+                    </State>
+                  )
                 }
               />
-            </div>
-          </>
-        )}
-        {wallet.error !== null ? <p className="mt-3 text-[13px] text-bad">{wallet.error}</p> : null}
-      </Panel>
+              <Line k="Your LNT" v={balance === null ? '-' : lnt(balance)} />
+              <Line k="LNT supply" v={reading === null ? '-' : lnt(reading.totalSupply)} />
+            </dl>
+            {balance !== null && balance > 0n ? (
+              <button type="button" className="btn btn--sm mt-3 w-full justify-center" onClick={() => void retire()} disabled={disabled}>
+                {label('retire', 'Retire my LNT')}
+              </button>
+            ) : null}
+            <OutcomeRow outcome={outcomes.retire} />
+          </Panel>
 
-      <FigureBand>
-        <Figure
-          label="Your native titles"
-          value={signer === null ? '-' : String(titles.length)}
-          note={selected === null ? 'none selected' : `collection ${selected.collection}, item ${selected.item}`}
-        />
-        <Figure label="Your LNT" value={reading?.balance == null ? '-' : lnt(reading.balance)} />
-        <Figure
-          label="Token for this title"
-          value={title === null ? '-' : title.frozen ? 'frozen' : title.claimed ? 'minted' : 'not minted'}
-          tone={title === null ? 'muted' : title.frozen ? 'bad' : title.claimed ? 'ok' : 'muted'}
-        />
-        <Figure label="LNT total supply" value={reading === null ? '-' : lnt(reading.totalSupply)} />
-      </FigureBand>
-
-      <Panel title="1. Create a native title" hint="nfts.create + nfts.mint, about 1.1 tPOT of deposits">
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={btn} onClick={() => void createTitle()} disabled={disabled}>
-            {label('create', 'Create native title')}
-          </button>
-          {titles.length > 0 ? (
-            <select
-              aria-label="Title"
-              value={selected === null ? '' : `${selected.collection}/${selected.item}`}
-              onChange={(e) => {
-                const [c, i] = e.target.value.split('/').map(Number)
-                setSelected({ collection: c ?? 0, item: i ?? 0 })
-              }}
-              className={field}
-            >
-              {titles.map((t) => (
-                <option key={`${t.collection}/${t.item}`} value={`${t.collection}/${t.item}`}>
-                  collection {t.collection}, item {t.item}
-                </option>
-              ))}
-            </select>
+          {TOKEN !== null ? (
+            <Panel title="Contracts">
+              <dl className="space-y-2 text-[13px]">
+                <Line k="NativeTitleToken" v={<Hash value={TOKEN} label="the token address" />} />
+                {BEEFY_FEED !== null ? <Line k="BeefyRootFeed" v={<Hash value={BEEFY_FEED} label="the feed address" />} /> : null}
+              </dl>
+            </Panel>
           ) : null}
-        </div>
-        <p className="mt-2 text-[12px] leading-4 text-muted">
-          A real item in Portaldot&apos;s native NFT pallet, owned by your account. This is the title the EVM token obeys.
-        </p>
-        <OutcomeRow outcome={outcomes.create} />
-      </Panel>
+        </aside>
+      </div>
+    </div>
+  )
+}
 
-      <Panel title="2. Mint the EVM token against it" hint="feed update + NativeTitleToken.claim, one extrinsic">
-        <button
-          type="button"
-          className={btn}
-          onClick={() => void claim()}
-          disabled={disabled || selected === null || !ownsSelected || title?.claimed === true}
+type StepStatus = 'done' | 'ready' | 'locked'
+
+function Step({
+  n,
+  status,
+  title,
+  what,
+  hint,
+  children,
+}: {
+  n: number
+  status: StepStatus
+  title: string
+  what: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <li
+      className={`rounded-md border bg-surface p-4 transition-colors duration-150 ${
+        status === 'ready' ? 'border-line-strong' : 'border-line'
+      }`}
+    >
+      <div className="flex gap-3">
+        <span
+          aria-hidden="true"
+          className={`flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-[12px] ${
+            status === 'done'
+              ? 'border-ok/40 bg-ok/10 text-ok'
+              : status === 'ready'
+                ? 'border-accent bg-accent/15 text-ink'
+                : 'border-line text-muted'
+          }`}
         >
-          {title?.claimed ? 'Already minted' : label('claim', 'Prove and mint 1,000 LNT')}
-        </button>
-        <p className="mt-2 text-[12px] leading-4 text-muted">
-          The page plans feed submissions up to the newest block the validators signed, reads your item&apos;s read proof
-          at that block, and sends both in one batch. The contract walks the proof itself and mints only to the EVM
-          address your native owner account maps to. The first mint holds about 27 tPOT of storage deposit.
-        </p>
-        <OutcomeRow outcome={outcomes.claim} />
-      </Panel>
-
-      <Panel title="3. Transfer it" hint="allowed while the native title is held">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            aria-label="Recipient"
-            placeholder="recipient: 0x… or a Portaldot SS58 address"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            spellCheck={false}
-            className={`${field} flex-1`}
-          />
-          <input aria-label="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className={`${field} w-24`} />
-          <button type="button" className={btn} onClick={() => void transfer(false)} disabled={disabled || to.trim() === ''}>
-            {label('transfer', 'Transfer')}
-          </button>
-          {outcomes.transfer?.error?.includes('TitleFrozen') ? (
-            <button type="button" className="btn btn--sm" onClick={() => void transfer(true)} disabled={disabled}>
-              Send anyway: record the refusal on-chain
-            </button>
-          ) : null}
+          {status === 'done' ? <Check className="size-3.5" strokeWidth={2.4} /> : n}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <h2 className={`text-[15px] font-medium ${status === 'locked' ? 'text-ink-2' : 'text-ink'}`}>{title}</h2>
+            <span className={`font-mono text-[11px] uppercase tracking-[0.08em] ${status === 'done' ? 'text-ok' : status === 'ready' ? 'text-accent' : 'text-muted'}`}>
+              {status === 'done' ? 'done' : status === 'ready' ? 'next' : 'waiting'}
+            </span>
+          </div>
+          <p className="mt-1 max-w-[68ch] text-[13px] leading-5 text-muted">{what}</p>
+          {hint !== undefined ? <p className="mt-1 text-[12px] leading-4 text-ink-2">{hint}</p> : null}
+          <div className="mt-3">{children}</div>
         </div>
-        <p className="mt-2 text-[12px] leading-4 text-muted">
-          Each address holds LNT of one title at a time, so a freeze always hits exactly that title&apos;s tokens. Send to
-          an address that holds no LNT from an earlier title.
-        </p>
-        <OutcomeRow outcome={outcomes.transfer} />
-      </Panel>
+      </div>
+    </li>
+  )
+}
 
-      <Panel title="4. Burn the title natively, then freeze the token" hint="nfts.burn, then NativeTitleToken.freeze">
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={btn} onClick={() => void burnNative()} disabled={disabled || selected === null || !ownsSelected}>
-            {label('native', 'Burn native title')}
-          </button>
-          <button
-            type="button"
-            className={btn}
-            onClick={() => void freeze()}
-            disabled={disabled || selected === null || title?.claimed !== true || title.frozen}
-          >
-            {title?.frozen ? 'Frozen' : label('freeze', 'Prove it and freeze')}
-          </button>
-          <button
-            type="button"
-            className="btn btn--sm"
-            onClick={() => void retire()}
-            disabled={disabled || reading?.balance == null || reading.balance === 0n}
-          >
-            {label('retire', 'Retire my LNT')}
-          </button>
-        </div>
-        <p className="mt-2 text-[12px] leading-4 text-muted">
-          Once the item is gone natively, its absence under a validator-signed root freezes every LNT of this title, and
-          transfers revert with TitleFrozen. Anyone can submit that proof. Retiring LNT stays allowed.
-        </p>
-        <OutcomeRow outcome={outcomes.native} />
-        <OutcomeRow outcome={outcomes.freeze} />
-        <OutcomeRow outcome={outcomes.retire} />
-      </Panel>
-
-      {TOKEN !== null ? (
-        <Panel title="Contracts" hint="Portaldot V3">
-          <Row label="NativeTitleToken" value={<Hash value={TOKEN} label="the token address" />} />
-          {BEEFY_FEED !== null ? <Row label="BeefyRootFeed" value={<Hash value={BEEFY_FEED} label="the feed address" />} /> : null}
-        </Panel>
-      ) : null}
+function Line({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="shrink-0 text-muted">{k}</dt>
+      <dd className="min-w-0 truncate text-right font-mono text-[12px] text-ink-2">{v}</dd>
     </div>
   )
 }

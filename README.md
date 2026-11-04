@@ -38,12 +38,6 @@ What runs on public Portaldot V3 today, with no server in the trust path:
 - **The token obeys a native title on the public chain.** On [/console/flow](https://lemo-ebon.vercel.app/console/flow) your wallet creates an item in Portaldot's native `nfts` pallet, then `NativeTitleToken` mints 1,000 LNT only after proving, against the validator-signed root, that your account owns that item. Burn the item natively and anyone can prove its absence; the token freezes and transfers revert on-chain. Recorded run: create [319111-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319111-1), mint [319198-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319198-1), transfer [319201-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319201-1), native burn [319202-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319202-1), freeze [319217-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319217-1), transfer refused [319220-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/319220-1).
 - **Both rules run end to end** on a local runtime with the title pallet: native title, finalized proof, mint, transfer, unbond refused while tokens exist, burn, unbond allowed ([/console/local](https://lemo-ebon.vercel.app/console/local)).
 
-## ▶ Demo video
-
-The video is recorded by the owner on the live site; the link goes here when it is published. The click-by-click script is [`docs/demo-script.md`](docs/demo-script.md).
-
-It shows real chain activity, not screenshots: the validator signatures checked in the browser, a native account proven by the verifier contract, one flipped byte refused, and a feed update signed from the presenter's own wallet and opened on the Portaldot V3 scanner. It then plays the full two-rule lifecycle from the local runtime. It stops before Mint on the public gate, which is paused because the public runtime has no title pallet. [Judge walkthrough](#judge-walkthrough-5-minutes) is the five-minute route.
-
 ## Live status
 
 | Surface | Status | The evidence |
@@ -109,7 +103,6 @@ What a judge can verify without trusting the site: the addresses and code on Por
 
 ## Table of contents
 
-- [Demo video](#-demo-video)
 - [Live status](#live-status)
 - [The 20-second pitch](#the-20-second-pitch)
 - [How Portaldot is load-bearing, in plain words](#how-portaldot-is-load-bearing-in-plain-words)
@@ -506,7 +499,7 @@ contracts/src/       earlier EVM-only registry and token
 pallets/lemo-title/  native title registry pallet
 server/              Fastify proof service
 backend/             parallel proof service for the two-contract deployment
-docs/                evidence, audit, deployment, demo
+docs/                evidence, audit, finality, local runtime
 test/                Foundry tests and harnesses
 script/              Foundry deployment script
 scripts/             native deploy, BEEFY capture and relay, local lifecycle, deposit dry run

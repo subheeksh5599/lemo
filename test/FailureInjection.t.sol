@@ -233,7 +233,7 @@ contract FailureInjectionTest is Test {
   /// @notice Scenario 10: a reorg that rolls the feed BACK to the old root.
   /// The proof against that root was never spent, so it becomes usable again,
   /// which is exactly why the feed must never be allowed to roll back in
-  /// production (see contracts/README.md). What must still hold: a proof already
+  /// production (see the README). What must still hold: a proof already
   /// consumed before the reorg stays consumed.
   function test_10_RootRollbackDoesNotReviveSpentProofs() public {
     _mintBase();

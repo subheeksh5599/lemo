@@ -44,7 +44,7 @@
 
 ## Trust model used for severity
 
-The audit assumes the deployed configuration described by `docs/DEPLOYMENT.md`: `ReviveBlake2b256` → `SubstrateTrieVerifier` → 2-of-3 `ThresholdRootFeed` → `TitleGateERC20`. Where a finding depends on the single-attester fallback it is stated. The native pallet is source-only (`pallets/lemo-title/src/lib.rs:8-9`), so pallet findings are rated as integration risk, not live loss.
+The audit assumes the deployed configuration described at audit time: `ReviveBlake2b256` → `SubstrateTrieVerifier` → 2-of-3 `ThresholdRootFeed` → `TitleGateERC20`. Where a finding depends on the single-attester fallback it is stated. The native pallet is source-only (`pallets/lemo-title/src/lib.rs:8-9`), so pallet findings are rated as integration risk, not live loss.
 
 In scope: `contracts/*.sol`, `pallets/lemo-title/src/lib.rs`, `script/Deploy.s.sol`, `server/src/*`, `lib/wallet/*`, `components/wallet/*`, `scripts/evm-native-address.mjs`.
 Out of scope: `test/lib/forge-std`, `node_modules`, the untracked `lib/flow/` directory, Portaldot's `pallet-revive` precompile implementation, and the native chain's finality rules.
@@ -243,11 +243,11 @@ The pallet stores a struct derived with `Encode`/`Decode`:
 | `revision` | **8** (`u64`) | 32 |
 | total | **260** | **320** |
 
-`docs/NATIVE_REGISTRY.md:27-30` states the pallet "stores the same fields so a runtime API can expose that fixed width record" — but no such runtime API exists in this repository, and no test or assertion checks that the two encodings agree. As written:
+The pallet's design notes stated it "stores the same fields so a runtime API can expose that fixed width record" — but no such runtime API exists in this repository, and no test or assertion checks that the two encodings agree. As written:
 
 - decoding the raw storage value returns `INVALID` for every record (length 260 ≠ 320) → the gate rejects every real proof;
 - even a re-encoded 320-byte runtime API cannot represent an `AccountId32` owner: `ownerWord >> 160 != 0` is true for *all* native accounts, so `decodeNative` returns `false`;
-- the bridge between the two account models is the undocumented-in-code `H160 ++ 0xEE*12` mapping (`scripts/evm-native-address.mjs:4-6`, `docs/DEPLOYMENT.md:18-24`), which no contract verifies. If Portaldot changes the mapper (or the same code is pointed at another Revive chain), the SS58 address in the record stops corresponding to the EVM signer with no on-chain signal.
+- the bridge between the two account models is the undocumented-in-code `H160 ++ 0xEE*12` mapping (`scripts/evm-native-address.mjs:4-6`), which no contract verifies. If Portaldot changes the mapper (or the same code is pointed at another Revive chain), the SS58 address in the record stops corresponding to the EVM signer with no on-chain signal.
 
 Impact is fail-closed (no forged value), so this is not a theft vector, but it makes the end-to-end path non-functional and hides a real account-mapping assumption inside a string in a shell script.
 
@@ -348,7 +348,7 @@ Impact: trivial CPU/memory amplification (many 4-byte nodes each hashed; several
 
 `server/src/schemas.ts:150`, `:168` (`substrate.url`, `evm.url` in `/v1/network`); `script/Deploy.s.sol:59` (`console2.log("rpc", ...)`)
 
-Provider URLs very often carry an API key in the path or query (`https://rpc.example/v2/<key>`). `/v1/network` returns them verbatim with `access-control-allow-origin: *`, and the deploy script writes the same string into `broadcast/` artifacts and terminal/CI logs. `docs/DEPLOYMENT.md` instructs keeping secrets in `.env.local`, but this path exports them.
+Provider URLs very often carry an API key in the path or query (`https://rpc.example/v2/<key>`). `/v1/network` returns them verbatim with `access-control-allow-origin: *`, and the deploy script writes the same string into `broadcast/` artifacts and terminal/CI logs. The deployment notes instruct keeping secrets in `.env.local`, but this path exports them.
 
 **Fix** — return a redacted URL (`new URL(u).origin` plus a `hasApiKey: true` flag), and never log the raw URL in the deploy script; log the chain id and genesis hash instead.
 

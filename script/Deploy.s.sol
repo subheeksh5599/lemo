@@ -51,7 +51,7 @@ import { TitleGateERC20 } from "lemo/TitleGateERC20.sol";
 ///
 /// This script has never been broadcast. Nothing in this repository is deployed.
 /// Run `forge script script/Deploy.s.sol -vv` with DEPLOY_CONFIRM unset to see it
-/// refuse, then read contracts/README.md.
+/// refuse, then read the README.
 contract Deploy is Script {
   function run() external returns (address hasher, address verifier, address feed, address token) {
     if (keccak256(bytes(_envOr("DEPLOY_CONFIRM", "no"))) != keccak256(bytes("yes"))) {

@@ -72,7 +72,7 @@ library TitleLib {
   /// @notice The native face encoding: ten 32 byte big-endian words.
   /// @dev Deliberately not SCALE. The native registry does not exist yet, so
   /// this repository defines the record layout it will carry and proves it
-  /// end to end; see contracts/README.md "What is not deployed". A fixed
+  /// end to end; see the README honesty table. A fixed
   /// width layout cannot be confused with a shorter read.
   function encodeNative(TitleRecord memory r) internal pure returns (bytes memory out) {
     out = abi.encodePacked(

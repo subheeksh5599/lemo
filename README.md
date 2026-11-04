@@ -5,10 +5,10 @@
 ### One asset. Two rooms. One title both rooms must obey.
 
 [![live](https://img.shields.io/badge/live-lemo--ebon.vercel.app-1c6cff?labelColor=0f1420)](https://lemo-ebon.vercel.app)
-[![status](https://img.shields.io/badge/status-four%20contracts%20deployed-f59e0b?labelColor=0f1420)](#live-status)
-[![contracts](https://img.shields.io/badge/forge-90%20passing-16a34a?labelColor=0f1420)](#tests)
-[![pallet](https://img.shields.io/badge/pallet-10%20passing-16a34a?labelColor=0f1420)](#tests)
-[![service](https://img.shields.io/badge/proof%20service-1%2C077%20passing-16a34a?labelColor=0f1420)](#tests)
+[![status](https://img.shields.io/badge/roots-validator%20signed%20(BEEFY)-16a34a?labelColor=0f1420)](#live-status)
+[![contracts](https://img.shields.io/badge/forge-153%20passing-16a34a?labelColor=0f1420)](#tests)
+[![pallet](https://img.shields.io/badge/pallet-22%20passing-16a34a?labelColor=0f1420)](#tests)
+[![service](https://img.shields.io/badge/proof%20service-1%2C094%20passing-16a34a?labelColor=0f1420)](#tests)
 
 [![chain](https://img.shields.io/badge/Portaldot%20V3-Revive%20420420777-2f6bff?labelColor=0f1420)](#live-status)
 [![run](https://img.shields.io/badge/run%20it-one%20command-black)](#-see-it-in-one-command)
@@ -39,6 +39,9 @@ The honest demo is read-only: live heads, a real Substrate proof, `eth_getProof`
 | Surface | Status | The evidence |
 |---|---|---|
 | Marketing site and console | **Live** | [lemo-ebon.vercel.app](https://lemo-ebon.vercel.app) |
+| **Validator-signed root feed** | **Live, relayed hourly** | `BeefyRootFeed` `0x0ec209f0a45d65215a59e6bce135344b16316937` ([account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5CQ4AmAf4KEWnSHwu72VzF8SYVBWk4t66jRsYWXwEyf3rzWv), [deploy 316946-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/316946-1)); accepts a state root only with both BEEFY validators' signatures, the MMR root and the header; no owner, no attester. Checked live in the browser on [/console/finality](https://lemo-ebon.vercel.app/console/finality) |
+| Relayer | **Live** | [`.github/workflows/relay-beefy.yml`](.github/workflows/relay-beefy.yml), hourly; anyone can run `scripts/relay-beefy.mjs`. First CI round advanced the feed from set 533 to 534 on-chain |
+| Full local lifecycle | **Recorded, re-verified in the browser** | [/console/local](https://lemo-ebon.vercel.app/console/local): native title → GRANDPA-finalized proof → mint → transfer → unbond refused while live → burn → unbond allowed, 9/9 browser checks |
 | Transaction console | **Live, gate paused** | [/console/flow](https://lemo-ebon.vercel.app/console/flow) |
 | Blake2b adapter | **Live on Portaldot V3** | `0x15ae34fa8fd933d6d4e1cf9a772b305f0abc7e22`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5CZ8cWRiFMjyLbQwhAMiJdJ9RLyTw3YJjjZy2vCXM1vdSani), [deploy 294148-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294148-1) |
 | Trie verifier | **Live on Portaldot V3** | `0xe5ca668667d3e2c8a0272ee4e446d6aa88a86bac`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5HFzwxCtJFj8q7eETYTqFxdG2wnEwJCdLVBHpeYEivwitwGw), [deploy 294498-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294498-1) |
@@ -49,12 +52,12 @@ The honest demo is read-only: live heads, a real Substrate proof, `eth_getProof`
 | Transaction receipt view | **Live** | `/tx/<hash>`; reads the receipt from the Portaldot V3 EVM RPC |
 | Portaldot V3 scanner links | **Live** | every deployment, contract account and receipt block links to [scanner-testnet-v3.portaldot.dev](https://scanner-testnet-v3.portaldot.dev/#/accounts/5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx); EVM transactions are unsigned `revive.ethTransact` extrinsics, which the scanner does not list, so they link to their block |
 | Local native capture | **Live, fixture view** | [`/console/local`](https://lemo-ebon.vercel.app/console/local); verifies a real local Substrate proof offline |
-| Native title registry | **Pallet, not in the runtime** | `pallets/lemo-title`, 10 tests |
+| Native title registry | **In the local runtime, not in public V3** | `pallets/lemo-title`, 22 tests; runs in `~/code/lemo-runtime` (index 8) |
 | Four-contract mint / transfer | **Wired, cannot settle** | placeholder commitment; no native title record |
-| Proof service | **1,077 tests passing** | `server/` |
-| Security audit | **Self-audit; critical hazards mitigated** | [docs/AUDIT.md](docs/AUDIT.md); C-01 amount binding and H-07 open (H-06 closed in source) |
+| Proof service | **1,094 tests passing** | `server/`; origin allowlist, rate limit, bounded proofs |
+| Security audit | **Self-audit; findings fixed in source** | [docs/AUDIT.md](docs/AUDIT.md); every Critical/High/Medium/Low fixed in source with a regression test; the deployed gate predates the fixes and stays paused |
 
-The honest line: the site, the proof surface and four support contracts are deployed. The gate's title is a deployment placeholder, so this is not a live asset system yet.
+The honest line: roots on Portaldot V3 now come from the validators' own signatures, checked on-chain, and the full two-rule lifecycle runs end to end on a local runtime. The public V3 runtime has no LEMO title pallet, so the public gate has no real title to prove and stays paused.
 
 ## The 20-second pitch
 
@@ -68,7 +71,7 @@ Short version: **Portaldot is not a host; it is one of the two ledgers under tes
 2. **Revive state.** The ERC-20 representation lives in Revive, with balances, supply and a proof check before every movement.
 3. **tPOT.** The native wallet pays the storage deposit for the contracts; an EVM address is only a mapped account.
 4. **State proofs.** `state_getReadProof` at a finalized block is the input the Solidity verifier walks.
-5. **Finality.** Both rooms settle under the same validator set. The current root feed is a trusted checkpoint, not a light client; that boundary is named in the code and the audit.
+5. **Finality.** Both rooms settle under the same validator set. `BeefyRootFeed` takes a state root only when Portaldot's BEEFY validators signed the MMR root that commits to its block, checked with `ecrecover` on-chain. The one thing fixed at deploy is the starting validator set ([docs/FINALITY.md](docs/FINALITY.md)).
 
 ## Judge walkthrough (5 minutes)
 
@@ -80,8 +83,10 @@ Every step below runs on the public site. The read pages need no wallet and no i
 4. **Open [/console/verify](https://lemo-ebon.vercel.app/console/verify).** Prove one storage key against the finalized state root. The page walks the returned trie nodes in the browser; a tampered node or root is rejected.
 5. **Open [/console/network](https://lemo-ebon.vercel.app/console/network).** Read the endpoint, genesis, chain id and latency checks. A failed check is reported as failed, never hidden.
 6. **Open [/console/legacy](https://lemo-ebon.vercel.app/console/legacy).** This is the earlier EVM-only deployment. Verify supply `1,000`, cap `1,000`, eligibility `true`, issuer balance `985`, and five settled transaction receipts. Click any hash to open `/tx/<hash>`; the receipt is read live from the Portaldot V3 EVM RPC. This is the only place a **settled** mint and transfer can be shown today.
-7. **Open [/console/flow](https://lemo-ebon.vercel.app/console/flow).** Read the three deployed addresses and the banner "Gate deployed and paused". Mint and transfer are wired but cannot settle: the gate has no real title proof. The page now shows the configured explorer, not the old "explorer not set" notice.
-8. **Do not expect a native create, identity, unbond or Rule 2 refusal.** Those need `pallets/lemo-title` in the runtime. The page says so.
+7. **Open [/console/finality](https://lemo-ebon.vercel.app/console/finality).** The newest BEEFY block is checked in the browser: both validator signatures recovered, the MMR root rebuilt from on-chain peaks, the header hashed to the signed parent, the state root read out. The on-chain feed's `currentRoot` is compared with the same header. Flip a signature byte and the verdict turns FAIL.
+8. **Open [/console/local](https://lemo-ebon.vercel.app/console/local).** The full two-rule lifecycle from a local runtime with the pallet: create title, finalized proof, mint, transfer, unbond refused while tokens exist, burn, unbond allowed and the deposit returned. Headers, GRANDPA signatures and storage proofs are re-checked in the browser.
+9. **Open [/console/flow](https://lemo-ebon.vercel.app/console/flow).** Read the three deployed addresses and the banner "Gate deployed and paused". Mint and transfer are wired but cannot settle: the gate has no real title proof. The page now shows the configured explorer, not the old "explorer not set" notice.
+10. **Do not expect a native create or Rule 2 refusal on public V3.** Those need `pallets/lemo-title` in the public runtime; step 8 shows them on the local runtime.
 
 Portaldot's official explorers are Substrate scanners; they do not index EVM receipts. That is why the receipt view is part of this site and reads `eth_getTransactionReceipt` directly. It is a receipt viewer, not a replacement for a chain-wide indexer.
 
@@ -142,9 +147,9 @@ forge test
 ```
 
 ```text
-forge test                         90 passed, 0 failed
-server npm test                 1,077 passed, 0 failed
-cargo test (pallet)                10 passed, 0 failed
+forge test                        153 passed, 0 failed
+server npm test                 1,094 passed, 0 failed
+cargo test (pallet)                22 passed, 0 failed
 ```
 
 On macOS, if the pallet fails to link because CommandLineTools ships a newer SDK than clang accepts, set `SDKROOT` to the 15.4 SDK for that command. The failure is a local toolchain fault, not a test failure.
@@ -175,12 +180,12 @@ Wrapping an asset moves it. It does not enforce the relationship between the ori
 
 - **Solidity verifier**: walks blake2b-256 Substrate trie nodes from a state root, decodes a 320-byte title record, and returns a typed status.
 - **Title gates**: ERC-20 and ERC-721 variants that bind chain, title, token, operation, revision, root and commitment before any balance moves.
-- **Root feeds**: a single-attester `RootFeed` and an M-of-N `ThresholdRootFeed`.
+- **Root feeds**: `BeefyRootFeed` (validator-signed, no attester, live), a single-attester `RootFeed` and an M-of-N `ThresholdRootFeed`.
 - **Unbond guard**: Rule 2 in Solidity, with a release recheck and one open request per title.
-- **Native pallet**: `pallets/lemo-title`, with create, edit, representation, fail-closed liveness and unbond calls; 10 tests.
-- **Proof service**: a Fastify service with typed RPC clients, trie verification, fixtures and 1,077 tests.
+- **Native pallet**: `pallets/lemo-title`, with create, edit, representation, fail-closed liveness and three-phase unbond (request, cancel, finalize), a creation deposit and caller-derived title ids; 22 tests.
+- **Proof service**: a Fastify service with typed RPC clients, trie verification, fixtures and 1,094 tests.
 - **Console**: landing, overview, proof walk, key verifier, network checks, a transaction surface, a read-only page for the earlier deployment, and a local lifecycle page (a recorded native + anvil run, re-verified in the browser).
-- **Local proof work**: a solochain runtime with `pallets/lemo-title` (10 tests), a 320-byte canonical record, and a Foundry EVM test that mints and transfers from the captured proof (6 tests).
+- **Local lifecycle**: a solochain runtime with `pallets/lemo-title`, a 320-byte canonical record, `scripts/local-e2e.mjs` driving the full native + anvil lifecycle, and Foundry tests that replay it (10 tests).
 - **Deployment tooling**: `revive.instantiateWithCode` from the native SS58 wallet, plus the Foundry path and cost measurement.
 
 ## Architecture
@@ -346,19 +351,23 @@ The independent review found a real defect in `TitleGateERC20.burn`: the gate ow
 - `burn` now allows only the holder (`msg.sender == from`).
 - `transfer` now binds `msg.sender` in the action hash, matching `transferFrom`.
 - `test_GateOwnerCannotBurnAHolder` asserts the owner path reverts.
-- Foundry grew from 89 to **90 tests**.
+- Foundry grew from 89 to 90 tests at the time; the later audit pass brought it to 153.
 
-The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723dbc03032a06e82ad018174f22f12559a364502245a05bf`; `paused()` reads `true`. A clean live fix needs a new gate deployment, roughly 500 tPOT. The native wallet has 153.39. Until that deployment, the live gate must stay paused and the README must say so.
+The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723dbc03032a06e82ad018174f22f12559a364502245a05bf`; `paused()` reads `true`. A clean live fix needs a new gate deployment: the fixed gate is 8,232 bytes of initcode, about 640 tPOT. The tPOT available went to the validator-signed feed instead, which changes what every future gate can trust. Until a gate is redeployed, the live gate stays paused and the README says so.
 
 ## Engineering decisions & the traps that taught me something
 
-1. **Storage is the cost.** Portaldot charges `0.06 tPOT` per code byte plus a 30% code-hash lockup. A 779-byte hasher costs 71.78 tPOT; the four-contract suite cost about 1,378 tPOT. Measure before broadcasting.
-2. **tPOT is native.** An EVM address holds its tPOT through the `H160 ++ 0xEE*12` mapping. Funding the `0x` address directly does nothing.
-3. **EVM constructor arguments belong in the code blob.** `revive.instantiateWithCode` rejects separate `data` with `EvmConstructorNonEmptyData`.
-4. **The weight limit must fit the block.** Passing `maxEthExtrinsicWeight` returns "Transaction would exhaust the block limits"; `1.5e12` refTime works.
-5. **The public RPC drops bursts.** Browser calls were blocked by CORS on 503. The app uses same-origin `/api/rpc/*` proxies with a retry and a short cache.
-6. **The Vercel build typechecks the repo.** The merged `backend/` package uses `.ts` imports; the root `tsconfig` excludes it so `next build` stays green.
-7. **The chart needs a height before it can measure.** `ResponsiveContainer` now has `minHeight={240}`.
+1. **Measure the deposit, don't estimate it.** `scripts/dry-run-deposit.mjs` runs `ReviveApi_instantiate` read-only and returns the exact storage deposit. The first BEEFY feed design needed 352.88 tPOT against a 274.63 wallet; dropping the storage-proof rotation brought it to 254.52, and it deployed.
+2. **Storage is the cost.** Portaldot charges `0.06 tPOT` per code byte plus a 30% code-hash lockup. A 779-byte hasher costs 71.78 tPOT; the four-contract suite cost about 1,378 tPOT. Measure before broadcasting.
+3. **tPOT is native.** An EVM address holds its tPOT through the `H160 ++ 0xEE*12` mapping. Funding the `0x` address directly does nothing.
+4. **EVM constructor arguments belong in the code blob.** `revive.instantiateWithCode` rejects separate `data` with `EvmConstructorNonEmptyData`.
+5. **The weight limit must fit the block.** Passing `maxEthExtrinsicWeight` returns "Transaction would exhaust the block limits"; `1.5e12` refTime works.
+6. **The public RPC drops bursts.** Browser calls were blocked by CORS on 503. The app uses same-origin `/api/rpc/*` proxies with a retry and a short cache.
+7. **The Vercel build typechecks the repo.** The merged `backend/` package uses `.ts` imports; the root `tsconfig` excludes it so `next build` stays green.
+8. **The chart needs a height before it can measure.** `ResponsiveContainer` now has `minHeight={240}`.
+9. **BEEFY, not GRANDPA, for on-chain finality.** GRANDPA signs with ed25519 and Revive has no ed25519 precompile. BEEFY signs keccak256 of the commitment with secp256k1, which `ecrecover` checks for a few thousand gas.
+10. **The public node cannot serve MMR proofs.** `mmr_generateProof` returns `LeafNotFound` because offchain indexing is off. The on-chain peaks at N-1 plus the newest leaf rebuild the signed root at N, which is all a feed needs.
+11. **The scanner lists signed extrinsics only.** An EVM transaction is an unsigned `revive.ethTransact`, so receipts link to their block; native deployments link to the extrinsic.
 
 ## What's real vs pending — the honesty table
 
@@ -366,14 +375,15 @@ The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723d
 |---|---|---|
 | Four support contracts deployed | **Yes** | addresses above, `docs/EVIDENCE.md` |
 | Root feed has an attested finalized root | **Yes** | `currentRoot` at block 294515 |
+| Roots proven by validator signatures on-chain | **Yes** | `BeefyRootFeed` `0x0ec2…6937`, live and relayed; `/console/finality` |
 | Solidity verifier passes a real Substrate proof | **Yes** | `test/SubstrateTrieVerifier.t.sol` |
 | Browser verifier passes a real Substrate proof | **Yes** | `server/test/fixtures/portaldot-v3.json` |
 | Earlier deployment minted and transferred | **Yes** | five settled receipts on `/console/legacy` |
 | Gate binds a real native title | **No** | placeholder commitment |
 | Four-contract mint and transfer settle | **No** | no native title proof; gate paused |
-| Native registry is live | **No** | pallet not in the runtime |
-| Rule 2 is enforced on native | **No** | pallet not in the runtime; `UnbondGuard` not deployed |
-| Independent root source | **No** | single-attester `RootFeed` |
+| Native registry is live | **Local runtime only** | public V3 runtime does not include the pallet |
+| Rule 2 is enforced on native | **Local runtime: yes** | `request_unbond` refused with `RepresentationLive`, then allowed after burn, on `/console/local`; not on public V3; `UnbondGuard` not deployed publicly |
+| Independent root source | **Yes, for the new feed** | `BeefyRootFeed` has no attester; the paused public gate still points at the older single-attester `RootFeed` |
 | External audit | **No** | self-audit only |
 
 ## Attack → test
@@ -404,14 +414,14 @@ The deployed gate cannot be patched. It was **paused** at `0xfc7fb72e7c56c9e723d
 - `UnbondGuard` is not deployed. Rule 2 is tested but has no live address.
 - The live gate is **paused** and its bytecode predates the holder-only burn fix. The source is fixed and tested; the deployed gate must be redeployed before any live use.
 - The live gate's commitment is a placeholder. It is a real contract with a real verifier, but there is no real title to prove.
-- The root feed is one attester. `ThresholdRootFeed` exists and is tested but is not deployed.
+- The paused public gate reads the older single-attester `RootFeed`; a gate's feed is immutable. The validator-signed `BeefyRootFeed` is live beside it, and a gate redeploy pointed at it is the next deployment (about 640 tPOT). `BeefyRootFeed` follows set-id changes but stalls if BEEFY membership changes.
 - The pallet now stores a 320-byte `CanonicalTitles` blob and the EVM proof carries the full 80-byte storage key. H-06 is closed in source: the record carries an explicit `evm_beneficiary` address instead of truncating `AccountId32`. The public runtime still does not include this pallet.
 - A distinct action at the same revision gets a distinct nullifier; the audit's H-01 notes that a true per-revision spend counter is still the stronger design.
 - No external audit. The self-audit is in [`docs/AUDIT.md`](docs/AUDIT.md).
 
 ## Security
 
-- [`docs/AUDIT.md`](docs/AUDIT.md): 28 findings, critical hazards mitigated, H-07 open (H-06 closed in source). C-01 is bounded by a global cap; the amount-to-record binding is still missing.
+- [`docs/AUDIT.md`](docs/AUDIT.md): 28 findings, all fixed in source with regression tests. C-01: one mint per native revision, exactly the cap, to the proven owner (the frozen 320-byte record has no amount field). H-01: mint and burn are revision-scoped; transfers stay action-scoped by design.
 - Mitigations: supply cap, recipient binding, holder-only burn, action-scoped nullifier, unbond release recheck, one open request per title, zero-recipient refusal, ERC-165.
 - The proof service never accepts a caller-supplied state root.
 - The public RPC proxy uses a method allowlist and does not expose wallet-signing methods.
@@ -476,20 +486,20 @@ ATTESTER_PRIVATE_KEY=... FEED_ADDRESS=0xc1c9…d5c0 \
 1. Include `pallets/lemo-title` in a Portaldot runtime upgrade and expose a runtime API for the fixed-width title record.
 2. Create a title with real backing and identity; publish its revision.
 3. Attest the finalized root and set the gate's title commitment to that record.
-4. Move the gate from the single-attester `RootFeed` to a deployed `ThresholdRootFeed` with independent attesters.
+4. Deploy a new gate pointed at the live `BeefyRootFeed`, so the gate's root comes from validator signatures instead of an attester.
 5. Deploy a new gate with the holder-only burn fix, then get an external audit before calling the asset system production-ready.
 
 ## Tests
 
 ```text
-forge test                         90 passed, 0 failed
-local-evm forge test                6 passed, 0 failed
-cargo test (pallet)                10 passed, 0 failed
-server npm test                 1,077 passed, 0 failed
+forge test                        153 passed, 0 failed
+local-evm forge test               10 passed, 0 failed
+cargo test (pallet)                22 passed, 0 failed
+server npm test                 1,094 passed, 0 failed
 ```
 
 The proof tests include a live-captured Portaldot fixture, tampered root, tampered child, wrong key, truncation, false absence and a 1,019-case stress suite. The gate tests cover stale root, old revision, unbound backing, cleared identity, wrong contract, wrong chain, wrong operation, replay, pause, supply cap, recipient binding, holder-only burn and an interrupted unbond.
 
 ---
 
-Four support contracts are deployed on Portaldot V3. The native registry, a real title proof and the external audit are still missing. The earlier EVM-only deployment is the only place a settled mint and transfer can be shown today. The site says all of that on every page.
+On Portaldot V3, roots come from the validators' own signatures, checked on-chain by a contract nobody owns. The full two-rule lifecycle runs end to end on a local runtime with the title pallet and is re-verified in the browser. What public V3 still lacks is the pallet itself, and the external audit.

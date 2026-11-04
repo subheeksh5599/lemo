@@ -14,6 +14,18 @@ Snapshot: 2026-11-02. Four support contracts are deployed on Portaldot V3; the n
 | `TitleGateERC20` | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f` | [5Hm38y…9EJf](https://scanner-testnet-v3.portaldot.dev/#/accounts/5Hm38ynRjaM2qRdje35XJbD6CsYcAXX1TEuHcwub7ju69EJf) | [294503-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294503-1) | 500.98 tPOT |
 All four were deployed through `revive.instantiateWithCode` from the native SS58 account [`5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx`](https://scanner-testnet-v3.portaldot.dev/#/accounts/5GEXs8zz7giva7C2FcoLmTM4TgH6HgzSPZF7Qzj8n742tiVx). The extrinsic ids are signed native extrinsics and open on the Portaldot V3 scanner; each mapped account (`H160 ++ 0xEE*12`) shows the code deposit reserved against the contract (the gate's reads 134.022 tPOT reserved). An earlier version of this table listed hashes that are not extrinsic hashes; they were replaced with the scanner ids above. The root attested at block [#294515](https://scanner-testnet-v3.portaldot.dev/#/blocks/294515) is that block's state root on the scanner (`0x19ff…8b80`). The pause is EVM transaction `0xfc7f…05bf`, an unsigned `revive.ethTransact` at index 2 of block [#294761](https://scanner-testnet-v3.portaldot.dev/#/blocks/294761); the scanner lists signed extrinsics only, so EVM transactions link to their block. `0xc1c9…d5c0` reads `attester() = 0x884fe7b4Df96D257c23c2DB2077a511C4db2aBf7`, `currentRoot() = 0x19ff4a2de31211f1fc6d508ba7ddbd23477ed289bc804dc826f0fa2b99898b80`, `live() = true`; the root was attested at finalized block 294515. The gate reads `owner = 0x884f…aBf7`, `verifier = 0xe5ca…6bAc`, `feed = 0xc1c9…d5c0`, `titleId = 0x1c6d…1db7`, `titleCommitment = 0x3a22…6cda`, `paused = true` after `0xfc7fb72e7c56c9e723dbc03032a06e82ad018174f22f12559a364502245a05bf`. The remaining native balance is 153.39 tPOT. The live gate bytecode predates the holder-only burn fix in source; it must be redeployed before live use.
 
+### Validator-signed root feed
+
+| Item | Value |
+|---|---|
+| `BeefyRootFeed` | `0x0ec209f0a45d65215a59e6bce135344b16316937`, [mapped account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5CQ4AmAf4KEWnSHwu72VzF8SYVBWk4t66jRsYWXwEyf3rzWv) |
+| Deploy | extrinsic [316946-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/316946-1) from `5FJ9YMZwMuqDpmD5Y6xTje2vEN3UcMaMcVs9ptSDqJSkshCz`; storage deposit 254.52 tPOT (dry-run measured) |
+| Checkpoint | validator set 533, authorities `0x4d13…b421`, `0x4a69…7413` |
+| First root | extrinsic [316958-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/316958-1): state root `0xaea5…de80f` of [#316945](https://scanner-testnet-v3.portaldot.dev/#/blocks/316945) |
+| First relayer root | EVM tx `0x85df9d1f4dab815fedcc5fe1982df75a89ebb33b3a507dd0d7fb92d4873577a9`, block [#316976](https://scanner-testnet-v3.portaldot.dev/#/blocks/316976) |
+| First CI relay, implicit rotation | GitHub Actions run 41788964644: EVM tx `0x38ea967acd92ee9c87a26f6c8e56bb086f2d5a1d989450c3a87b1d4cc7df028f` (block [#317023](https://scanner-testnet-v3.portaldot.dev/#/blocks/317023)) advanced the feed from set 533 to 534; `validatorSetId()` then read 534 and `currentBlockNumber()` 317010 |
+| Live check | `/console/finality`: both signers recovered, MMR root rebuilt, header hash bound, `currentRoot` equals the browser-derived root |
+
 ## Gates
 
 | Gate | Command | Observed |

@@ -88,7 +88,21 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 **Do not click Mint.**
 
-> Placeholder: a page for the validator-signed root feed will go here (another agent is building the feed). Once it exists, click it after Transactions and say one line: "Here the root is signed by the validator set, not by one attester." Until then, skip this beat.
+## 3:00 to 3:30, validator-signed roots
+
+**Click:** **Validator-signed roots** in the sidebar. Wait until the verdict reads PASS.
+
+**Expect:** Verdict PASS, Signers 2 / 2, four steps (validator signatures, MMR root, header, state root) all PASS, and the On-chain feed panel with `currentRoot = browser-derived root` reading **match**.
+
+**Say:** "This is where the root comes from now. Both Portaldot validators signed this block's MMR root; the page recovers their keys, rebuilds the root from on-chain peaks and hashes the header to get the state root. The feed contract on Portaldot does the same checks and has no owner and no attester. Its current root matches."
+
+**Click:** **Flip a signature byte**.
+
+**Expect:** Verdict FAIL, Signers 1 / 2.
+
+**Say:** "One flipped byte and the signature no longer recovers to a validator. The contract reverts the same way."
+
+**Click:** **Off** to restore. Optionally click **account** on the feed panel to open it on the Portaldot scanner.
 
 ## If something goes wrong
 
@@ -98,4 +112,4 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 ## Words to avoid on stage
 
-"Audited", "trustless", "production ready", "mainnet", "live users", "TVL", "partnership". The local run is a local devnet and anvil. The public gate is on testnet with a single-attester root feed. Say that plainly.
+"Audited", "trustless", "production ready", "mainnet", "live users", "TVL", "partnership". The local run is a local devnet and anvil. The validator-signed feed is live on testnet, but the paused public gate still reads the older single-attester feed. Say that plainly.

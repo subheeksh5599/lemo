@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
+import { isBeefyFeed } from '@/lib/beefy'
 import { contract } from '@/lib/flow/config'
 import { readFeedState, type FeedState, type Probe } from '@/lib/flow/state'
 
@@ -11,22 +12,36 @@ import { readFeedState, type FeedState, type Probe } from '@/lib/flow/state'
  * (for example a validator-signed BEEFY feed) is a new case here and nothing
  * else in the console changes.
  */
-export type RootSourceKind = 'single-attester' | 'no-single-attester'
+export type RootSourceKind = 'single-attester' | 'no-single-attester' | 'validator-signed'
 
-export function rootSourceKind(feed: FeedState): RootSourceKind {
+/**
+ * `address` is the feed the gate points at. When it is the configured
+ * BeefyRootFeed (NEXT_PUBLIC_LEMO_BEEFY_FEED), roots land only on BEEFY
+ * validator signatures; see /console/finality.
+ */
+export function rootSourceKind(feed: FeedState, address?: string | null): RootSourceKind {
+  if (isBeefyFeed(address)) return 'validator-signed'
   return feed.attester === null ? 'no-single-attester' : 'single-attester'
 }
 
 export const ROOT_SOURCE_LABEL: Record<RootSourceKind, string> = {
   'single-attester': 'trusted single attester',
   'no-single-attester': 'threshold feed, no single attester',
+  'validator-signed': 'validator-signed (BEEFY)',
+}
+
+/** The tone a root source reads in: a single attester is a warning, BEEFY is ok. */
+export const ROOT_SOURCE_TONE: Record<RootSourceKind, 'ok' | 'warn' | 'default'> = {
+  'single-attester': 'warn',
+  'no-single-attester': 'default',
+  'validator-signed': 'ok',
 }
 
 export type RootSourceReading =
   | { kind: 'unset'; env: string }
   | { kind: 'reading' }
   | { kind: 'failed'; message: string }
-  | { kind: 'read'; label: string; feed: FeedState; address: string }
+  | { kind: 'read'; label: string; source: RootSourceKind; feed: FeedState; address: string }
 
 /** Reads the configured root feed once, through the same RPC path as the flow page. */
 export function useRootSource(): RootSourceReading {
@@ -53,9 +68,11 @@ export function useRootSource(): RootSourceReading {
   if (failure !== null) return { kind: 'failed', message: failure }
   if (probe === null) return { kind: 'reading' }
   if (probe.state === null) return { kind: 'failed', message: probe.problem ?? 'no feed state' }
+  const source = rootSourceKind(probe.state, probe.address)
   return {
     kind: 'read',
-    label: ROOT_SOURCE_LABEL[rootSourceKind(probe.state)],
+    label: ROOT_SOURCE_LABEL[source],
+    source,
     feed: probe.state,
     address: probe.address,
   }

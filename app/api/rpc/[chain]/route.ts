@@ -10,6 +10,7 @@ const UPSTREAM = {
 
 const ALLOWED = new Set([
   'system_chain',
+  'beefy_getFinalizedHead',
   'chain_getBlock',
   'chain_getBlockHash',
   'chain_getFinalizedHead',

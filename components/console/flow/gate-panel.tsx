@@ -1,7 +1,7 @@
 'use client'
 
 import { Notice, Panel, Row, State } from '@/components/console/primitives'
-import { ROOT_SOURCE_LABEL, rootSourceKind } from '@/components/console/root-source'
+import { ROOT_SOURCE_LABEL, ROOT_SOURCE_TONE, rootSourceKind } from '@/components/console/root-source'
 import { formatUnits } from '@/lib/flow/codec'
 import { contract } from '@/lib/flow/config'
 import type { FlowSnapshot } from '@/lib/flow/snapshot'
@@ -155,9 +155,13 @@ export function GatePanel({ snapshot }: { snapshot: FlowSnapshot | null }) {
               value={
                 feed?.state === null || feed?.state === undefined
                   ? '-'
-                  : ROOT_SOURCE_LABEL[rootSourceKind(feed.state)]
+                  : ROOT_SOURCE_LABEL[rootSourceKind(feed.state, state?.feed)]
               }
-              tone={feed?.state?.attester == null ? 'default' : 'warn'}
+              tone={
+                feed?.state === null || feed?.state === undefined
+                  ? 'default'
+                  : ROOT_SOURCE_TONE[rootSourceKind(feed.state, state?.feed)]
+              }
               mono={false}
             />
             <Row

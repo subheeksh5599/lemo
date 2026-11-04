@@ -171,11 +171,18 @@ export async function readFeedState(address: string): Promise<Probe<FeedState>> 
   }
 
   try {
-    const [root, blockNumber, pinned] = await Promise.all([
+    const [root, blockNumber] = await Promise.all([
       readAddress(address, feedFunction('currentRoot')),
       readUint(address, feedFunction('currentBlockNumber')),
-      readBool(address, feedFunction('pinned')),
     ])
+
+    // BeefyRootFeed has no `pinned()`: it never pins, so absence reads as false.
+    let pinned = false
+    try {
+      pinned = await readBool(address, feedFunction('pinned'))
+    } catch {
+      pinned = false
+    }
 
     // A threshold feed has no `live()` or `attester()`; both are optional reads.
     let live: boolean | null = null

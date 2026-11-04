@@ -6,6 +6,7 @@ import {
   KeyRound,
   Network,
   ShieldCheck,
+  Signature,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -35,6 +36,12 @@ export const NAV_READ: readonly NavItem[] = [
     label: 'Verify key',
     detail: 'Prove one storage key against the state root',
     icon: KeyRound,
+  },
+  {
+    href: '/console/finality',
+    label: 'Validator-signed roots',
+    detail: 'BEEFY signatures, MMR root and header, checked here and on-chain',
+    icon: Signature,
   },
   {
     href: '/console/network',

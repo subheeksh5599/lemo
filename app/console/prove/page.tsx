@@ -18,7 +18,7 @@ import {
 } from '@/lib/live-proof'
 import { scannerAccount, scannerBlock, scannerExtrinsic } from '@/lib/scanner'
 import { submitSigned, type SignedSubmit } from '@/lib/wallet/sign'
-import { usePortaldotWallet } from '@/lib/wallet/use-portaldot-wallet'
+import { ensureSigner, usePortaldotWallet } from '@/lib/wallet/use-portaldot-wallet'
 
 /** The relayer's native account: it always holds tPOT, so it proves a non-empty record. */
 const EXAMPLE = '5HeBperF6m5AbP8TZKPnYRdBPMHNK3ebgkDH7FpPHNPBM9y1'
@@ -138,10 +138,11 @@ function SignYourself({ onDone }: { onDone: () => void }) {
   const [problem, setProblem] = useState<string | null>(null)
 
   const submit = async () => {
-    if (signer === null || BEEFY_FEED === null) return
+    if (BEEFY_FEED === null) return
     setProblem(null)
     setResult(null)
     try {
+      const { address, signer } = await ensureSigner()
       setBusy('Planning from BEEFY')
       const plan = await fetchPlan()
       if (plan.steps.length === 0) throw new Error('the feed is already at the newest justified block')

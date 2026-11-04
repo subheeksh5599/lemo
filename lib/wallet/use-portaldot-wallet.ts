@@ -58,6 +58,25 @@ async function connect(id: string, preferred?: string): Promise<void> {
   }
 }
 
+/**
+ * The signer and address to use right now. Reads the live store (never a stale
+ * render), and connects first when no connection is open, so a button press
+ * never fails just because the page lost track of the wallet.
+ */
+export async function ensureSigner(): Promise<{ address: string; signer: Signer }> {
+  if (state.signer === null || state.address === '') {
+    start()
+    if (state.wallets.length === 0) set({ wallets: listSubstrateWallets() })
+    const id = state.walletId || state.wallets[0]?.id || ''
+    if (id === '') throw new Error('No Portaldot wallet extension found in this browser. Install Talisman, SubWallet or Polkadot.js and reload.')
+    await connect(id, state.address || undefined)
+  }
+  if (state.signer === null || state.address === '') {
+    throw new Error(state.error ?? 'The wallet did not share an account with this page. Open the extension, allow this site, and press again.')
+  }
+  return { address: state.address, signer: state.signer }
+}
+
 let started = false
 function start() {
   if (started || typeof window === 'undefined') return

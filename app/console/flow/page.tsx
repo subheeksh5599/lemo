@@ -25,7 +25,7 @@ import {
   type TokenReading,
 } from '@/lib/native-title'
 import { scannerAccount, scannerExtrinsic } from '@/lib/scanner'
-import { usePortaldotWallet } from '@/lib/wallet/use-portaldot-wallet'
+import { ensureSigner, usePortaldotWallet } from '@/lib/wallet/use-portaldot-wallet'
 import {
   evmCalls,
   mappedEvm,
@@ -160,7 +160,7 @@ export default function TransactPage() {
 
   const createTitle = () =>
     run('create', 'Native title created', async () => {
-      if (signer === null) throw new Error('connect a wallet first')
+      const { address, signer } = await ensureSigner()
       setBusy('Connecting to Portaldot')
       const api = await nodeApi()
       const next = (await api.query.nfts.nextCollectionId()) as unknown as { isSome: boolean; unwrap: () => { toNumber: () => number } }
@@ -177,7 +177,9 @@ export default function TransactPage() {
 
   /** Feed submissions up to the newest validator-signed block, then one token call that carries a proof at that block. */
   const withProof = async (make: (key: string, nodes: string[]) => EvmCall, weight: Weight, needsItem: boolean): Promise<SignedSubmit> => {
-    if (signer === null || selected === null || TOKEN === null || BEEFY_FEED === null) throw new Error('connect a wallet and pick a title')
+    if (TOKEN === null || BEEFY_FEED === null) throw new Error('This build has no NativeTitleToken or BeefyRootFeed address configured.')
+    if (selected === null) throw new Error('Create a native title first (step 1), or pick one from the list.')
+    const { address, signer } = await ensureSigner()
     const feed = BEEFY_FEED
     setBusy('Planning from BEEFY')
     const plan = await fetchPlan()
@@ -217,7 +219,8 @@ export default function TransactPage() {
 
   const transfer = (force: boolean) =>
     run('transfer', 'Transferred', async () => {
-      if (signer === null || TOKEN === null) throw new Error('connect a wallet first')
+      if (TOKEN === null) throw new Error('This build has no NativeTitleToken address configured.')
+      const { address, signer } = await ensureSigner()
       const recipient = toEvm(to)
       const units = BigInt(Math.round(Number(amount) * 1e6)) * 10n ** 12n
       const api = await nodeApi()
@@ -236,7 +239,8 @@ export default function TransactPage() {
 
   const burnNative = () =>
     run('native', 'Native title burned', async () => {
-      if (signer === null || selected === null) throw new Error('connect a wallet and pick a title')
+      if (selected === null) throw new Error('Pick a native title first.')
+      const { address, signer } = await ensureSigner()
       const api = await nodeApi()
       return signAndWatch(api, address, signer, [api.tx.nfts.burn(selected.collection, selected.item)], setBusy)
     })
@@ -248,7 +252,9 @@ export default function TransactPage() {
 
   const retire = () =>
     run('retire', 'LNT retired', async () => {
-      if (signer === null || TOKEN === null || reading?.balance == null) throw new Error('connect a wallet first')
+      if (TOKEN === null) throw new Error('This build has no NativeTitleToken address configured.')
+      const { address, signer } = await ensureSigner()
+      if (reading?.balance == null || reading.balance === 0n) throw new Error('This account holds no LNT.')
       const api = await nodeApi()
       setBusy('Dry-running on Portaldot')
       const txs = await evmCalls(api, address, [{ dest: TOKEN, data: encodeBurn(reading.balance), storageTpot: 1 }])
@@ -257,7 +263,7 @@ export default function TransactPage() {
 
   const title = reading?.title ?? null
   const ownsSelected = selected !== null && titles.some((t) => t.collection === selected.collection && t.item === selected.item)
-  const disabled = busy !== null || signer === null
+  const disabled = busy !== null || wallets.length === 0
   const label = (key: string, idle: string) => (active === key && busy !== null ? busy : idle)
 
   return (

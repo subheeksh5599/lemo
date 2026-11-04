@@ -144,6 +144,8 @@ change.
 Each later submit overwrites the same slots: about 0.12 tPOT in fees per
 set, so ~2.9 tPOT a day keeps the root current.
 
+The relayer account `0xf6b667b0…c75a` (native `5HeBperF6m5AbP8TZKPnYRdBPMHNK3ebgkDH7FpPHNPBM9y1`) holds 106.76 tPOT, about five weeks of hourly relaying.
+
 ## Scripts
 
 ```sh

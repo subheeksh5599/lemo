@@ -50,3 +50,5 @@ contracts/artifacts/
 contracts/deployments.json
 .vercel
 .env*
+film/intro/.hyperframes/
+film/intro/node_modules/

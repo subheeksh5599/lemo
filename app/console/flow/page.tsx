@@ -25,16 +25,14 @@ import {
   type TokenReading,
 } from '@/lib/native-title'
 import { scannerAccount, scannerExtrinsic } from '@/lib/scanner'
+import { usePortaldotWallet } from '@/lib/wallet/use-portaldot-wallet'
 import {
-  connectSigner,
   evmCalls,
-  listSubstrateWallets,
   mappedEvm,
   nodeApi,
   signAndWatch,
   type EvmCall,
   type SignedSubmit,
-  type Signer,
   type Weight,
 } from '@/lib/wallet/sign'
 
@@ -92,11 +90,8 @@ const field =
   'h-9 min-w-0 rounded-sm border border-line bg-canvas px-2 font-mono text-[12px] text-ink outline-none focus:border-accent'
 
 export default function TransactPage() {
-  const [wallets, setWallets] = useState<{ id: string; name: string }[]>([])
-  const [walletId, setWalletId] = useState('')
-  const [accounts, setAccounts] = useState<{ address: string; name?: string }[]>([])
-  const [address, setAddress] = useState('')
-  const [signer, setSigner] = useState<Signer | null>(null)
+  const wallet = usePortaldotWallet()
+  const { wallets, walletId, accounts, address, signer } = wallet
   const [free, setFree] = useState<bigint | null>(null)
   const [titles, setTitles] = useState<Title[]>([])
   const [selected, setSelected] = useState<Title | null>(null)
@@ -108,17 +103,6 @@ export default function TransactPage() {
   const [amount, setAmount] = useState('400')
 
   const evm = address === '' ? null : mappedEvm(address)
-
-  useEffect(() => {
-    const read = () => {
-      const found = listSubstrateWallets()
-      setWallets(found)
-      setWalletId((current) => current || found[0]?.id || '')
-    }
-    read()
-    const timer = setTimeout(read, 1200) // extensions inject after load
-    return () => clearTimeout(timer)
-  }, [])
 
   const refresh = useCallback(async () => {
     if (address === '') return
@@ -173,20 +157,6 @@ export default function TransactPage() {
     },
     [refresh, refreshToken],
   )
-
-  const connect = async () => {
-    try {
-      setBusy('Connecting')
-      const c = await connectSigner(walletId)
-      setAccounts(c.accounts)
-      setAddress(c.accounts[0]?.address ?? '')
-      setSigner(c.signer)
-    } catch (error) {
-      setOutcomes((o) => ({ ...o, connect: { label: 'Connect', error: error instanceof Error ? error.message : String(error) } }))
-    } finally {
-      setBusy(null)
-    }
-  }
 
   const createTitle = () =>
     run('create', 'Native title created', async () => {
@@ -311,15 +281,15 @@ export default function TransactPage() {
           <p className="text-[13px] text-muted">No Portaldot wallet extension found. Install Talisman, SubWallet or Polkadot.js and reload.</p>
         ) : signer === null ? (
           <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Wallet extension" value={walletId} onChange={(e) => setWalletId(e.target.value)} className={field}>
+            <select aria-label="Wallet extension" value={walletId} onChange={(e) => wallet.setWalletId(e.target.value)} className={field}>
               {wallets.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
                 </option>
               ))}
             </select>
-            <button type="button" className={btn} onClick={() => void connect()} disabled={busy !== null}>
-              {busy ?? 'Connect wallet'}
+            <button type="button" className={btn} onClick={() => void wallet.connect()} disabled={wallet.connecting}>
+              {wallet.connecting ? 'Connecting' : 'Connect wallet'}
             </button>
           </div>
         ) : (
@@ -328,7 +298,7 @@ export default function TransactPage() {
               aria-label="Account"
               value={address}
               onChange={(e) => {
-                setAddress(e.target.value)
+                wallet.setAddress(e.target.value)
                 setSelected(null)
               }}
               className={`${field} w-full`}
@@ -354,7 +324,7 @@ export default function TransactPage() {
             </div>
           </>
         )}
-        <OutcomeRow outcome={outcomes.connect} />
+        {wallet.error !== null ? <p className="mt-3 text-[13px] text-bad">{wallet.error}</p> : null}
       </Panel>
 
       <FigureBand>

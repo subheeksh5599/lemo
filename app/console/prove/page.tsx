@@ -17,7 +17,8 @@ import {
   type RelayResult,
 } from '@/lib/live-proof'
 import { scannerAccount, scannerBlock, scannerExtrinsic } from '@/lib/scanner'
-import { connectSigner, listSubstrateWallets, submitSigned, type SignedSubmit } from '@/lib/wallet/sign'
+import { submitSigned, type SignedSubmit } from '@/lib/wallet/sign'
+import { usePortaldotWallet } from '@/lib/wallet/use-portaldot-wallet'
 
 /** The relayer's native account: it always holds tPOT, so it proves a non-empty record. */
 const EXAMPLE = '5HeBperF6m5AbP8TZKPnYRdBPMHNK3ebgkDH7FpPHNPBM9y1'
@@ -130,40 +131,11 @@ function FeedSection({
 }
 
 function SignYourself({ onDone }: { onDone: () => void }) {
-  const [wallets, setWallets] = useState<{ id: string; name: string }[]>([])
-  const [walletId, setWalletId] = useState('')
-  const [accounts, setAccounts] = useState<{ address: string; name?: string }[]>([])
-  const [address, setAddress] = useState('')
-  const [signer, setSigner] = useState<Parameters<typeof submitSigned>[1] | null>(null)
+  const wallet = usePortaldotWallet()
+  const { wallets, walletId, accounts, address, signer } = wallet
   const [busy, setBusy] = useState<string | null>(null)
   const [result, setResult] = useState<SignedSubmit | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-
-  useEffect(() => {
-    const read = () => {
-      const found = listSubstrateWallets()
-      setWallets(found)
-      setWalletId((current) => current || found[0]?.id || '')
-    }
-    read()
-    const timer = setTimeout(read, 1200) // extensions inject after load
-    return () => clearTimeout(timer)
-  }, [])
-
-  const connect = async () => {
-    setProblem(null)
-    try {
-      setBusy('Connecting')
-      const connected = await connectSigner(walletId)
-      setAccounts(connected.accounts)
-      setAddress(connected.accounts[0]?.address ?? '')
-      setSigner(connected.signer)
-    } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'the wallet did not connect')
-    } finally {
-      setBusy(null)
-    }
-  }
 
   const submit = async () => {
     if (signer === null || BEEFY_FEED === null) return
@@ -200,17 +172,17 @@ function SignYourself({ onDone }: { onDone: () => void }) {
           <select
             aria-label="Wallet extension"
             value={walletId}
-            onChange={(event) => setWalletId(event.target.value)}
+            onChange={(event) => wallet.setWalletId(event.target.value)}
             className="h-9 rounded-sm border border-line bg-canvas px-2 text-[13px] text-ink"
           >
-            {wallets.map((wallet) => (
-              <option key={wallet.id} value={wallet.id}>
-                {wallet.name}
+            {wallets.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
               </option>
             ))}
           </select>
-          <button type="button" className="btn btn--solid btn--sm" onClick={() => void connect()} disabled={busy !== null}>
-            {busy ?? 'Connect wallet'}
+          <button type="button" className="btn btn--solid btn--sm" onClick={() => void wallet.connect()} disabled={wallet.connecting}>
+            {wallet.connecting ? 'Connecting' : 'Connect wallet'}
           </button>
         </div>
       ) : (
@@ -218,7 +190,7 @@ function SignYourself({ onDone }: { onDone: () => void }) {
           <select
             aria-label="Account"
             value={address}
-            onChange={(event) => setAddress(event.target.value)}
+            onChange={(event) => wallet.setAddress(event.target.value)}
             className="h-9 min-w-0 max-w-full flex-1 rounded-sm border border-line bg-canvas px-2 font-mono text-[12px] text-ink"
           >
             {accounts.map((account) => (
@@ -237,6 +209,7 @@ function SignYourself({ onDone }: { onDone: () => void }) {
         Your wallet signs the same validator-signed submission the relayer sends. The fee is a fraction of a tPOT.
         The feed reverts if the root is not newer or the validators did not sign it.
       </p>
+      {wallet.error !== null ? <p className="mt-3 text-[13px] text-bad">{wallet.error}</p> : null}
       {problem !== null ? <p className="mt-3 text-[13px] text-bad">Not submitted: {problem}</p> : null}
       {result === null ? null : (
         <div className="mt-3 space-y-1 border-t border-line pt-3">

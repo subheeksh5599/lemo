@@ -1,0 +1,44 @@
+name: relay-beefy
+
+# Permissionless BEEFY relayer for contracts/BeefyRootFeed.sol.
+# The feed checks every byte against the BEEFY validators' signatures, so this
+# job is trusted for liveness only. It is inert until the repository variable
+# FEED_ADDRESS is set (see docs/FINALITY.md, "Scheduled relayer").
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: relay-beefy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    if: ${{ vars.FEED_ADDRESS != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Relay the newest BEEFY-justified root (one round)
+        env:
+          FEED_ADDRESS: ${{ vars.FEED_ADDRESS }}
+          RELAYER_PRIVATE_KEY: ${{ secrets.RELAYER_PRIVATE_KEY }}
+        run: |
+          if [ -z "$RELAYER_PRIVATE_KEY" ]; then
+            echo "RELAYER_PRIVATE_KEY secret is not set; refusing to run a dry round on a schedule" >&2
+            exit 1
+          fi
+          node scripts/relay-beefy.mjs --once

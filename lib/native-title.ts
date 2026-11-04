@@ -100,13 +100,16 @@ export type TitleState = {
 export type TokenReading = {
   totalSupply: bigint
   balance: bigint | null
+  /** the title id the holder's balance belongs to (one title per holder) */
+  heldTitle: string | null
   title: TitleState | null
 }
 
 export async function readToken(holder: string | null, collection: number | null, item: number | null): Promise<TokenReading> {
-  const [supply, balance, title] = await Promise.all([
+  const [supply, balance, held, title] = await Promise.all([
     call(selector('totalSupply()')),
     holder === null ? Promise.resolve(null) : call(concat(selector('balanceOf(address)'), word(BigInt(holder)))),
+    holder === null ? Promise.resolve(null) : call(concat(selector('titleOf(address)'), word(BigInt(holder)))),
     collection === null || item === null
       ? Promise.resolve(null)
       : call(concat(selector('titles(bytes32)'), hexToBytes(titleId(collection, item)))),
@@ -125,6 +128,7 @@ export async function readToken(holder: string | null, collection: number | null
   return {
     totalSupply: words(supply)[0] ?? 0n,
     balance: balance === null ? null : (words(balance)[0] ?? 0n),
+    heldTitle: held === null ? null : held.slice(0, 66),
     title: state,
   }
 }

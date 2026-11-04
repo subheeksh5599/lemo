@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { decodeAddress } from '@polkadot/util-crypto'
+import { u8aToHex } from '@polkadot/util'
 
 import { CopyButton } from '@/components/console/copy-button'
 import { Figure, FigureBand, Notice, PageHeader, Panel, Row, State } from '@/components/console/primitives'
@@ -19,6 +20,7 @@ import {
   itemProof,
   readToken,
   targetBlock,
+  titleId,
   TOKEN,
   type TokenReading,
 } from '@/lib/native-title'
@@ -217,6 +219,9 @@ export default function TransactPage() {
         `Block #${formatInt(block)} is the newest one the validators have signed, and this title does not exist there yet. Wait about 30 seconds and press again.`,
       )
     }
+    if (needsItem && proof.owner !== null && proof.owner.toLowerCase() !== u8aToHex(decodeAddress(address)).toLowerCase()) {
+      throw new Error('At the newest validator-signed block this title belongs to another account, so the contract would refuse the mint.')
+    }
     if (!needsItem && proof.owner !== null) {
       throw new Error(
         `The newest validator-signed block (#${formatInt(block)}) still shows the item. Wait about 30 seconds after the native burn and press again.`,
@@ -231,9 +236,14 @@ export default function TransactPage() {
   }
 
   const claim = () =>
-    run('claim', 'Minted against the native proof', () =>
-      withProof((key, nodes) => ({ dest: TOKEN as string, data: encodeClaim(key, nodes), storageTpot: CLAIM_STORAGE_TPOT }), CLAIM_WEIGHT, true),
-    )
+    run('claim', 'Minted against the native proof', () => {
+      if (selected !== null && reading !== null && reading.balance !== null && reading.balance > 0n && reading.heldTitle !== titleId(selected.collection, selected.item)) {
+        throw new Error(
+          `Your EVM address still holds ${lnt(reading.balance)} LNT of an earlier title. Press "Retire my LNT" first: each holder keeps one title, so a freeze always hits exactly the right tokens.`,
+        )
+      }
+      return withProof((key, nodes) => ({ dest: TOKEN as string, data: encodeClaim(key, nodes), storageTpot: CLAIM_STORAGE_TPOT }), CLAIM_WEIGHT, true)
+    })
 
   const transfer = (force: boolean) =>
     run('transfer', 'Transferred', async () => {
@@ -428,6 +438,10 @@ export default function TransactPage() {
             </button>
           ) : null}
         </div>
+        <p className="mt-2 text-[12px] leading-4 text-muted">
+          Each address holds LNT of one title at a time, so a freeze always hits exactly that title&apos;s tokens. Send to
+          an address that holds no LNT from an earlier title.
+        </p>
         <OutcomeRow outcome={outcomes.transfer} />
       </Panel>
 

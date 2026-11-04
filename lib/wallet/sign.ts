@@ -90,9 +90,20 @@ const REVERTS: Record<string, string> = Object.fromEntries(
   ERRORS.map((sig) => [u8aToHex(keccakAsU8a(sig).slice(0, 4)), sig.replace(/\(.*$/, '')]),
 )
 
+const EXPLAIN: Record<string, string> = {
+  TitleFrozen: 'TitleFrozen: the native title is gone, so this LNT cannot move',
+  MixedTitles: 'MixedTitles: that address already holds LNT of another title; each holder keeps one title so a freeze stays exact',
+  Insufficient: 'Insufficient: not enough LNT',
+  AlreadyClaimed: 'AlreadyClaimed: this title was already minted',
+  NotTheNativeOwner: 'NotTheNativeOwner: the proven native owner is another account',
+  StillHeld: 'StillHeld: the original owner still holds the native title',
+}
+
 export function revertName(data: string): string {
   const selector = data.slice(0, 10).toLowerCase()
-  return REVERTS[selector] ?? (data.length > 2 ? `error ${selector}` : 'no reason given')
+  const name = REVERTS[selector]
+  if (name !== undefined) return EXPLAIN[name] ?? name
+  return data.length > 2 ? `error ${selector}` : 'no reason given'
 }
 
 export type EvmCall = { dest: string; data: string; storageTpot?: number }
@@ -129,7 +140,9 @@ export async function evmCalls(api: ApiPromise, address: string, calls: EvmCall[
     }
     throw new Error(meta ? `the chain would refuse this: ${meta.section}.${meta.name}` : 'the chain would refuse this call')
   }
-  if (dry.result.asOk.flags.isRevert) {
+  // ReturnFlags is a bitflags codec: bit 0 is REVERT (there is no isRevert getter)
+  const flags = (dry as unknown as { toJSON: () => { result?: { ok?: { flags?: { bits?: number } } } } }).toJSON().result?.ok?.flags?.bits ?? 0
+  if ((flags & 1) === 1) {
     throw new Error(`the contract would revert: ${revertName(dry.result.asOk.data.toHex())}`)
   }
   const base: Weight = { refTime: dry.weightRequired.refTime.toBigInt(), proofSize: dry.weightRequired.proofSize.toBigInt() }

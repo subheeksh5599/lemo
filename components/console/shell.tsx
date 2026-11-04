@@ -9,7 +9,6 @@ import { useConsole } from '@/components/console/console-provider'
 import { LiveStatus, RefreshButton } from '@/components/console/live-status'
 import { NAV, NAV_ACT, NAV_READ, type NavItem } from '@/components/console/navigation'
 import { TopBar } from '@/components/console/top-bar'
-import { WalletMenu } from '@/components/wallet/wallet-menu'
 import { formatInt } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -153,9 +152,6 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
               <LiveStatus />
               <RefreshButton />
             </div>
-          </div>
-          <div className="px-3 pb-3">
-            <WalletMenu className="w-full justify-center" />
           </div>
           <MobileNav />
         </div>

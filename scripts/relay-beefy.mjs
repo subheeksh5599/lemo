@@ -166,15 +166,24 @@ export async function plan(api, feed) {
     const lo = Math.max(block, head - 600 * (chainSet - setId + 2))
     const start = await firstBlockOfSet(api, next, lo, head)
     const end = next < chainSet ? (await firstBlockOfSet(api, next + 1, start, head)) - 1 : head
-    const j = await findJustified(api, end, Math.max(block + 1, start))
+    let j
+    try {
+      // floor is exclusive: start itself may carry the justification
+      j = await findJustified(api, end, Math.max(block, start - 1))
+    } catch (e) {
+      // The newest set has no justified block yet (it just rotated): plan
+      // what is possible now; the next round picks it up.
+      if (next === chainSet) break
+      throw e
+    }
     const s = await buildSubmission(api, j.number)
     if (s.validatorSetId !== next) throw new Error(`block ${j.number} is signed by ${s.validatorSetId}, expected ${next}`)
     steps.push({ kind: 'submit', note: `BEEFY block ${j.number} (set ${next}, advances the feed) -> root of ${s.header.number}`, block: s.header.number, stateRoot: s.header.stateRoot, data: encodeSubmit(s) })
     block = s.header.number
     setId = next
   }
-  const latest = await findJustified(api, head)
-  if (latest.number - 1 > block) {
+  const latest = setId === chainSet ? await findJustified(api, head) : null
+  if (latest !== null && latest.number - 1 > block) {
     const s = await buildSubmission(api, latest.number)
     steps.push({ kind: 'submit', note: `BEEFY block ${latest.number} (set ${s.validatorSetId}) -> root ${s.header.stateRoot} of ${s.header.number}`, block: s.header.number, stateRoot: s.header.stateRoot, data: encodeSubmit(s) })
   }

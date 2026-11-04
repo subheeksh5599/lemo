@@ -48,8 +48,7 @@ on every capture:
 - **The MMR leaf is not the BEEFY-MMR leaf.** `Mmr::Nodes` peak hashes match
   `keccak256(SCALE((u32 parent_number, H256 parent_hash)))`, which is the generic
   `ParentNumberAndHash` leaf. No `beefy_next_authority_set` is in the leaf and
-  no `leaf_extra`. The design changed because of this: rotation is proven
-  from state (see below), not from the leaf.
+  no `leaf_extra`, so the next authority set cannot come from the leaf.
 - `Mmr::NumberOfLeaves` at block N is N. The newest leaf at N describes block N-1.
 - Peak bagging: `keccak(right || left)`, folded right to left. This reproduces
   `Mmr::RootHash`, and `Mmr::RootHash` equals the signed `mh`.
@@ -77,19 +76,27 @@ else.
 
 ## Authority rotation
 
-The set to rotate to is read from state. `rotate(next, nodes)`:
+Portaldot's BEEFY set id advances every 600 blocks, but the membership has
+not changed: `MmrLeaf::BeefyNextAuthorities.keysetCommitment` equals the
+current one (both are the two keys `0x4D13…B421` and `0x4A69…7413`). The feed
+therefore follows rotations **implicitly**: `submit` accepts a commitment for
+the stored set id or for stored + 1, signed by more than 2/3 of the stored
+keys, and on stored + 1 it advances `validatorSetId` (event `SetAdvanced`).
 
-- proves the storage value `MmrLeaf::BeefyNextAuthorities`
-  (key `0xda7d4185…af4643`, value `id u64 | len u32 | keyset_commitment`) under
-  `currentRoot`, using the deployed `SubstrateTrieVerifier`;
-- requires `id == validatorSetId + 1`, `len == next.length`, and that the
-  `next` addresses merkle-hash to `keyset_commitment`;
-- then installs set `id` (zero and duplicate addresses are rejected).
+- A jump of more than one set id is refused, so sets are walked in order,
+  one accepted root per set. `scripts/relay-beefy.mjs` plans this catch-up:
+  from set 518 it walked 15 sets in order against the live chain
+  (`test/fixtures/beefy-relay-plan.json`, replayed in `forge test`).
+- If the real membership ever changes, the stored keys can no longer reach
+  the threshold. The feed stalls: it fails closed and never accepts a root
+  the stored keys did not sign. A membership change needs a new deployment
+  with a new checkpoint.
 
-A root from any block of set k names set k+1. The feed therefore moves one
-set per accepted root, **in order**: submit a block signed by k, rotate,
-then submit blocks signed by k+1. `scripts/relay-beefy.mjs` plans this
-catch-up automatically.
+An earlier version proved the next set from state with a `rotate()` call
+through `SubstrateTrieVerifier`. It worked against the real 518 → 519 change,
+but it cost 98 tPOT more to deploy than the deployer wallet held, so it was
+removed. It can come back as a separate contract if membership starts to
+change.
 
 ## Trust assumptions and limitations
 
@@ -105,27 +112,37 @@ catch-up automatically.
   The gate then refuses proofs at newer roots, but it never accepts a wrong
   one.
 - **Rotation must be relayed in order, at least once per set.** If nodes ever
-  prune old justifications or state before a missed set is relayed, the feed
-  cannot cross that gap and must be redeployed with a fresh checkpoint.
+  prune old justifications before a missed set is relayed, the feed cannot
+  cross that gap and must be redeployed with a fresh checkpoint.
+- **Membership is fixed at deploy.** The stored keys are trusted to sign BEEFY
+  commitments only for blocks GRANDPA finalized, which is what BEEFY
+  validators do. A membership change stalls the feed (see above).
 - **The validator set is the security.** Today BEEFY has 2 authorities, so
   "> 2/3" means both keys. The feed is exactly as strong as Portaldot's
   finality. It is not stronger.
 - **Lag.** The root is the state of N-1 for a BEEFY block N. BEEFY itself
   trails GRANDPA by a few blocks.
-- **Trusted code dependencies.** The hasher (`ReviveBlake2b256` → system
-  precompile 0x900) and `SubstrateTrieVerifier` are fixed at construction.
-  Both are existing LEMO contracts.
+- **Trusted code dependency.** The hasher (`ReviveBlake2b256` → system
+  precompile 0x900, the existing LEMO contract `0x15ae…7e22`) is fixed at
+  construction.
 - **Why not GRANDPA.** GRANDPA signs with ed25519, and Revive has no ed25519
   precompile. BEEFY signs with secp256k1 over keccak, which `ecrecover` (0x01,
   verified to work on V3) checks directly.
 
-## Size and cost
+## Deployment
 
-`forge build --sizes`: BeefyRootFeed **4,949 B initcode** (4,159 B runtime).
-At about 0.078 tPOT/byte (0.06 deposit plus 30% lockup), that is roughly
-386 tPOT plus fees. It needs the existing hasher and verifier. The constructor
-was executed against the V3 EVM RPC with `eth_call` (no transaction) and
-returned the runtime code. **Nothing has been deployed.**
+| | |
+|---|---|
+| Address | `0x0ec209f0a45d65215a59e6bce135344b16316937` ([mapped account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5CQ4AmAf4KEWnSHwu72VzF8SYVBWk4t66jRsYWXwEyf3rzWv)) |
+| Size | 3,591 B initcode, 2,898 B runtime (`forge build --sizes`) |
+| Storage deposit | 254.52 tPOT, measured first with a `ReviveApi_instantiate` dry run (`scripts/dry-run-deposit.mjs`) |
+| Checkpoint | validator set 533, authorities `0x4d13b6ae…b421`, `0x4a69b8f7…7413`, read from `beefy.validatorSetId` / `beefy.authorities` at deploy |
+| Deployer | `5FJ9YMZwMuqDpmD5Y6xTje2vEN3UcMaMcVs9ptSDqJSkshCz` through `revive.instantiateWithCode`, extrinsic [316946-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/316946-1) |
+| First root | BEEFY block #316946 → state root `0xaea5aa9b…de80f` of [#316945](https://scanner-testnet-v3.portaldot.dev/#/blocks/316945), submitted natively (`scripts/native-call.mjs`, extrinsic [316958-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/316958-1)); first write reserved 11.52 tPOT of storage, fee 0.118 tPOT |
+| First relayer root | BEEFY block #316970 → `0x9dc45328…1475a3` of [#316969](https://scanner-testnet-v3.portaldot.dev/#/blocks/316969), EVM tx `0x85df9d1f…3577a9` from relayer `0xf6b667b0…c75a` |
+
+Each later submit overwrites the same slots: about 0.12 tPOT in fees per
+set, so ~2.9 tPOT a day keeps the root current.
 
 ## Scripts
 
@@ -141,9 +158,33 @@ FEED_SET_ID=518 FEED_BLOCK=308000 RELAY_PLAN_OUT=plan.json node scripts/relay-be
 FEED_ADDRESS=0x... RELAYER_PRIVATE_KEY=... node scripts/relay-beefy.mjs --once
 ```
 
+### Scheduled relayer
+
+`.github/workflows/relay-beefy.yml` runs `node scripts/relay-beefy.mjs --once`
+hourly at minute 7 (and on `workflow_dispatch`) on Node 22 after
+`npm ci --ignore-scripts`. The job is skipped while the repository variable
+`FEED_ADDRESS` is empty, so it does nothing until a feed exists. To enable it:
+
+1. Deploy `BeefyRootFeed` and record the address in `docs/EVIDENCE.md`.
+2. Settings → Secrets and variables → Actions → Variables: set
+   `FEED_ADDRESS` to the feed's 0x address.
+3. Secrets: set `RELAYER_PRIVATE_KEY` to a 0x secp256k1 key whose EVM account
+   holds tPOT for gas (fund its mapped SS58 account, see
+   `scripts/evm-native-address.mjs`). The key only pays gas; it cannot choose
+   a root.
+4. Run the workflow once by hand and read the log: each round prints the
+   planned `submit` calls and the sent hashes.
+
+A set lasts 600 blocks (about an hour), so an hourly run usually submits one root; a late run walks the missed sets in order. It is enabled: `FEED_ADDRESS` is set and `RELAYER_PRIVATE_KEY` holds a dedicated key that only pays gas.
+With the secret missing the job fails instead of running a silent dry round.
+
+The console page `/console/finality` re-runs the same checks in the browser
+against the newest BEEFY block, and, with `NEXT_PUBLIC_LEMO_BEEFY_FEED` set,
+compares the feed's `currentRoot` with the header of `currentBlockNumber`.
+
 The relayer's legacy EIP-155 signer produced a transaction byte-identical to
 `cast mktx` for the same fields. Its `submit` calldata is byte-identical to
-`cast calldata`. The sending path has not been run.
+`cast calldata`. The sending path has since run against the live feed (above).
 
 ## Tests
 
@@ -159,8 +200,9 @@ The relayer's legacy EIP-155 signer produced a transaction byte-identical to
 - a tampered commitment (mh, block number, truncated), header (state root,
   digest, wrong block), peak, leaf count or dropped peak;
 - a wrong set id, an older block or the same block again;
-- the real 518 → 519 rotation, and its rejection for a swapped, foreign or
-  short set and for a tampered proof;
+- the real 518 → 519 set change followed implicitly, a set-id jump of two
+  refused, a next-set commitment refused with an unstored key or one
+  signature;
 - a TitleGateERC20 that mints only at the BEEFY root (the title verdict is
   mocked, because the V3 runtime has no LEMO pallet);
-- a replay of the relayer's exact calldata (`beefy-relay-plan.json`).
+- a replay of the relayer's exact calldata across 15 real set changes (`beefy-relay-plan.json`).

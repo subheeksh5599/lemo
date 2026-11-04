@@ -20,7 +20,7 @@ import { EVM_RPC, NATIVE_RPC, rpc } from '@/lib/chain'
 
 /* ---- ABI, just what these two calls need --------------------------------- */
 
-function word(value: bigint | number): Uint8Array {
+export function word(value: bigint | number): Uint8Array {
   const out = new Uint8Array(32)
   let v = BigInt(value)
   for (let i = 31; i >= 0; i -= 1) {
@@ -30,7 +30,7 @@ function word(value: bigint | number): Uint8Array {
   return out
 }
 
-function concat(...parts: Uint8Array[]): Uint8Array {
+export function concat(...parts: Uint8Array[]): Uint8Array {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
   let o = 0
   for (const p of parts) {
@@ -46,9 +46,9 @@ function padded(bytes: Uint8Array): Uint8Array {
   return out
 }
 
-const encBytes = (bytes: Uint8Array) => concat(word(bytes.length), padded(bytes))
+export const encBytes = (bytes: Uint8Array) => concat(word(bytes.length), padded(bytes))
 
-function encBytesArray(items: Uint8Array[]): Uint8Array {
+export function encBytesArray(items: Uint8Array[]): Uint8Array {
   const tails = items.map(encBytes)
   const heads: Uint8Array[] = []
   let offset = 32 * items.length
@@ -61,7 +61,7 @@ function encBytesArray(items: Uint8Array[]): Uint8Array {
 
 type Arg = { dynamic: boolean; data: Uint8Array }
 
-function encodeArgs(args: Arg[]): Uint8Array {
+export function encodeArgs(args: Arg[]): Uint8Array {
   const heads: Uint8Array[] = []
   const tails: Uint8Array[] = []
   let offset = 32 * args.length
@@ -75,7 +75,7 @@ function encodeArgs(args: Arg[]): Uint8Array {
   return concat(...heads, ...tails)
 }
 
-const selector = (signature: string) => keccakAsU8a(signature).slice(0, 4)
+export const selector = (signature: string) => keccakAsU8a(signature).slice(0, 4)
 
 export const SUBMIT_SELECTOR = bytesToHex(selector('submit(bytes,bytes,bytes,bytes32[],uint256)'))
 

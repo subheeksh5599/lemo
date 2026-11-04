@@ -1,15 +1,4 @@
-import {
-  ArrowLeftRight,
-  BadgeCheck,
-  Gauge,
-  HardDrive,
-  History,
-  KeyRound,
-  Network,
-  ShieldCheck,
-  Signature,
-  type LucideIcon,
-} from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Gauge, HardDrive, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   href: string
@@ -27,55 +16,25 @@ export const NAV_READ: readonly NavItem[] = [
     icon: Gauge,
   },
   {
-    href: '/console/proofs',
-    label: 'Proofs',
-    detail: 'Native witness and the EVM probe',
-    icon: ShieldCheck,
-  },
-  {
-    href: '/console/verify',
-    label: 'Verify key',
-    detail: 'Prove one storage key against the state root',
-    icon: KeyRound,
-  },
-  {
-    href: '/console/finality',
-    label: 'Validator-signed roots',
-    detail: 'BEEFY signatures, MMR root and header, checked here and on-chain',
-    icon: Signature,
-  },
-  {
-    href: '/console/network',
-    label: 'Network',
-    detail: 'Endpoints, checks and latency',
-    icon: Network,
-  },
-  {
-    href: '/console/legacy',
-    label: 'Earlier deployment',
-    detail: 'EVM-only title and token; settled receipts',
-    icon: History,
-  },
-  {
     href: '/console/local',
     label: 'Local lifecycle',
-    detail: 'Recorded devnet run: title, proof, mint, unbond',
+    detail: 'Both rules end to end on a runtime with the title pallet',
     icon: HardDrive,
   },
 ]
 
-/** Sections that can change state on chain. */
+/** Sections that change state on chain, signed by the visitor's wallet. */
 export const NAV_ACT: readonly NavItem[] = [
   {
     href: '/console/flow',
-    label: 'Transactions',
-    detail: 'Mint, transfer and verify through the gate',
+    label: 'Transact',
+    detail: 'Create a native title, mint the EVM token against its proof, transfer, freeze',
     icon: ArrowLeftRight,
   },
   {
     href: '/console/prove',
-    label: 'Prove native state',
-    detail: 'A native account, proven by the EVM verifier against the validator-signed root',
+    label: 'Verify',
+    detail: 'Any native account proven by the EVM verifier; advance the validator-signed feed',
     icon: BadgeCheck,
   },
 ]

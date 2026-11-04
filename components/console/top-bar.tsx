@@ -6,7 +6,6 @@ import { ArrowUpRight, ChevronRight } from 'lucide-react'
 
 import { LiveStatus, RefreshButton } from '@/components/console/live-status'
 import { currentNav } from '@/components/console/navigation'
-import { WalletMenu } from '@/components/wallet/wallet-menu'
 
 export function TopBar() {
   const pathname = usePathname()
@@ -26,7 +25,6 @@ export function TopBar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <WalletMenu />
         <LiveStatus />
         <RefreshButton />
         <span aria-hidden="true" className="mx-1 h-4 w-px bg-line" />

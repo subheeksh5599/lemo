@@ -174,6 +174,7 @@ function SignYourself({ onDone }: { onDone: () => void }) {
       const plan = await fetchPlan()
       if (plan.steps.length === 0) throw new Error('the feed is already at the newest justified block')
       const done = await submitSigned(address, signer, BEEFY_FEED, plan.steps.map((step) => step.data), setBusy)
+      if (done.failed !== undefined) setProblem(`included in ${done.blockNumber}-${done.index} but refused: ${done.failed}`)
       setResult(done)
       onDone()
     } catch (error) {
@@ -331,14 +332,18 @@ export default function ProvePage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Prove native state in the EVM"
+        title="Verify"
         meta="a native Portaldot account record, proven by the deployed verifier against the validator-signed root"
       />
 
       <Notice title="The contract decides, not this page">
         Step 1 is the root the Revive EVM already holds, put there only with both BEEFY validators&apos; signatures. Step
         2 fetches a native storage proof at that root&apos;s block. Step 3 sends root, key and proof nodes to the
-        deployed SubstrateTrieVerifier with eth_call; its return value is the verdict. Any SS58 address works.
+        deployed SubstrateTrieVerifier with eth_call; its return value is the verdict. Any SS58 address works. The signature-by-signature check of the root itself is on{' '}
+        <a href="/console/finality" className="underline underline-offset-4">
+          the BEEFY detail page
+        </a>
+        .
       </Notice>
 
       {BEEFY_FEED === null || VERIFIER === null ? (

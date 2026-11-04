@@ -107,8 +107,8 @@ export function evmAddressOf(secretKey) {
 }
 
 /** Sign a legacy EIP-155 transaction; returns the raw signed bytes as hex. */
-export function signLegacyTx({ nonce, gasPrice, gas, to, data, chainId }, secretKey) {
-  const fields = [qty(nonce), qty(gasPrice), qty(gas), hexToU8a(to), qty(0), hexToU8a(data)]
+export function signLegacyTx({ nonce, gasPrice, gas, to, data, chainId, value = 0n }, secretKey) {
+  const fields = [qty(nonce), qty(gasPrice), qty(gas), hexToU8a(to), qty(value), hexToU8a(data)]
   const unsigned = rlp([...fields, qty(chainId), qty(0), qty(0)])
   const sig = secp256k1Sign(unsigned, secp256k1PairFromSeed(secretKey), 'keccak')
   const v = BigInt(sig[64]) + BigInt(chainId) * 2n + 35n

@@ -1,0 +1,28 @@
+name: send-tpot
+
+# One-off: move tPOT from the relayer key to an address (used to fund a demo wallet).
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: EVM address (a mapped native account receives it on its SS58 side)
+        required: true
+      amount:
+        description: tPOT
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node scripts/evm-send.mjs "${{ inputs.to }}" "${{ inputs.amount }}"
+        env:
+          RELAYER_PRIVATE_KEY: ${{ secrets.RELAYER_PRIVATE_KEY }}

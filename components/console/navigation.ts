@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  BadgeCheck,
   Gauge,
   HardDrive,
   History,
@@ -70,6 +71,12 @@ export const NAV_ACT: readonly NavItem[] = [
     label: 'Transactions',
     detail: 'Mint, transfer and verify through the gate',
     icon: ArrowLeftRight,
+  },
+  {
+    href: '/console/prove',
+    label: 'Prove native state',
+    detail: 'A native account, proven by the EVM verifier against the validator-signed root',
+    icon: BadgeCheck,
   },
 ]
 

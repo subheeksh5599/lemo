@@ -104,6 +104,20 @@ The console reads Portaldot V3 testnet live, so heads will differ from any earli
 
 **Click:** **Off** to restore. Optionally click **account** on the feed panel to open it on the Portaldot scanner.
 
+## 3:30 to 4:00, prove native state in the EVM
+
+**Click:** **Prove native state** in the sidebar, then **Prove on-chain**.
+
+**Expect:** Verifier verdict PROVEN, the proven free balance equal to "Node says", Proven bytes = storage: match.
+
+**Say:** "This is Rule 1's read path, live on public Portaldot. The verifier contract takes the validator-signed root from the feed and a native storage proof, and decides by itself that this account's native record is real. Any address works."
+
+**Click:** tick **flip one proof byte**, **Prove on-chain**.
+
+**Expect:** INCOMPLETE. **Say:** "One byte changed and the contract refuses it."
+
+**Click:** untick it, then **Advance the feed now**. **Expect:** Submitted, a transaction hash and a new root. **Say:** "That was a real transaction. The relayer only pays gas; the validators' signatures decide the root."
+
 ## If something goes wrong
 
 - A live panel shows red: read the message, click refresh once, then continue. The local lifecycle page does not depend on any endpoint.

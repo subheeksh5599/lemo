@@ -16,6 +16,7 @@
 [![run](https://img.shields.io/badge/run%20it-one%20command-black)](#-see-it-in-one-command)
 [![verify](https://img.shields.io/badge/verify-every%20claim-black)](#verify-every-claim-in-one-command)
 [![honesty](https://img.shields.io/badge/honesty-table-black)](#whats-real-vs-pending--the-honesty-table)
+[![Watch Demo](https://img.shields.io/badge/▶_Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/ECUvtUzc0I8)
 
 </div>
 

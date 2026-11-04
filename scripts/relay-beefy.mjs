@@ -7,8 +7,9 @@
  * It reads the newest BEEFY-justified Portaldot block, builds `submit(...)`
  * calldata (commitment, signatures, header of N-1, MMR peaks, leaf count), and
  * when the feed is behind by one or more validator sets it plans the catch-up
- * in order: for every missed set s, a block signed by s, then `rotate(...)`
- * with the storage proof of MmrLeaf::BeefyNextAuthorities at that block.
+ * in order: for every missed set s, one block signed by s. The feed accepts a
+ * commitment for its stored set id or the next one and advances implicitly,
+ * so walking one root per set keeps it current.
  *
  * Dry run (default): prints the plan and calldata. Nothing is sent.
  *   node scripts/relay-beefy.mjs
@@ -28,23 +29,15 @@ import { keccakAsU8a, secp256k1PairFromSeed, secp256k1Expand, secp256k1Sign } fr
 import { hexToU8a, u8aToHex, u8aConcat, bnToU8a } from '@polkadot/util'
 import { pathToFileURL } from 'node:url'
 import { writeFileSync } from 'node:fs'
-import { connect, buildSubmission, findJustified, ethAddress, keysetCommitment } from './capture-beefy.mjs'
+import { connect, buildSubmission, findJustified } from './capture-beefy.mjs'
 
 const EVM_RPC = process.env.EVM_RPC ?? 'https://test-evm-rpc-v3.portaldot.dev'
-const NEXT_AUTHORITIES_KEY = '0xda7d4185f8093e80caceb64da45219e30c98535b82c72faf3c64974094af4643'
 
 // ------------------------------------------------------------------ ABI (just what the feed needs)
 
 const word = (n) => { const b = new Uint8Array(32); b.set(bnToU8a(BigInt(n), { bitLength: 256, isLe: false })); return b }
 const pad32 = (u8) => { const b = new Uint8Array(Math.ceil(u8.length / 32) * 32); b.set(u8); return b }
 const encBytes = (hex) => { const u = hexToU8a(hex); return u8aConcat(word(u.length), pad32(u)) }
-const encBytesArray = (arr) => {
-  const tails = arr.map(encBytes)
-  const heads = []
-  let off = 32 * arr.length
-  for (const t of tails) { heads.push(word(off)); off += t.length }
-  return u8aConcat(word(arr.length), ...heads, ...tails)
-}
 /** Encode args given as [{ dynamic: bool, data: Uint8Array }] in ABI head/tail form. */
 function encodeArgs(args) {
   const heads = []
@@ -66,16 +59,6 @@ export function encodeSubmit(s) {
       { dynamic: true, data: encBytes(s.header.hex) },
       { dynamic: true, data: u8aConcat(word(s.mmr.peaks.length), ...s.mmr.peaks.map((p) => hexToU8a(p))) },
       { dynamic: false, data: word(s.mmr.leafCount) },
-    ]),
-  ))
-}
-
-export function encodeRotate(addresses, nodes) {
-  return u8aToHex(u8aConcat(
-    selector('rotate(address[],bytes[])'),
-    encodeArgs([
-      { dynamic: true, data: u8aConcat(word(addresses.length), ...addresses.map((a) => u8aConcat(new Uint8Array(12), hexToU8a(a)))) },
-      { dynamic: true, data: encBytesArray(nodes) },
     ]),
   ))
 }
@@ -166,19 +149,6 @@ async function firstBlockOfSet(api, target, lo, hi) {
   return hi
 }
 
-/** rotate() arguments proven at block `n` (a block whose root the feed holds). */
-export async function buildRotation(api, n) {
-  const hash = await api.rpc.chain.getBlockHash(n)
-  const at = await api.at(hash)
-  const next = (await at.query.mmrLeaf.beefyNextAuthorities()).toJSON()
-  const addresses = (await at.query.beefy.nextAuthorities()).toJSON().map(ethAddress)
-  if (u8aToHex(keysetCommitment(addresses)) !== next.keysetCommitment || addresses.length !== next.len) {
-    throw new Error(`Beefy::NextAuthorities at ${n} does not match MmrLeaf::BeefyNextAuthorities`)
-  }
-  const proof = await api.rpc.state.getReadProof([NEXT_AUTHORITIES_KEY], hash)
-  return { setId: next.id, addresses, nodes: proof.proof.map((x) => x.toHex()) }
-}
-
 /**
  * Calls that move a feed at (setId, block) to the newest BEEFY-justified
  * block. Each step is { kind, note, data }.
@@ -190,25 +160,25 @@ export async function plan(api, feed) {
   let { setId, block } = feed
   if (setId > chainSet) throw new Error(`feed set ${setId} is ahead of the chain (${chainSet})`)
   while (setId < chainSet) {
-    // The last justified block signed by `setId` precedes the first block of setId+1.
-    const start = await firstBlockOfSet(api, setId + 1, Math.max(block, head - 600 * (chainSet - setId + 2)), head)
-    const pre = await findJustified(api, start - 1, Math.max(block + 1, start - 600))
-    if (pre.number - 1 > block) {
-      const s = await buildSubmission(api, pre.number)
-      if (s.validatorSetId !== setId) throw new Error(`block ${pre.number} is signed by ${s.validatorSetId}, feed holds ${setId}`)
-      steps.push({ kind: 'submit', note: `BEEFY block ${pre.number} (set ${setId}) -> root of ${s.header.number}`, block: s.header.number, stateRoot: s.header.stateRoot, data: encodeSubmit(s) })
-      block = s.header.number
-    }
-    const rot = await buildRotation(api, block)
-    if (rot.setId !== setId + 1) throw new Error(`state at ${block} names next set ${rot.setId}, expected ${setId + 1}`)
-    steps.push({ kind: 'rotate', note: `set ${setId} -> ${rot.setId} proven at block ${block}`, setId: rot.setId, data: encodeRotate(rot.addresses, rot.nodes) })
-    setId = rot.setId
+    // One justified block signed by setId+1: between the first block of that
+    // set and the last block before the set after it.
+    const next = setId + 1
+    const lo = Math.max(block, head - 600 * (chainSet - setId + 2))
+    const start = await firstBlockOfSet(api, next, lo, head)
+    const end = next < chainSet ? (await firstBlockOfSet(api, next + 1, start, head)) - 1 : head
+    const j = await findJustified(api, end, Math.max(block + 1, start))
+    const s = await buildSubmission(api, j.number)
+    if (s.validatorSetId !== next) throw new Error(`block ${j.number} is signed by ${s.validatorSetId}, expected ${next}`)
+    steps.push({ kind: 'submit', note: `BEEFY block ${j.number} (set ${next}, advances the feed) -> root of ${s.header.number}`, block: s.header.number, stateRoot: s.header.stateRoot, data: encodeSubmit(s) })
+    block = s.header.number
+    setId = next
   }
   const latest = await findJustified(api, head)
   if (latest.number - 1 > block) {
     const s = await buildSubmission(api, latest.number)
     steps.push({ kind: 'submit', note: `BEEFY block ${latest.number} (set ${s.validatorSetId}) -> root ${s.header.stateRoot} of ${s.header.number}`, block: s.header.number, stateRoot: s.header.stateRoot, data: encodeSubmit(s) })
   }
+  steps.finalSetId = setId
   return steps
 }
 
@@ -225,7 +195,7 @@ async function round(api) {
   const steps = await plan(api, feed)
   if (process.env.RELAY_PLAN_OUT) {
     // A record of exactly what would be sent, for replay in a forge test.
-    writeFileSync(process.env.RELAY_PLAN_OUT, JSON.stringify({ capturedAt: new Date().toISOString(), feed, steps }, null, 2) + '\n')
+    writeFileSync(process.env.RELAY_PLAN_OUT, JSON.stringify({ capturedAt: new Date().toISOString(), feed, count: steps.length, finalSetId: steps.finalSetId, steps }, null, 2) + '\n')
     console.log('wrote plan', process.env.RELAY_PLAN_OUT)
   }
   if (steps.length === 0) console.log('feed is current')

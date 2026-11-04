@@ -4,15 +4,6 @@ pragma solidity 0.8.26;
 import { IRootFeed } from "./IRootFeed.sol";
 import { IBlake2b256 } from "./IBlake2b256.sol";
 
-/// @notice The one call this feed makes into SubstrateTrieVerifier. ABI equal to
-/// `verify(bytes32,bytes,bytes[])` there; status 1 is PROVEN.
-interface IStorageProofVerifier {
-  function verify(bytes32 stateRoot, bytes memory key, bytes[] calldata nodes)
-    external
-    view
-    returns (uint8 status, bytes memory value);
-}
-
 /// @title BeefyRootFeed
 /// @notice A root feed with no attester: a state root lands only when Portaldot's
 /// own BEEFY validators finalized it. Anyone may relay; nobody can choose.
@@ -42,33 +33,32 @@ interface IStorageProofVerifier {
 ///
 /// # Authority rotation
 ///
-/// The MMR leaf on this chain does not carry `beefy_next_authority_set`, so the
-/// next set is read from state instead: `rotate` proves the storage value
-/// `MmrLeaf::BeefyNextAuthorities` (id u64, len u32, keyset_commitment H256)
-/// under `currentRoot` with the trie verifier, requires id == current + 1, and
-/// requires the supplied addresses to merkle-hash (binary_merkle_tree, keccak,
-/// unsorted, odd node promoted) to keyset_commitment. A root of some block in
-/// set k is therefore enough to move to k+1. Sets must be walked in order.
+/// Portaldot's BEEFY set id advances every session while its membership has
+/// stayed the same (the next-authority keyset commitment equals the current
+/// one). `submit` therefore follows a rotation implicitly: a commitment for
+/// set id `current + 1`, signed by more than 2/3 of the STORED keys, advances
+/// the stored set id. A jump of more than one is refused, so sets are walked
+/// in order. If the real membership ever changes, the stored keys can no
+/// longer reach the threshold and the feed stalls: it fails closed and never
+/// accepts a root the stored keys did not sign. A membership change needs a
+/// new deployment with a new checkpoint.
 ///
 /// # The one trust assumption
 ///
 /// The constructor's (validatorSetId, authorities) is a checkpoint taken on
-/// deploy. Anyone can check it against `beefy.authorities` /
-/// `mmrLeaf.beefyAuthorities` at a stated block. Everything after it follows
-/// from signatures and hashes. There is no owner, no admin, no pause.
+/// deploy, and those keys are trusted to sign BEEFY commitments only for
+/// blocks GRANDPA finalized, which is what BEEFY validators do. Anyone can
+/// check the checkpoint against `beefy.authorities` at a stated block.
+/// Everything after it follows from signatures and hashes. There is no owner,
+/// no admin, no pause.
 contract BeefyRootFeed is IRootFeed {
-  /// @dev twox128("MmrLeaf") ++ twox128("BeefyNextAuthorities").
-  bytes32 public constant NEXT_AUTHORITIES_KEY =
-    0xda7d4185f8093e80caceb64da45219e30c98535b82c72faf3c64974094af4643;
-
   IBlake2b256 public immutable hasher;
-  IStorageProofVerifier public immutable verifier;
 
   uint64 public validatorSetId;
   /// @notice Number of authorities in the current set.
   uint256 public authoritySetSize;
-  /// @notice 1 + position of an address in set `setId`, 0 when not a member.
-  mapping(uint256 => mapping(address => uint256)) public authorityIndex;
+  /// @notice 1 + position of an address in the stored set, 0 when not a member.
+  mapping(address => uint256) public authorityIndex;
 
   bytes32 public currentRoot;
   uint256 public currentBlockNumber;
@@ -76,7 +66,7 @@ contract BeefyRootFeed is IRootFeed {
   uint256 public beefyBlockNumber;
 
   event RootFinalized(bytes32 indexed root, uint256 blockNumber, uint256 beefyBlock, uint256 setId);
-  event AuthoritiesRotated(uint256 indexed setId, uint256 size, bytes32 keysetCommitment);
+  event SetAdvanced(uint256 indexed setId);
 
   error BadAuthorities();
   error BadEncoding();
@@ -87,19 +77,21 @@ contract BeefyRootFeed is IRootFeed {
   error MmrRootMismatch();
   error HeaderNotParent(uint256 header);
   error BlockNotNewer(uint256 claimed, uint256 accepted);
-  error NextSetNotProven(uint256 status);
-  error NextSetMismatch();
 
-  constructor(
-    uint64 validatorSetId_,
-    address[] memory authorities_,
-    IBlake2b256 hasher_,
-    IStorageProofVerifier verifier_
-  ) {
-    if (address(hasher_) == address(0) || address(verifier_) == address(0)) revert BadAuthorities();
+  constructor(uint64 validatorSetId_, address[] memory authorities_, IBlake2b256 hasher_) {
+    if (address(hasher_) == address(0)) revert BadAuthorities();
     hasher = hasher_;
-    verifier = verifier_;
-    _setAuthorities(validatorSetId_, authorities_);
+    uint256 n = authorities_.length;
+    if (n == 0 || n > 256) revert BadAuthorities();
+    unchecked {
+      for (uint256 i; i < n; ++i) {
+        address x = authorities_[i];
+        if (x == address(0) || authorityIndex[x] != 0) revert BadAuthorities();
+        authorityIndex[x] = i + 1;
+      }
+    }
+    validatorSetId = validatorSetId_;
+    authoritySetSize = n;
   }
 
   // ------------------------------------------------------------------ submit
@@ -134,76 +126,18 @@ contract BeefyRootFeed is IRootFeed {
 
   function _verifyCommitment(bytes calldata commitment, bytes calldata signatures)
     private
-    view
     returns (bytes32 mmrRoot, uint256 beefyBlock)
   {
     uint256 setId;
     (mmrRoot, beefyBlock, setId) = _decodeCommitment(commitment);
-    if (setId != validatorSetId) revert WrongSetId(setId, validatorSetId);
+    uint256 current = validatorSetId;
+    if (setId != current && setId != current + 1) revert WrongSetId(setId, current);
     _checkSignatures(keccak256(commitment), signatures);
-  }
-
-  // ------------------------------------------------------------------ rotate
-
-  /// @notice Move to the next BEEFY set, proven from `currentRoot`.
-  /// @param next the next set's Ethereum addresses, in authority order
-  /// @param nodes `state_getReadProof` of MmrLeaf::BeefyNextAuthorities at currentBlockNumber
-  function rotate(address[] calldata next, bytes[] calldata nodes) external {
-    bytes32 root = currentRoot;
-    address v = address(verifier);
-    uint256 status;
-    uint256 word;
-    bytes32 keyset;
-    assembly {
-      // verify(root, abi.encodePacked(NEXT_AUTHORITIES_KEY), nodes): the
-      // bytes[] tail is copied verbatim; its inner offsets are relative to the
-      // array, so they stay valid at the new position.
-      let p := mload(0x40)
-      mstore(p, shl(224, 0xc3bca341))
-      mstore(add(p, 0x04), root)
-      mstore(add(p, 0x24), 0x60)
-      mstore(add(p, 0x44), 0xa0)
-      mstore(add(p, 0x64), 32)
-      mstore(add(p, 0x84), NEXT_AUTHORITIES_KEY)
-      let start := sub(nodes.offset, 32)
-      let size := sub(calldatasize(), start)
-      calldatacopy(add(p, 0xa4), start, size)
-      if iszero(staticcall(gas(), v, p, add(0xa4, size), 0, 0)) {
-        returndatacopy(p, 0, returndatasize())
-        revert(p, returndatasize())
-      }
-      // (uint8 status, bytes value): read only a 44 byte PROVEN value.
-      let rs := returndatasize()
-      if lt(rs, 0x40) { revert(0, 0) }
-      returndatacopy(p, 0, rs)
-      status := mload(p)
-      if eq(status, 1) {
-        let o := mload(add(p, 0x20))
-        if or(gt(o, rs), gt(add(o, 76), rs)) { status := 0xff }
-        if eq(status, 1) {
-          if iszero(eq(mload(add(p, o)), 44)) { status := 0xfe }
-          word := mload(add(p, add(o, 0x20)))
-          keyset := mload(add(p, add(o, 0x2c)))
-        }
-      }
+    if (setId != current) {
+      // Implicit rotation: the stored keys signed for the next set id.
+      validatorSetId = uint64(setId);
+      emit SetAdvanced(setId);
     }
-    if (status != 1) revert NextSetNotProven(status);
-    // bytes 0..7 id (LE u64), 8..11 len (LE u32)
-    uint256 id;
-    uint256 len;
-    assembly {
-      for { let i := 0 } lt(i, 8) { i := add(i, 1) } {
-        id := or(id, shl(mul(8, i), byte(i, word)))
-      }
-      for { let i := 0 } lt(i, 4) { i := add(i, 1) } {
-        len := or(len, shl(mul(8, i), byte(add(8, i), word)))
-      }
-    }
-    if (id != validatorSetId + 1 || len != next.length || _merkleRoot(next) != keyset) {
-      revert NextSetMismatch();
-    }
-    _setAuthorities(id, next);
-    emit AuthoritiesRotated(id, len, keyset);
   }
 
   // ------------------------------------------------------------------ views
@@ -221,24 +155,8 @@ contract BeefyRootFeed is IRootFeed {
 
   // ------------------------------------------------------------------ internals
 
-  function _setAuthorities(uint256 setId, address[] memory a) private {
-    uint256 n = a.length;
-    if (n == 0 || n > 256) revert BadAuthorities();
-    mapping(address => uint256) storage index = authorityIndex[setId];
-    unchecked {
-      for (uint256 i; i < n; ++i) {
-        address x = a[i];
-        if (x == address(0) || index[x] != 0) revert BadAuthorities();
-        index[x] = i + 1;
-      }
-    }
-    validatorSetId = uint64(setId);
-    authoritySetSize = n;
-  }
-
   function _checkSignatures(bytes32 digest, bytes calldata sigs) private view {
     if (sigs.length % 65 != 0) _bad();
-    mapping(address => uint256) storage index = authorityIndex[validatorSetId];
     uint256 n = authoritySetSize;
     uint256 seen;
     uint256 count = sigs.length / 65;
@@ -258,7 +176,7 @@ contract BeefyRootFeed is IRootFeed {
         }
         if (v < 27) v += 27;
         address signer = ecrecover(digest, v, r, s);
-        uint256 idx = index[signer];
+        uint256 idx = authorityIndex[signer];
         if (idx == 0) revert UnknownSigner(signer);
         uint256 bit = 1 << (idx - 1);
         if (seen & bit != 0) revert DuplicateSigner(signer);
@@ -345,35 +263,6 @@ contract BeefyRootFeed is IRootFeed {
       for (; p > 0; --p) {
         root = _h(root, peaks[p - 1]);
       }
-    }
-  }
-
-  /// @dev sp binary_merkle_tree::merkle_root of keccak(address) leaves: pairs
-  /// hash as keccak(left || right) without sorting, an odd last node is
-  /// promoted unchanged. Works in scratch memory past the free pointer.
-  function _merkleRoot(address[] calldata a) private pure returns (bytes32 r) {
-    assembly {
-      let n := a.length
-      let p := mload(0x40)
-      for { let i := 0 } lt(i, n) { i := add(i, 1) } {
-        mstore(0, shl(96, calldataload(add(a.offset, shl(5, i)))))
-        mstore(add(p, shl(5, i)), keccak256(0, 20))
-      }
-      for { } gt(n, 1) { } {
-        let m := 0
-        for { let i := 0 } lt(i, n) { i := add(i, 2) } {
-          let v := mload(add(p, shl(5, i)))
-          if lt(add(i, 1), n) {
-            mstore(0, v)
-            mstore(32, mload(add(p, shl(5, add(i, 1)))))
-            v := keccak256(0, 64)
-          }
-          mstore(add(p, shl(5, m)), v)
-          m := add(m, 1)
-        }
-        n := m
-      }
-      if n { r := mload(p) }
     }
   }
 

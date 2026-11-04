@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import { Test } from "forge-std/Test.sol";
-import { BeefyRootFeed, IStorageProofVerifier } from "lemo/BeefyRootFeed.sol";
+import { BeefyRootFeed } from "lemo/BeefyRootFeed.sol";
 import { SubstrateTrieVerifier } from "lemo/SubstrateTrieVerifier.sol";
 import { ITitleVerifier } from "lemo/ITitleVerifier.sol";
 import { TitleRecord, TitleLib } from "lemo/LemoTitle.sol";
@@ -144,7 +144,7 @@ contract BeefyRootFeedTest is Test {
     address[] memory other = new address[](2);
     other[0] = AUTH0;
     other[1] = stranger;
-    BeefyRootFeed feed2 = new BeefyRootFeed(519, other, hasher, IStorageProofVerifier(address(trie)));
+    BeefyRootFeed feed2 = new BeefyRootFeed(519, other, hasher);
     vm.expectRevert(abi.encodeWithSelector(BeefyRootFeed.UnknownSigner.selector, AUTH1));
     _submit(feed2, latest);
   }
@@ -233,7 +233,7 @@ contract BeefyRootFeedTest is Test {
   // ------------------------------------------------------------ set id, order
 
   function test_RevertWrongSetId() public {
-    BeefyRootFeed feed = new BeefyRootFeed(520, latest.auths, hasher, IStorageProofVerifier(address(trie)));
+    BeefyRootFeed feed = new BeefyRootFeed(520, latest.auths, hasher);
     vm.expectRevert(abi.encodeWithSelector(BeefyRootFeed.WrongSetId.selector, 519, 520));
     _submit(feed, latest);
   }
@@ -250,95 +250,72 @@ contract BeefyRootFeedTest is Test {
 
   // ------------------------------------------------------------ rotation
 
-  /// @notice Real rotation 518 -> 519: a set-518 root proves
-  /// MmrLeaf::BeefyNextAuthorities (id 519), the feed moves, and the first
-  /// block of set 519 (signed by 519) then lands, followed by a later one.
+  /// @notice Real rotation 518 -> 519, followed implicitly: the first block of
+  /// set 519 is signed by the same stored keys for set id 519, so the feed
+  /// advances its set id and takes the root; a later 519 block follows.
   function test_RotationAcrossRealSetChange() public {
     BeefyRootFeed feed = _feed(pre);
     assertEq(feed.validatorSetId(), 518);
-
-    // Before rotation, a set-519 commitment is refused.
-    vm.expectRevert(abi.encodeWithSelector(BeefyRootFeed.WrongSetId.selector, 519, 518));
-    _submit(feed, post);
 
     _submit(feed, pre);
     assertEq(feed.currentRoot(), PRE_ROOT);
     assertEq(feed.currentBlockNumber(), 308059);
 
-    feed.rotate(pre.auths, pre.nextNodes);
-    assertEq(feed.validatorSetId(), 519);
-    assertEq(feed.authorityIndex(519, AUTH0), 1);
-    assertEq(feed.authorityIndex(519, AUTH1), 2);
-    assertEq(feed.authoritySetSize(), 2);
-
     _submit(feed, post);
+    assertEq(feed.validatorSetId(), 519, "set id advanced by the signed commitment");
     assertEq(feed.currentRoot(), POST_ROOT);
     assertEq(feed.currentBlockNumber(), 308065);
+    assertEq(feed.authorityIndex(AUTH0), 1);
+    assertEq(feed.authorityIndex(AUTH1), 2);
+    assertEq(feed.authoritySetSize(), 2);
 
     _submit(feed, latest);
     assertEq(feed.currentRoot(), LATEST_ROOT);
   }
 
-  function test_RotationRejectsWrongSet() public {
-    BeefyRootFeed feed = _feed(pre);
-    _submit(feed, pre);
-
-    address[] memory swapped = new address[](2);
-    swapped[0] = AUTH1;
-    swapped[1] = AUTH0;
-    vm.expectRevert(BeefyRootFeed.NextSetMismatch.selector);
-    feed.rotate(swapped, pre.nextNodes);
-
-    address[] memory foreign = new address[](2);
-    foreign[0] = AUTH0;
-    foreign[1] = makeAddr("attacker");
-    vm.expectRevert(BeefyRootFeed.NextSetMismatch.selector);
-    feed.rotate(foreign, pre.nextNodes);
-
-    address[] memory one = new address[](1);
-    one[0] = AUTH0;
-    vm.expectRevert(BeefyRootFeed.NextSetMismatch.selector);
-    feed.rotate(one, pre.nextNodes);
-
-    // A tampered storage proof is not PROVEN.
-    bytes[] memory nodes = pre.nextNodes;
-    bytes memory n0 = nodes[0];
-    n0[n0.length - 1] = bytes1(uint8(n0[n0.length - 1]) ^ 1);
-    vm.expectPartialRevert(BeefyRootFeed.NextSetNotProven.selector);
-    feed.rotate(pre.auths, nodes);
-
-    assertEq(feed.validatorSetId(), 518, "set unchanged after every refusal");
+  /// @notice A set id more than one ahead is refused: sets are walked in order.
+  function test_RevertSetIdJumpOfTwo() public {
+    BeefyRootFeed feed = new BeefyRootFeed(517, pre.auths, hasher);
+    vm.expectRevert(abi.encodeWithSelector(BeefyRootFeed.WrongSetId.selector, 519, 517));
+    _submit(feed, post);
+    assertEq(feed.validatorSetId(), 517);
   }
 
-  function test_RotationOnlyOnceFromTheSameRoot() public {
-    BeefyRootFeed feed = _feed(pre);
-    _submit(feed, pre);
-    feed.rotate(pre.auths, pre.nextNodes);
-    // The same root still names id 519, which is no longer current + 1.
-    vm.expectRevert(BeefyRootFeed.NextSetMismatch.selector);
-    feed.rotate(pre.auths, pre.nextNodes);
+  /// @notice A next-set commitment is accepted only with the STORED keys:
+  /// a feed whose stored set lacks one real signer cannot advance.
+  function test_RevertNextSetSignedByUnstoredKey() public {
+    address[] memory other = new address[](2);
+    other[0] = AUTH0;
+    other[1] = makeAddr("not-a-validator");
+    BeefyRootFeed feed = new BeefyRootFeed(518, other, hasher);
+    vm.expectRevert(abi.encodeWithSelector(BeefyRootFeed.UnknownSigner.selector, AUTH1));
+    _submit(feed, post);
+    assertEq(feed.validatorSetId(), 518, "set unchanged after the refusal");
+    assertEq(feed.currentRoot(), bytes32(0));
   }
 
-  function test_RotationNeedsARoot() public {
+  /// @notice A next-set commitment with only one of two signatures cannot
+  /// advance the set either.
+  function test_RevertNextSetWithoutQuorum() public {
     BeefyRootFeed feed = _feed(pre);
-    vm.expectPartialRevert(BeefyRootFeed.NextSetNotProven.selector);
-    feed.rotate(pre.auths, pre.nextNodes);
+    vm.expectRevert(abi.encodeWithSelector(BeefyRootFeed.NotEnoughSignatures.selector, 1));
+    feed.submit(post.commitment, post.sig0, post.header, post.peaks, post.leafCount);
+    assertEq(feed.validatorSetId(), 518);
   }
 
   // ------------------------------------------------------------ constructor
 
   function test_ConstructorRejectsBadSets() public {
-    IStorageProofVerifier v = IStorageProofVerifier(address(trie));
     address[] memory dup = new address[](2);
     dup[0] = AUTH0;
     dup[1] = AUTH0;
     vm.expectRevert(BeefyRootFeed.BadAuthorities.selector);
-    new BeefyRootFeed(519, dup, hasher, v);
+    new BeefyRootFeed(519, dup, hasher);
     vm.expectRevert(BeefyRootFeed.BadAuthorities.selector);
-    new BeefyRootFeed(519, new address[](0), hasher, v);
+    new BeefyRootFeed(519, new address[](0), hasher);
     address[] memory zero = new address[](1);
     vm.expectRevert(BeefyRootFeed.BadAuthorities.selector);
-    new BeefyRootFeed(519, zero, hasher, v);
+    new BeefyRootFeed(519, zero, hasher);
   }
 
   // ------------------------------------------------------------ end to end
@@ -386,7 +363,6 @@ contract BeefyRootFeedTest is Test {
     gate.mint(alice, 100, proof);
 
     _submit(feed, pre);
-    feed.rotate(pre.auths, pre.nextNodes);
     _submit(feed, post);
 
     // A proof at an older (pre-rotation) BEEFY root is stale.
@@ -401,34 +377,30 @@ contract BeefyRootFeedTest is Test {
   // ------------------------------------------------------------ relayer
 
   /// @notice scripts/relay-beefy.mjs, planning from a feed at (set 518, block
-  /// 308000), wrote test/fixtures/beefy-relay-plan.json: submit 308060, rotate
-  /// to 519, submit the newest block. Its exact calldata is replayed here, so the
-  /// relayer's hand-rolled ABI encoder is checked against the contract.
+  /// 308000), wrote test/fixtures/beefy-relay-plan.json: one submit per missed
+  /// set, then the newest block. Its exact calldata is replayed in order, so the
+  /// relayer's hand-rolled ABI encoder and the implicit rotation are both
+  /// checked against the contract.
   function test_RelayerPlanReplays() public {
     string memory j = vm.readFile("test/fixtures/beefy-relay-plan.json");
     BeefyRootFeed feed = _feed(pre);
-    assertEq(vm.parseJsonString(j, ".steps[0].kind"), "submit");
-    assertEq(vm.parseJsonString(j, ".steps[1].kind"), "rotate");
-    assertEq(vm.parseJsonString(j, ".steps[2].kind"), "submit");
-
-    (bool ok,) = address(feed).call(vm.parseJsonBytes(j, ".steps[0].data"));
-    assertTrue(ok, "relayer submit (set 518)");
-    assertEq(feed.currentRoot(), PRE_ROOT);
-
-    (ok,) = address(feed).call(vm.parseJsonBytes(j, ".steps[1].data"));
-    assertTrue(ok, "relayer rotate");
-    assertEq(feed.validatorSetId(), 519);
-
-    (ok,) = address(feed).call(vm.parseJsonBytes(j, ".steps[2].data"));
-    assertTrue(ok, "relayer submit (set 519)");
-    assertEq(feed.currentRoot(), vm.parseJsonBytes32(j, ".steps[2].stateRoot"));
-    assertEq(feed.currentBlockNumber(), vm.parseJsonUint(j, ".steps[2].block"));
+    uint256 n = vm.parseJsonUint(j, ".count");
+    assertGt(n, 1, "plan walks at least one rotation");
+    for (uint256 i; i < n; ++i) {
+      string memory at = string.concat(".steps[", vm.toString(i), "]");
+      assertEq(vm.parseJsonString(j, string.concat(at, ".kind")), "submit");
+      (bool ok,) = address(feed).call(vm.parseJsonBytes(j, string.concat(at, ".data")));
+      assertTrue(ok, "relayer step");
+      assertEq(feed.currentRoot(), vm.parseJsonBytes32(j, string.concat(at, ".stateRoot")));
+      assertEq(feed.currentBlockNumber(), vm.parseJsonUint(j, string.concat(at, ".block")));
+    }
+    assertEq(feed.validatorSetId(), vm.parseJsonUint(j, ".finalSetId"));
   }
 
   // ------------------------------------------------------------ helpers
 
   function _feed(Fx storage f) internal returns (BeefyRootFeed) {
-    return new BeefyRootFeed(f.setId, f.auths, hasher, IStorageProofVerifier(address(trie)));
+    return new BeefyRootFeed(f.setId, f.auths, hasher);
   }
 
   function _submit(BeefyRootFeed feed, Fx storage f) internal {

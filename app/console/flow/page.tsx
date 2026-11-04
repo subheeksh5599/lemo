@@ -215,6 +215,14 @@ export default function TransactPage() {
           `Your EVM address still holds ${lnt(reading.balance)} LNT of an earlier title. Press "Retire my LNT" first: each holder keeps one title, so a freeze always hits exactly the right tokens.`,
         )
       }
+      // The claim cannot be dry-run ahead of the feed update it is batched with,
+      // so check the one thing that made it fail on-chain: the storage deposit.
+      const needPlanck = 28n * 10n ** 14n
+      if (free !== null && free < needPlanck) {
+        throw new Error(
+          `This mint holds about 27 tPOT of storage deposit; ${address.slice(0, 6)}…${address.slice(-5)} has ${formatPot(free)} tPOT free. Fund it or switch to an account with at least 28 tPOT, then press again.`,
+        )
+      }
       return withProof((key, nodes) => ({ dest: TOKEN as string, data: encodeClaim(key, nodes), storageTpot: CLAIM_STORAGE_TPOT }), CLAIM_WEIGHT, true)
     })
 

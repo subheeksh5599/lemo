@@ -66,17 +66,17 @@ contract LocalE2ETest is Test {
     assertEq(commitment, vm.parseJsonBytes32(json, ".evm.titleCommitment"), "commitment as recorded");
 
     deployCodeTo("TestBlake2b.sol:TestBlake2b", address(hasher));
-    deployCodeTo("SubstrateTrieVerifier.sol:SubstrateTrieVerifier", abi.encode(address(hasher)), address(verifier));
-    deployCodeTo("RootFeed.sol:RootFeed", abi.encode(deployer), address(feed));
+    deployCodeTo("lemo-contracts/SubstrateTrieVerifier.sol:SubstrateTrieVerifier", abi.encode(address(hasher)), address(verifier));
+    deployCodeTo("lemo-contracts/RootFeed.sol:RootFeed", abi.encode(deployer), address(feed));
     deployCodeTo(
-      "TitleGateERC20.sol:TitleGateERC20",
+      "lemo-contracts/TitleGateERC20.sol:TitleGateERC20",
       abi.encode(
         address(verifier), address(feed), r.titleId, commitment, deployer, "LEMO Local Title", "LEMO-L", maxSupply
       ),
       address(gate)
     );
     deployCodeTo(
-      "UnbondGuard.sol:UnbondGuard",
+      "lemo-contracts/UnbondGuard.sol:UnbondGuard",
       abi.encode(address(verifier), address(feed), address(gate), r.titleId, deployer),
       address(guard)
     );

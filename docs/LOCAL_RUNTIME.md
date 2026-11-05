@@ -12,14 +12,15 @@ temporary chain that is discarded on exit. It never touches a public network.
 
 | Piece | Path |
 | --- | --- |
-| Node binary | `lemo-runtime/target/release/solochain-template-node` |
-| Runtime | `lemo-runtime/runtime` (`LemoTitle` = `pallet_lemo_title`, pallet index 8) |
-| Pallet | `lemo-runtime/pallets/lemo-title` (calls 0-5) |
-| Capture | `lemo/scripts/local-capture.mjs` |
-| Verifier | `lemo/lib/proofs.ts` (`verifyProof`) |
-| Check runner | `lemo-runtime/scripts/local-proof-check.sh` |
-| Result JSON | `lemo-runtime/artifacts/local-proof-result.json` |
-| Node log | `lemo-runtime/artifacts/node.log` |
+| Recipe | `local-runtime/setup.sh`: clones the Parity solochain template at `1adedaf`, applies `local-runtime/template.patch`, copies `pallets/lemo-title` in and applies `local-runtime/pallet-in-workspace.patch` |
+| Node binary | `local-runtime/build/target/release/solochain-template-node` (built by `setup.sh`, not checked in) |
+| Runtime | `local-runtime/build/runtime` (`LemoTitle` = `pallet_lemo_title`, pallet index 8) |
+| Pallet | `pallets/lemo-title` (calls 0-5); the workspace patch only adapts its `Cargo.toml` and `RuntimeEvent` to the template's SDK version |
+| Capture | `scripts/local-capture.mjs` |
+| Verifier | `lib/proofs.ts` (`verifyProof`) |
+| Check runner | `local-runtime/scripts/local-proof-check.sh` |
+| Result JSON | `local-runtime/build/artifacts/local-proof-result.json`; a recorded result is at `local-runtime/local-proof-result.json` |
+| Node log | `local-runtime/build/artifacts/node.log` |
 | Fixture | `lemo/fixtures/lemo-local-capture.json` |
 
 Requirements: macOS with the Xcode command line tools, Rust stable with the
@@ -28,11 +29,11 @@ directly using Node's type stripping; verified on v26.12.1), and `curl`.
 
 ## Build
 
-`target/release/solochain-template-node` is already built. To rebuild from a
-clean checkout:
+From a clone of this repo:
 
 ```bash
-cd /Users/subheeksh/code/lemo-runtime
+SKIP_BUILD=1 ./local-runtime/setup.sh   # clone the template and patch it
+cd local-runtime/build
 
 rustup target add wasm32-unknown-unknown
 
@@ -42,6 +43,7 @@ export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
 
 # 2. Make bindgen find libclang. On macOS bindgen only accepts
 #    libclang.dylib, and it must be in a directory named by LIBCLANG_PATH.
+#    (Run these inside local-runtime/build.)
 mkdir -p target/release/deps
 ln -sf /Library/Developer/CommandLineTools/usr/lib/libclang.dylib target/release/libclang.dylib
 ln -sf /Library/Developer/CommandLineTools/usr/lib/libclang.dylib target/release/deps/libclang.dylib
@@ -49,20 +51,22 @@ export LIBCLANG_PATH="$PWD/target/release"
 
 # 3. Let the wasm runtime link against host functions the template provides
 #    but does not define in the wasm object.
-export WASM_BUILD_RUSTFLAGS=--allow-undefined
+export WASM_BUILD_RUSTFLAGS="-C link-arg=--allow-undefined"
 
 cargo build --release -p solochain-template-node
 ```
+
+Verified 2026-11-05: built from a fresh `setup.sh` checkout on macOS 26 (rustc 1.99.1), then `local-runtime/scripts/local-proof-check.sh` passed all nine checks; the result is recorded in [`local-runtime/local-proof-result.json`](../local-runtime/local-proof-result.json).
 
 The symlinks are deliberately inside `target/`, so they are build output and
 never checked in. If `LIBCLANG_PATH` is wrong the failure happens in
 `librocksdb-sys`/bindgen; if `SDKROOT` is wrong it happens while compiling C
 dependencies, not in the runtime crate.
 
-Pallet tests (10) run without the wasm build:
+Pallet tests (22) run without the wasm build, from `pallets/lemo-title`:
 
 ```bash
-SKIP_WASM_BUILD=1 cargo test -p pallet-lemo-title
+cd pallets/lemo-title && SKIP_WASM_BUILD=1 cargo test
 ```
 
 ## Run
@@ -70,26 +74,21 @@ SKIP_WASM_BUILD=1 cargo test -p pallet-lemo-title
 One command does start, health wait, capture, verify, result write, and stop:
 
 ```bash
-cd /Users/subheeksh/code/lemo-runtime
-./scripts/local-proof-check.sh
+./local-runtime/scripts/local-proof-check.sh
 ```
 
 It refuses to start if port 9944 is already taken, and it stops the node on
-success, error, or Ctrl-C. Overrides: `PORT`, `BIN`, `LEMO_DIR`,
+success, error, or Ctrl-C. Overrides: `RUNTIME_DIR`, `PORT`, `BIN`, `LEMO_DIR`,
 `ARTIFACT_DIR`, `CAPTURE_OUT`, `RESULT_OUT`, `LOG_OUT`, `NODE_BIN`.
 
 The underlying commands, if you want to run them by hand:
 
 ```bash
-cd /Users/subheeksh/code/lemo-runtime
-target/release/solochain-template-node --dev --tmp --rpc-port 9944 --rpc-methods=unsafe
+local-runtime/build/target/release/solochain-template-node --dev --tmp --rpc-port 9944 --rpc-methods=unsafe
 curl -s http://127.0.0.1:9944/health     # wait for "isSyncing":false
 
-cd /Users/subheeksh/code/lemo
 node scripts/local-capture.mjs ws://127.0.0.1:9944 fixtures/lemo-local-capture.json
-
-cd /Users/subheeksh/code/lemo-runtime
-node scripts/verify-local-proof.mjs ../lemo/fixtures/lemo-local-capture.json artifacts/local-proof-result.json
+node local-runtime/scripts/verify-local-proof.mjs fixtures/lemo-local-capture.json /tmp/local-proof-result.json
 ```
 
 `--rpc-methods=unsafe` is enabled only because `state_getReadProof` is an
@@ -102,12 +101,11 @@ the storage key, and checks the computed root against the state root in the
 finalized header. The current run proves:
 
 - Finalized block varies per run on chain `Development`, runtime `specVersion` 100.
-- Raw `LemoTitle::Titles` value: 260 bytes, leaf node 260 bytes, 4 proof
-  nodes (98 + 234 + 139 + 260 bytes), 3 path steps, `status=valid`,
-  `rootMatches=true`, proven bytes equal the captured bytes.
-- Canonical `LemoTitle::CanonicalTitles` value: 320 bytes, leaf node
-  320 bytes, 4 proof nodes (98 + 234 + 139 + 320 bytes), 3 path steps,
+- Raw `LemoTitle::Titles` value: 280 bytes, 4 proof nodes (784 bytes),
   `status=valid`, `rootMatches=true`, proven bytes equal the captured bytes.
+- Canonical `LemoTitle::CanonicalTitles` value: 320 bytes, 4 proof nodes
+  (824 bytes), `status=valid`, `rootMatches=true`, proven bytes equal the
+  captured bytes.
 - Both proofs resolve to the same finalized header state root, so the two
   records are bound to one block, not two snapshots.
 - The result JSON records all nine checks and exits non-zero if any fail. A
@@ -144,13 +142,12 @@ in the browser and `local-evm/test/LocalE2E.t.sol` replays.
 ```bash
 # native: keep a GRANDPA justification for every commit target so
 # chain_getBlock returns it (engine id FRNK); the default period is 512
-cd /Users/subheeksh/code/lemo-runtime
-LEMO_GRANDPA_JUSTIFICATION_PERIOD=1 target/release/solochain-template-node --dev --tmp --rpc-port 9944
+LEMO_GRANDPA_JUSTIFICATION_PERIOD=1 local-runtime/build/target/release/solochain-template-node --dev --tmp --rpc-port 9944
 
 # EVM: a fresh anvil (the gate address is predicted from the deployer nonce)
 anvil --port 8545
 
-cd /Users/subheeksh/code/lemo/local-evm && forge build
+cd local-evm && forge build
 cd .. && node scripts/local-e2e.mjs fixtures/local-e2e.json
 cd local-evm && forge test --match-contract LocalE2E
 ```

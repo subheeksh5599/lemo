@@ -1,0 +1,75 @@
+--- a/pallets/lemo-title/Cargo.toml
++++ b/pallets/lemo-title/Cargo.toml
+@@ -1,32 +1,30 @@
+ [package]
+ name = "pallet-lemo-title"
+ version = "0.1.0"
+-edition = "2021"
+-license = "MIT"
++edition.workspace = true
++license.workspace = true
+ description = "Native LEMO title registry: revisioned records and the unbond guard."
++publish = false
+ 
+-[workspace]
+-
+ [dependencies]
+-parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive"] }
+-scale-info = { version = "2.11.6", default-features = false, features = ["derive"] }
+-frame-support = { version = "49.0.0", default-features = false }
+-frame-system = { version = "49.0.0", default-features = false }
+-sp-runtime = { version = "49.0.0", default-features = false }
+-sp-std = { version = "14.0.0", default-features = false }
++codec = { features = ["derive"], workspace = true }
++frame-support.workspace = true
++frame-system.workspace = true
++scale-info = { features = ["derive"], workspace = true }
++sp-runtime.workspace = true
+ 
+ [dev-dependencies]
+-sp-core = "43.0.0"
+-sp-io = "49.0.0"
+-pallet-balances = "51.0.2"
++sp-core = { default-features = true, workspace = true }
++sp-io = { default-features = true, workspace = true }
++pallet-balances = { default-features = true, workspace = true }
++sp-runtime = { default-features = true, workspace = true }
+ 
+ [features]
+ default = ["std"]
+ std = [
+-  "parity-scale-codec/std",
+-  "scale-info/std",
+-  "frame-support/std",
+-  "frame-system/std",
+-  "sp-runtime/std",
+-  "sp-std/std",
++	"codec/std",
++	"frame-support/std",
++	"frame-system/std",
++	"scale-info/std",
++	"sp-runtime/std",
+ ]
+--- a/pallets/lemo-title/src/lib.rs
++++ b/pallets/lemo-title/src/lib.rs
+@@ -62,7 +62,11 @@
+   pub struct Pallet<T>(_);
+ 
+   #[pallet::config]
+-  pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
++  pub trait Config: frame_system::Config {
++    /// The overarching runtime event type.
++    #[allow(deprecated)]
++    type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
++
+     /// The origin allowed to mirror representation liveness from the EVM side.
+     type AdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+     /// Currency used for the per-title storage deposit.
+@@ -490,6 +494,7 @@
+   }
+ 
+   impl crate::pallet::Config for Test {
++    type RuntimeEvent = RuntimeEvent;
+     type AdminOrigin = frame_system::EnsureRoot<u64>;
+     type Currency = Balances;
+     type TitleDeposit = TitleDeposit;

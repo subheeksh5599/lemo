@@ -20,9 +20,9 @@ fs_permissions = [
   { access = "read-write", path = "./results" },
 ]
 remappings = [
-  "forge-std/=/Users/subheeksh/code/lemo/test/lib/forge-std/src/",
-  "lemo/=/Users/subheeksh/code/lemo/contracts/",
-  "harness/=/Users/subheeksh/code/lemo/test/harness/",
+  "forge-std/=lemo-forge-std/src/",
+  "lemo/=lemo-contracts/",
+  "harness/=lemo-harness/",
 ]
 
 [fmt]

@@ -1,0 +1,162 @@
+{
+  "ok": true,
+  "generator": "local-runtime/scripts/verify-local-proof.mjs",
+  "capture": "local-runtime/build/artifacts/local-capture.json",
+  "verifiedAt": "2026-11-05T17:12:40.006Z",
+  "endpoint": "ws://127.0.0.1:9944",
+  "chain": "Development",
+  "runtime": {
+    "specName": "solochain-template-runtime",
+    "specVersion": "100",
+    "stateVersion": "1"
+  },
+  "block": {
+    "number": 2,
+    "hash": "0xd9a6295c15a7d3c15d680d520c64c38b6b2088650f6f62929341cd8d094d7cc9",
+    "parentHash": "0x278189f144c45beb887b3f173f74f389238c5b4d295e173c4da4189fa63f0036",
+    "stateRoot": "0x9da494eda006414cf15731c669144111e04efc18f3cc1a166ea7156a2e4bf171",
+    "capturedAt": "2026-11-05T17:12:38.041Z"
+  },
+  "titleId": "0x1df5ca0bcc3ab81c34cc1719c300e6233c15ee33e5f61f9dcdb50a9965908ded",
+  "raw": {
+    "label": "raw-title",
+    "storageKey": "0x4f03c24a87564f16d6105c855e7a6d37f8159bc380412dee85b4896a51afe25da4e4b642365c98dd7549f70ec312cb211df5ca0bcc3ab81c34cc1719c300e6233c15ee33e5f61f9dcdb50a9965908ded",
+    "keyBytes": 80,
+    "valueBytes": 280,
+    "proofNodeCount": 4,
+    "proofBytes": 784,
+    "status": "valid",
+    "ok": true,
+    "rootMatches": true,
+    "computedRoot": "0x1771f0f302ba0a2220e890284a6b96dfe798a82e1ba294bfa6b49f780c9dbaa5",
+    "stateRoot": "0x9da494eda006414cf15731c669144111e04efc18f3cc1a166ea7156a2e4bf171",
+    "valueHex": "0x1df5ca0bcc3ab81c34cc1719c300e6233c15ee33e5f61f9dcdb50a9965908deda91c0f1900000000ababababababababababababababababababababababababababababababababcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d04a99fd6822c8558854ccde39a5684e7a56da27d11111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333300000000000000000000000000000000000000000100000000000000",
+    "provenValueHex": "0x1df5ca0bcc3ab81c34cc1719c300e6233c15ee33e5f61f9dcdb50a9965908deda91c0f1900000000ababababababababababababababababababababababababababababababababcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d04a99fd6822c8558854ccde39a5684e7a56da27d11111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333300000000000000000000000000000000000000000100000000000000",
+    "valueMatches": true,
+    "steps": [
+      {
+        "index": 0,
+        "kind": "branch",
+        "depth": 0,
+        "bytes": 234,
+        "via": "root",
+        "children": 7,
+        "matched": 0
+      },
+      {
+        "index": 1,
+        "kind": "branch",
+        "depth": 1,
+        "bytes": 172,
+        "via": "hash",
+        "children": 5,
+        "matched": 31
+      },
+      {
+        "index": 2,
+        "kind": "hashed-leaf",
+        "depth": 33,
+        "bytes": 98,
+        "via": "hash",
+        "children": 0,
+        "matched": 127
+      }
+    ],
+    "missing": [],
+    "message": "the value node is bound to the same state root"
+  },
+  "canonical": {
+    "label": "canonical-title",
+    "storageKey": "0x4f03c24a87564f16d6105c855e7a6d375ec2a7664a464914b341c4ef2eeb96a0a4e4b642365c98dd7549f70ec312cb211df5ca0bcc3ab81c34cc1719c300e6233c15ee33e5f61f9dcdb50a9965908ded",
+    "keyBytes": 80,
+    "valueBytes": 320,
+    "proofNodeCount": 4,
+    "proofBytes": 824,
+    "status": "valid",
+    "ok": true,
+    "rootMatches": true,
+    "computedRoot": "0x28880f2fcb3e6a3a38eb4e547aac117fcb6fe8db6cfb31753bad4f415704f70e",
+    "stateRoot": "0x9da494eda006414cf15731c669144111e04efc18f3cc1a166ea7156a2e4bf171",
+    "valueHex": "0x1df5ca0bcc3ab81c34cc1719c300e6233c15ee33e5f61f9dcdb50a9965908ded00000000000000000000000000000000000000000000000000000000190f1ca9ababababababababababababababababababababababababababababababababcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd00000000000000000000000004a99fd6822c8558854ccde39a5684e7a56da27d11111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+    "provenValueHex": "0x1df5ca0bcc3ab81c34cc1719c300e6233c15ee33e5f61f9dcdb50a9965908ded00000000000000000000000000000000000000000000000000000000190f1ca9ababababababababababababababababababababababababababababababababcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd00000000000000000000000004a99fd6822c8558854ccde39a5684e7a56da27d11111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222333333333333333333333333333333333333333333333333333333333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+    "valueMatches": true,
+    "steps": [
+      {
+        "index": 0,
+        "kind": "branch",
+        "depth": 0,
+        "bytes": 234,
+        "via": "root",
+        "children": 7,
+        "matched": 0
+      },
+      {
+        "index": 1,
+        "kind": "branch",
+        "depth": 1,
+        "bytes": 172,
+        "via": "hash",
+        "children": 5,
+        "matched": 31
+      },
+      {
+        "index": 2,
+        "kind": "hashed-leaf",
+        "depth": 33,
+        "bytes": 98,
+        "via": "hash",
+        "children": 0,
+        "matched": 127
+      }
+    ],
+    "missing": [],
+    "message": "the value node is bound to the same state root"
+  },
+  "checks": [
+    {
+      "name": "capture-is-local",
+      "ok": true,
+      "detail": "source=local-lemo-runtime"
+    },
+    {
+      "name": "finalized-header-present",
+      "ok": true,
+      "detail": "block=2 hash=0xd9a6295c15a7d3c15d680d520c64c38b6b2088650f6f62929341cd8d094d7cc9"
+    },
+    {
+      "name": "raw-proof-valid",
+      "ok": true,
+      "detail": "status=valid rootMatches=true"
+    },
+    {
+      "name": "raw-value-matches",
+      "ok": true,
+      "detail": "280 bytes proven vs 280 captured"
+    },
+    {
+      "name": "raw-value-length-280",
+      "ok": true,
+      "detail": "valueBytes=280"
+    },
+    {
+      "name": "canonical-proof-valid",
+      "ok": true,
+      "detail": "status=valid rootMatches=true"
+    },
+    {
+      "name": "canonical-value-matches",
+      "ok": true,
+      "detail": "320 bytes proven vs 320 captured"
+    },
+    {
+      "name": "canonical-value-length-320",
+      "ok": true,
+      "detail": "valueBytes=320"
+    },
+    {
+      "name": "both-proofs-share-root",
+      "ok": true,
+      "detail": "stateRoot=0x9da494eda006414cf15731c669144111e04efc18f3cc1a166ea7156a2e4bf171"
+    }
+  ]
+}

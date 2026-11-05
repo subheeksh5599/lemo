@@ -535,6 +535,8 @@ test/                Foundry tests and harnesses
 script/              Foundry deployment script
 scripts/             native deploy, BEEFY capture and relay, local lifecycle, deposit dry run
 local-evm/           Foundry replay of the local lifecycle
+local-runtime/       setup.sh + patches that rebuild the local runtime (template + lemo-title)
+film/intro/          HyperFrames source of the demo intro
 fixtures/            recorded local lifecycle run
 ```
 

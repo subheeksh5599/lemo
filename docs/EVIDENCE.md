@@ -2,7 +2,7 @@
 
 This file maps every claim in the README to a file, a command and an observed result. A claim without an artifact is not a claim.
 
-Snapshot: 2026-11-04. Six contracts are deployed on Portaldot V3. The title pallet is not in the public runtime; on public V3 the native title is an `nfts` item.
+Snapshot: 2026-11-05. Six contracts are deployed on Portaldot V3. `BeefyRootFeed` and `NativeTitleToken` match current `main` byte for byte; the four below were built from commit `165fe5f` and are stale against `main` (run `scripts/check-deployments.mjs`). The live feed and token still call two of them, the `165fe5f` Blake2b adapter and trie verifier, so the on-chain proof walk lacks the audit's key-binding and duplicate-node fixes until those are redeployed. The title pallet is not in the public runtime; on public V3 the native title is an `nfts` item.
 
 ## Live deployments
 

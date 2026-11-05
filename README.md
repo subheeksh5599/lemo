@@ -98,6 +98,19 @@ Short version: **Portaldot is not a host; it is one of the two ledgers under tes
 4. **State proofs.** `state_getReadProof` at a finalized block is the input the Solidity verifier walks.
 5. **Finality.** Both rooms settle under the same validator set. `BeefyRootFeed` takes a state root only when Portaldot's BEEFY validators signed the MMR root that commits to its block, checked with `ecrecover` on-chain. The one thing fixed at deploy is the starting validator set ([docs/FINALITY.md](docs/FINALITY.md)).
 
+## Who would use it
+
+LEMO is for an asset whose rules live in the native runtime but whose trading happens in Solidity. The token must stop the moment the native record says it should, without a server deciding that.
+
+| Who | The native record holds | What the EVM token must obey | What LEMO already enforces |
+|---|---|---|---|
+| **A real-world asset issuer** (a building share, an invoice, a warehouse receipt) | the title, its owner and the backing, kept in native storage where the issuer's controls live | no new tokens without a live title; no trading after the title is redeemed or seized | mint only after a proof of the native item under the validator-signed root; freeze on a proof it is gone (live, `NativeTitleToken`) |
+| **A compliant issuance desk** | identity, vesting and transfer permissions on the native account | a transfer the native rules forbid must fail in the EVM too | partly: the 320-byte title record commits to identity, vesting and permissions hashes, and the gate binds that commitment and revision, so a native change to any of them retires the old proof (tested; title pallet on the local runtime). Reading the permission rules themselves, such as who may receive, is not built |
+| **A custodian releasing backing** | the backing and its unbond request | backing cannot leave while EVM tokens are outstanding | native unbond refused while supply exists, allowed after the burn (Rule 2, local runtime) |
+| **Any Solidity app on Portaldot** | any native storage item | read native state without trusting an oracle | `/console/prove`: any account's native balance proven inside the EVM, `PROVEN` or a refusal |
+
+Nobody runs LEMO in production today. The rows say what is enforced now and where: on the public chain for the `nfts` title and the account proof, and on the local runtime for the identity and unbond rules that need the title pallet. The pallet has to be in the public runtime, and the permission check written, before an issuer could rely on rows two and three.
+
 ## Judge walkthrough (5 minutes)
 
 Every step below runs on the public site. The read pages need no wallet and no install. Do not click Mint; it is paused on purpose.
@@ -123,6 +136,7 @@ What a judge can verify without trusting the site: the addresses and code on Por
 - [Live status](#live-status)
 - [The 20-second pitch](#the-20-second-pitch)
 - [How Portaldot is load-bearing, in plain words](#how-portaldot-is-load-bearing-in-plain-words)
+- [Who would use it](#who-would-use-it)
 - [Judge walkthrough (5 minutes)](#judge-walkthrough-5-minutes)
 - [See it in one command](#-see-it-in-one-command)
 - [Verify every claim in one command](#verify-every-claim-in-one-command)
@@ -199,7 +213,7 @@ curl -s https://test-evm-rpc-v3.portaldot.dev -H 'content-type: application/json
 - **Not a bridge.** No asset is locked on one chain and minted on another by a relayer. The verifier checks a proof against a root both sides already accept.
 - **Not a wrapper.** The EVM token is not a claim on a custodian. It is a second face of the same title, gated by the native record.
 - **Not a server authority.** The proof service carries bytes and verifies them; it cannot make a bad proof pass.
-- **Not a live native asset system on public V3 yet.** The title pallet runs in a local runtime, not the public one, so the public gate has no real title to prove. The site says so.
+- **Not the full title pallet on public V3 yet.** The `lemo-title` pallet runs on a local runtime, not the public one. On public V3 the native title is an `nfts` item, which carries an owner but not the identity, vesting and backing fields, so Rule 2 (unbond refused) runs only locally. The site says so.
 - **Not a trusted relayer.** Anyone can relay, from a script, a GitHub Action, the server button or their own wallet. The feed checks the validators' signatures; whoever pays the gas chooses nothing.
 - **Not audited.** [`docs/AUDIT.md`](docs/AUDIT.md) is a self-audit, not a third-party sign-off.
 - **Not the earlier deployment.** `/console/legacy` is an EVM-only predecessor with real receipts. It is not the dual-runtime gate and must not be presented as one.
@@ -221,7 +235,7 @@ Wrapping an asset moves it. It does not enforce the relationship between the ori
 - **Title gates**: ERC-20 and ERC-721 variants that bind chain, title, token, operation, revision, root and commitment before any balance moves.
 - **Public native title token**: `contracts/NativeTitleToken.sol`, an ERC-20 that mints once per `nfts` item to the owner's mapped address after a trie proof under the validator-signed root, and freezes on a proof that the item was burned or sold natively; 12 tests on a captured item.
 - **Root feeds**: `BeefyRootFeed` (validator-signed, no attester, live), a single-attester `RootFeed` and an M-of-N `ThresholdRootFeed`.
-- **Relayers**: `scripts/relay-beefy.mjs` plans one submission per missed validator set and is run hourly by CI; `/api/relay` pays gas for validator-signed calldata from the console; `lib/wallet/sign.ts` lets a visitor's own wallet sign the same calls as one batched extrinsic.
+- **Relayers**: `scripts/relay-beefy.mjs` plans one submission per missed validator set and is run every 30 minutes by CI; `/api/relay` pays gas for validator-signed calldata from the console; `lib/wallet/sign.ts` lets a visitor's own wallet sign the same calls as one batched extrinsic.
 - **Live native-state proof**: `lib/live-proof.ts` fetches `state_getReadProof` at the feed's block and asks the deployed verifier for the verdict by `eth_call`.
 - **Unbond guard**: Rule 2 in Solidity, with a release recheck and one open request per title.
 - **Native pallet**: `pallets/lemo-title`, with create, edit, representation, fail-closed liveness and three-phase unbond (request, cancel, finalize), a creation deposit and caller-derived title ids; 22 tests.

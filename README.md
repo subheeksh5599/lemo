@@ -10,6 +10,7 @@
 [![pallet](https://img.shields.io/badge/pallet-22%20passing-16a34a?labelColor=0f1420)](#tests)
 [![service](https://img.shields.io/badge/proof%20service-1%2C094%20passing-16a34a?labelColor=0f1420)](#tests)
 [![total](https://img.shields.io/badge/tests-1%2C291%20passing-16a34a?labelColor=0f1420)](#tests)
+[![ci](https://github.com/subheeksh5599/lemo/actions/workflows/ci.yml/badge.svg)](https://github.com/subheeksh5599/lemo/actions/workflows/ci.yml)
 
 [![chain](https://img.shields.io/badge/Portaldot%20V3-Revive%20420420777-2f6bff?labelColor=0f1420)](#live-status)
 [![prove](https://img.shields.io/badge/try%20it-prove%20an%20account%20on--chain-black)](https://lemo-ebon.vercel.app/console/prove)
@@ -55,7 +56,7 @@ What runs on public Portaldot V3 today, with no server in the trust path:
 | Trie verifier | **Live, stale: built from `165fe5f`** | `0xe5ca668667d3e2c8a0272ee4e446d6aa88a86bac`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5HFzwxCtJFj8q7eETYTqFxdG2wnEwJCdLVBHpeYEivwitwGw), [deploy 294498-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294498-1) |
 | Root feed | **Live, stale: built from `165fe5f`, superseded by `BeefyRootFeed`** | `0xc1c95be2f38f865438f684d269f340f5c505d5c0`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5GSnv2LBRuf7hikmh39R8ws5qwi6moH6AGgHTSeRykGC5fdY), [deploy 294249-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294249-1); root `0x19ff…8b80` = state root of [#294515](https://scanner-testnet-v3.portaldot.dev/#/blocks/294515) |
 | ERC-20 gate | **Live, stale: built from `165fe5f`, paused** | `0xfbefe3cbf0785b3d08814eb02a348c9ca296741f`; [account](https://scanner-testnet-v3.portaldot.dev/#/accounts/5Hm38ynRjaM2qRdje35XJbD6CsYcAXX1TEuHcwub7ju69EJf), [deploy 294503-1](https://scanner-testnet-v3.portaldot.dev/#/extrinsics/294503-1); deployed bytecode predates the holder-only burn fix |
-| `UnbondGuard` | **Not deployed** | Rule 2 logic tested; no live address |
+| `UnbondGuard` | **Not deployed: paused for tPOT** | Rule 2 logic tested; deploy dry-run measured 358.81 tPOT of deposit ([below](#paused-waiting-on-testnet-tpot)) |
 | Earlier EVM-only deployment | **Live, settled receipts** | [`/console/legacy`](https://lemo-ebon.vercel.app/console/legacy); registry `0xc887…88bB`, token `0x61c3…8ff7` |
 | Transaction receipt view | **Live** | `/tx/<hash>`; reads the receipt from the Portaldot V3 EVM RPC |
 
@@ -81,6 +82,28 @@ The live path uses two of the stale contracts: `BeefyRootFeed` hashes through th
 | Security audit | **Self-audit; findings fixed in source** | [docs/AUDIT.md](docs/AUDIT.md); every Critical/High/Medium/Low fixed in source with a regression test; the deployed gate predates the fixes and stays paused |
 
 The honest line: roots on Portaldot V3 come from the validators' own signatures, checked on-chain; native state is proven inside the EVM on the public chain; and the full two-rule lifecycle runs end to end on a local runtime. The public V3 runtime has no LEMO title pallet, so the original gate stays paused; on public V3 the title is an item of the native `nfts` pallet instead, and Rule 1 settles against it.
+
+### Paused: waiting on testnet tPOT
+
+Every contract deploy on Portaldot V3 holds a storage deposit in tPOT, and testnet tPOT comes only from the faucet. The organisers cap a tPOT grant at 1,000, and the grant requested for the redeploy below had not arrived by the code freeze. These items are built and tested in this repo but are **not on the public chain** for that reason alone. Each deposit is a dry run of `revive.instantiate` against the live chain (`scripts/dry-run-deposit.mjs`), not an estimate.
+
+| Paused item | What it would change | Deposit (dry run) | Status in this repo |
+|---|---|---|---|
+| Blake2b adapter from `main` | hash gas cap (audit L-03) on-chain | 73.33 tPOT | built, tested |
+| Trie verifier from `main` | canonical-key binding, duplicate and unreached node rejection on-chain | 729.23 tPOT | built, tested |
+| `BeefyRootFeed` pointed at the new adapter | same bytecode as today, new instance | 76.44 tPOT | already matches `main` |
+| `NativeTitleToken` pointed at the new feed and verifier | same bytecode as today, new instance | 96.16 tPOT | already matches `main` |
+| **Subtotal: every live-path contract matches `main`** | closes the stale-deployment note above | **975.16 tPOT** | |
+| `UnbondGuard` | Rule 2 (no backing release while tokens exist) on the public chain, not only the local runtime | 358.81 tPOT | built, tested; not deployed |
+| Native permission check in the token (who may receive) | the "compliant issuance" row of [Who would use it](#who-would-use-it) | ~450 tPOT (new token code) | **not built** |
+
+Also limited by tPOT, not by code:
+
+- **Live mint from the demo wallet.** A first mint holds about 27 tPOT of storage deposit; the demo wallets hold less than that today, so a live mint needs a faucet top-up first. Every lifecycle step already ran on-chain (extrinsics in [The live run](#the-live-run) and `docs/EVIDENCE.md`).
+- **Relayer cadence.** The scheduled relayer runs only when GitHub starts it, and each submit costs about 0.12 tPOT from a finite balance, so the feed can trail the head by a few validator sets. Anyone can catch it up from `/console/prove` with the server relayer or their own wallet.
+- **`TitleGateERC20` stays paused.** Replacing it needs a new gate plus verifier; `NativeTitleToken` supersedes it on the live path.
+
+Disclosure: the [CI workflow](.github/workflows/ci.yml) and this section were added after the code freeze (2026-11-06 04:00 UTC). They change no contract, page or test, only run the existing suites on GitHub and write down what was already paused.
 
 ## The 20-second pitch
 

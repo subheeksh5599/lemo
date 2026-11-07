@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 26  # the tests are .ts files run by Node's built-in type stripping
           cache: npm
           cache-dependency-path: |
             package-lock.json

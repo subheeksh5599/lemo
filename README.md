@@ -99,7 +99,6 @@ Every contract deploy on Portaldot V3 holds a storage deposit in tPOT, and testn
 
 Also limited by tPOT, not by code:
 
-- **Live mint from the demo wallet.** A first mint holds about 27 tPOT of storage deposit; the demo wallets hold less than that today, so a live mint needs a faucet top-up first. Every lifecycle step already ran on-chain (extrinsics in [The live run](#the-live-run) and `docs/EVIDENCE.md`).
 - **Relayer cadence.** The scheduled relayer runs only when GitHub starts it, and each submit costs about 0.12 tPOT from a finite balance, so the feed can trail the head by a few validator sets. Anyone can catch it up from `/console/prove` with the server relayer or their own wallet.
 - **`TitleGateERC20` stays paused.** Replacing it needs a new gate plus verifier; `NativeTitleToken` supersedes it on the live path.
 

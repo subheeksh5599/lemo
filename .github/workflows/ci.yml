@@ -39,7 +39,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: server/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      # the service imports shared code from the root lib/, so it needs the root packages too
+      - name: Root packages
+        working-directory: .
+        run: npm ci --no-audit --no-fund
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
